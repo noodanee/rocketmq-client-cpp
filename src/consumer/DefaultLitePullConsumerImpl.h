@@ -26,8 +26,8 @@
 #include "MQConsumerInner.h"
 #include "MessageQueueListener.h"
 #include "MessageQueueLock.hpp"
+#include "PollingMessageCache.hpp"
 #include "TopicMessageQueueChangeListener.h"
-#include "concurrent/blocking_queue.hpp"
 #include "concurrent/executor.hpp"
 
 namespace rocketmq {
@@ -49,8 +49,7 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
                                     public MQConsumerInner {
  private:
   class MessageQueueListenerImpl;
-  class ConsumeRequest;
-  class PullTaskImpl;
+  class AsyncPullCallback;
 
  public:
   /**
@@ -125,7 +124,13 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   // offset persistence
   void persistConsumerOffset() override;
 
+  void pullMessage(PullRequestPtr pull_request) override;
+
   std::unique_ptr<ConsumerRunningInfo> consumerRunningInfo() override;
+
+ public:
+  void executePullRequestLater(PullRequestPtr pull_request, long delay);
+  void executePullRequestImmediately(PullRequestPtr pull_request);
 
  private:
   void checkConfig();
@@ -139,35 +144,13 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
 
   void updateTopicSubscribeInfoWhenSubscriptionChanged();
 
-  void updateAssignPullTask(std::vector<MQMessageQueue>& mqNewSet);
 
-  void updateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assignedMessageQueue);
-  void updatePullTask(const std::string& topic, std::vector<MQMessageQueue>& mqNewSet);
+  void updateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assigned_message_queues);
+  void updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues);
+  void dispatchAssigndPullRequest(std::vector<PullRequestPtr>& pull_request_list);
 
-  void startPullTask(std::vector<MQMessageQueue>& mqSet);
-
-  int64_t nextPullOffset(const MQMessageQueue& messageQueue);
+  int64_t nextPullOffset(const ProcessQueuePtr& process_queue);
   int64_t fetchConsumeOffset(const MQMessageQueue& messageQueue);
-
-  std::unique_ptr<PullResult> pull(const MQMessageQueue& mq,
-                                   SubscriptionData* subscription_data,
-                                   int64_t offset,
-                                   int max_nums);
-  std::unique_ptr<PullResult> pull(const MQMessageQueue& mq,
-                                   SubscriptionData* subscription_data,
-                                   int64_t offset,
-                                   int max_nums,
-                                   long timeout);
-  std::unique_ptr<PullResult> pullSyncImpl(const MQMessageQueue& mq,
-                                           SubscriptionData* subscription_data,
-                                           int64_t offset,
-                                           int max_nums,
-                                           bool block,
-                                           long timeout);
-
-  void submitConsumeRequest(ConsumeRequest* consume_request);
-
-  void updatePullOffset(const MQMessageQueue& messageQueue, int64_t nextPullOffset);
 
   void maybeAutoCommit();
 
@@ -180,6 +163,8 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   void parseMessageQueues(std::vector<MQMessageQueue>& queueSet);
 
  public:
+  PollingMessageCache& message_cache() { return message_cache_; }
+
   inline MessageQueueListener* getMessageQueueListener() const { return message_queue_listener_.get(); }
 
   inline OffsetStore* getOffsetStore() const { return offset_store_.get(); }
@@ -211,14 +196,9 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   std::map<std::string, std::vector<MQMessageQueue>> message_queues_for_topic_;
 
   std::unique_ptr<AssignedMessageQueue> assigned_message_queue_;
-  MessageQueueLock message_queue_lock_;
 
-  std::map<MQMessageQueue, std::shared_ptr<PullTaskImpl>> task_table_;
-  std::mutex task_table_mutex_;
+  PollingMessageCache message_cache_;
 
-  blocking_queue<ConsumeRequest> consume_request_cache_;
-
-  scheduled_thread_pool_executor scheduled_thread_pool_executor_;
   scheduled_thread_pool_executor scheduled_executor_service_;
 
   std::unique_ptr<RebalanceLitePullImpl> rebalance_impl_;

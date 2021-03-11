@@ -27,7 +27,10 @@
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
 #include "NamespaceUtil.h"
+#include "ProcessQueue.h"
 #include "PullAPIWrapper.h"
+#include "PullMessageService.hpp"
+#include "PullRequest.h"
 #include "PullSysFlag.h"
 #include "RebalanceLitePullImpl.h"
 #include "RemoteBrokerOffsetStore.h"
@@ -46,20 +49,18 @@ class DefaultLitePullConsumerImpl::MessageQueueListenerImpl : public MessageQueu
   ~MessageQueueListenerImpl() = default;
 
   void messageQueueChanged(const std::string& topic,
-                           std::vector<MQMessageQueue>& mq_all,
-                           std::vector<MQMessageQueue>& mq_divided) override {
+                           std::vector<MQMessageQueue>& all_mqs,
+                           std::vector<MQMessageQueue>& allocated_mqs) override {
     auto consumer = default_lite_pull_consumer_.lock();
     if (nullptr == consumer) {
       return;
     }
     switch (consumer->messageModel()) {
       case BROADCASTING:
-        consumer->updateAssignedMessageQueue(topic, mq_all);
-        consumer->updatePullTask(topic, mq_all);
+        consumer->updateAssignedMessageQueue(topic, all_mqs);
         break;
       case CLUSTERING:
-        consumer->updateAssignedMessageQueue(topic, mq_divided);
-        consumer->updatePullTask(topic, mq_divided);
+        consumer->updateAssignedMessageQueue(topic, allocated_mqs);
         break;
       default:
         break;
@@ -70,182 +71,78 @@ class DefaultLitePullConsumerImpl::MessageQueueListenerImpl : public MessageQueu
   std::weak_ptr<DefaultLitePullConsumerImpl> default_lite_pull_consumer_;
 };
 
-class DefaultLitePullConsumerImpl::ConsumeRequest {
+class DefaultLitePullConsumerImpl::AsyncPullCallback : public AutoDeletePullCallback {
  public:
-  ConsumeRequest(std::vector<MessageExtPtr>&& message_exts,
-                 const MQMessageQueue& message_queue,
-                 ProcessQueuePtr process_queue)
-      : message_exts_(std::move(message_exts)), message_queue_(message_queue), process_queue_(process_queue) {}
+  AsyncPullCallback(DefaultLitePullConsumerImplPtr pull_consumer,
+                    PullRequestPtr request,
+                    SubscriptionData* subscription_data,
+                    bool own_subscription_data)
+      : default_lite_pull_consumer_(pull_consumer),
+        pull_request_(request),
+        subscription_data_(subscription_data),
+        own_subscription_data_(own_subscription_data) {}
 
- public:
-  std::vector<MessageExtPtr>& message_exts() { return message_exts_; }
-
-  MQMessageQueue& message_queue() { return message_queue_; }
-
-  ProcessQueuePtr process_queue() { return process_queue_; }
-
- private:
-  std::vector<MessageExtPtr> message_exts_;
-  MQMessageQueue message_queue_;
-  ProcessQueuePtr process_queue_;
-};
-
-class DefaultLitePullConsumerImpl::PullTaskImpl : public std::enable_shared_from_this<PullTaskImpl> {
- public:
-  PullTaskImpl(DefaultLitePullConsumerImplPtr pull_consumer, const MQMessageQueue& message_queue)
-      : default_lite_pull_consumer_(pull_consumer), message_queue_(message_queue), cancelled_(false) {}
-
-  void run() {
-    auto consumer = default_lite_pull_consumer_.lock();
-    if (nullptr == consumer) {
-      LOG_WARN_NEW("PullTaskImpl::run: DefaultLitePullConsumerImpl is released.");
-      return;
-    }
-
-    if (cancelled_) {
-      return;
-    }
-
-    if (consumer->assigned_message_queue_->isPaused(message_queue_)) {
-      consumer->scheduled_thread_pool_executor_.schedule(
-          std::bind(&DefaultLitePullConsumerImpl::PullTaskImpl::run, shared_from_this()),
-          PULL_TIME_DELAY_MILLS_WHEN_PAUSE, time_unit::milliseconds);
-      LOG_DEBUG_NEW("Message Queue: {} has been paused!", message_queue_.toString());
-      return;
-    }
-
-    auto process_queue = consumer->assigned_message_queue_->getProcessQueue(message_queue_);
-    if (nullptr == process_queue || process_queue->dropped()) {
-      LOG_INFO_NEW("The message queue not be able to poll, because it's dropped. group={}, messageQueue={}",
-                   consumer->groupName(), message_queue_.toString());
-      return;
-    }
-
-    auto config = consumer->getDefaultLitePullConsumerConfig();
-
-    if (consumer->consume_request_cache_.size() * config->pull_batch_size() > config->pull_threshold_for_all()) {
-      consumer->scheduled_thread_pool_executor_.schedule(
-          std::bind(&DefaultLitePullConsumerImpl::PullTaskImpl::run, shared_from_this()),
-          PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL, time_unit::milliseconds);
-      if ((consumer->consume_request_flow_control_times_++ % 1000) == 0)
-        LOG_WARN_NEW(
-            "The consume request count exceeds threshold {}, so do flow control, consume request count={}, "
-            "flowControlTimes={}",
-            config->pull_threshold_for_all(), consumer->consume_request_cache_.size(),
-            consumer->consume_request_flow_control_times_);
-      return;
-    }
-
-    auto cached_message_count = process_queue->GetCachedMessagesCount();
-    if (cached_message_count > config->pull_threshold_for_queue()) {
-      consumer->scheduled_thread_pool_executor_.schedule(
-          std::bind(&DefaultLitePullConsumerImpl::PullTaskImpl::run, shared_from_this()),
-          PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL, time_unit::milliseconds);
-      if ((consumer->queue_flow_control_times_++ % 1000) == 0) {
-        LOG_WARN_NEW(
-            "The cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, "
-            "count={}, size={} MiB, flowControlTimes={}",
-            config->pull_threshold_for_queue(), process_queue->GetCachedMinOffset(), process_queue->GetCachedMaxOffset(),
-            cached_message_count, "unknown", consumer->queue_flow_control_times_);
-      }
-      return;
-    }
-
-    // long cachedMessageSizeInMiB = processQueue->getMsgSize() / (1024 * 1024);
-    // if (cachedMessageSizeInMiB > consumer.getPullThresholdSizeForQueue()) {
-    //   scheduledThreadPoolExecutor.schedule(this, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL, TimeUnit.MILLISECONDS);
-    //   if ((queueFlowControlTimes++ % 1000) == 0) {
-    //     log.warn(
-    //         "The cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={},
-    //         "
-    //         "count={}, size={} MiB, flowControlTimes={}",
-    //         consumer.getPullThresholdSizeForQueue(), processQueue.getMsgTreeMap().firstKey(),
-    //         processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB,
-    //         queueFlowControlTimes);
-    //   }
-    //   return;
-    // }
-
-    // if (processQueue.getMaxSpan() > consumer.getConsumeMaxSpan()) {
-    //   scheduledThreadPoolExecutor.schedule(this, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL, TimeUnit.MILLISECONDS);
-    //   if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
-    //     log.warn(
-    //         "The queue's messages, span too long, so do flow control, minOffset={}, maxOffset={}, maxSpan={}, "
-    //         "flowControlTimes={}",
-    //         processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(),
-    //         processQueue.getMaxSpan(),
-    //         queueMaxSpanFlowControlTimes);
-    //   }
-    //   return;
-    // }
-
-    auto offset = consumer->nextPullOffset(message_queue_);
-    long pull_delay_time_millis = 0;
-    SubscriptionData* subscription_data = nullptr;
-    try {
-      if (consumer->subscription_type_ == SubscriptionType::SUBSCRIBE) {
-        subscription_data = consumer->rebalance_impl_->getSubscriptionData(message_queue_.topic());
-      } else {
-        subscription_data = FilterAPI::buildSubscriptionData(message_queue_.topic(), SUB_ALL).release();
-      }
-
-      std::unique_ptr<PullResult> pull_result(
-          consumer->pull(message_queue_, subscription_data, offset, config->pull_batch_size()));
-
-      switch (pull_result->pull_status()) {
-        case PullStatus::FOUND: {
-          auto objLock = consumer->message_queue_lock_.fetchLockObject(message_queue_);
-          std::lock_guard<std::mutex> lock(*objLock);
-          if (!pull_result->msg_found_list().empty() &&
-              consumer->assigned_message_queue_->getSeekOffset(message_queue_) == -1) {
-            process_queue->PutMessages(pull_result->msg_found_list());
-            consumer->submitConsumeRequest(
-                new ConsumeRequest(std::move(pull_result->msg_found_list()), message_queue_, process_queue));
-          }
-        } break;
-        case PullStatus::OFFSET_ILLEGAL:
-          LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->toString());
-          break;
-        case PullStatus::NO_NEW_MSG:
-        case PullStatus::NO_MATCHED_MSG:
-          pull_delay_time_millis = 1000;
-          break;
-        case PullStatus::NO_LATEST_MSG:
-          pull_delay_time_millis = config->pull_time_delay_millis_when_exception();
-          break;
-        default:
-          break;
-      }
-
-      consumer->updatePullOffset(message_queue_, pull_result->next_begin_offset());
-    } catch (std::exception& e) {
-      pull_delay_time_millis = config->pull_time_delay_millis_when_exception();
-      LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());
-    }
-
-    if (consumer->subscription_type_ != SubscriptionType::SUBSCRIBE) {
-      delete subscription_data;
-    }
-
-    if (!cancelled_) {
-      consumer->scheduled_thread_pool_executor_.schedule(
-          std::bind(&DefaultLitePullConsumerImpl::PullTaskImpl::run, shared_from_this()), pull_delay_time_millis,
-          time_unit::milliseconds);
-    } else {
-      LOG_WARN_NEW("The Pull Task is cancelled after doPullTask, {}", message_queue_.toString());
+  ~AsyncPullCallback() {
+    if (own_subscription_data_) {
+      delete subscription_data_;
     }
   }
 
- public:
-  inline const MQMessageQueue& message_queue() { return message_queue_; }
+  void onSuccess(std::unique_ptr<PullResult> pull_result) override {
+    auto process_queue = pull_request_->process_queue();
+    if (process_queue->dropped()) {
+      LOG_WARN_NEW("the pull request[{}] is dropped.", pull_request_->toString());
+      return;
+    }
 
-  inline bool is_cancelled() const { return cancelled_; }
-  inline void set_cancelled(bool cancelled) { cancelled_ = cancelled; }
+    auto consumer = default_lite_pull_consumer_.lock();
+    if (nullptr == consumer) {
+      LOG_WARN_NEW("AsyncPullCallback::onSuccess: DefaultLitePullConsumerImpl is released.");
+      return;
+    }
+
+    pull_result = consumer->pull_api_wrapper_->processPullResult(pull_request_->message_queue(), std::move(pull_result),
+                                                                 subscription_data_);
+
+    {
+      std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
+      if (process_queue->seek_offset() == -1) {
+        process_queue->set_pull_offset(pull_result->next_begin_offset());
+        if (pull_result->pull_status() == PullStatus::FOUND && !pull_result->msg_found_list().empty()) {
+          consumer->message_cache().PutMessages(process_queue, pull_result->msg_found_list());
+        }
+      }
+    }
+
+    if (pull_result->pull_status() == PullStatus::NO_LATEST_MSG) {
+      consumer->executePullRequestLater(
+          pull_request_, consumer->getDefaultLitePullConsumerConfig()->pull_time_delay_millis_when_exception());
+    } else {
+      if (pull_result->pull_status() == PullStatus::OFFSET_ILLEGAL) {
+        LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->toString());
+      }
+      consumer->executePullRequestImmediately(pull_request_);
+    }
+  }
+
+  void onException(MQException& e) noexcept override {
+    auto consumer = default_lite_pull_consumer_.lock();
+    if (nullptr == consumer) {
+      LOG_WARN_NEW("AsyncPullCallback::onException: DefaultLitePullConsumerImpl is released.");
+      return;
+    }
+
+    LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());
+
+    consumer->executePullRequestLater(
+        pull_request_, consumer->getDefaultLitePullConsumerConfig()->pull_time_delay_millis_when_exception());
+  }
 
  private:
   std::weak_ptr<DefaultLitePullConsumerImpl> default_lite_pull_consumer_;
-  MQMessageQueue message_queue_;
-  volatile bool cancelled_;
+  PullRequestPtr pull_request_;
+  SubscriptionData* subscription_data_;
+  bool own_subscription_data_;
 };
 
 DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(DefaultLitePullConsumerConfigPtr config)
@@ -261,7 +158,6 @@ DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(DefaultLitePullConsumer
       auto_commit_(true),
       message_queue_listener_(nullptr),
       assigned_message_queue_(new AssignedMessageQueue()),
-      scheduled_thread_pool_executor_("PullMsgThread", config->pull_thread_nums(), false),
       scheduled_executor_service_("MonitorMessageQueueChangeThread", false),
       rebalance_impl_(new RebalanceLitePullImpl(this)),
       pull_api_wrapper_(nullptr),
@@ -321,8 +217,6 @@ void DefaultLitePullConsumerImpl::start() {
       }
       offset_store_->load();
 
-      scheduled_thread_pool_executor_.set_thread_nums(getDefaultLitePullConsumerConfig()->pull_thread_nums());
-      scheduled_thread_pool_executor_.startup();
       scheduled_executor_service_.startup();
 
       // register consumer
@@ -367,20 +261,19 @@ void DefaultLitePullConsumerImpl::checkConfig() {
                       "consumerGroup can not equal " + DEFAULT_CONSUMER_GROUP + ", please specify another one.", -1);
   }
 
+  auto* config = getDefaultLitePullConsumerConfig();
+
   // messageModel
-  if (getDefaultLitePullConsumerConfig()->message_model() != BROADCASTING &&
-      getDefaultLitePullConsumerConfig()->message_model() != CLUSTERING) {
+  if (config->message_model() != BROADCASTING && config->message_model() != CLUSTERING) {
     THROW_MQEXCEPTION(MQClientException, "messageModel is valid", -1);
   }
 
-  // if (getDefaultLitePullConsumerConfig()->getConsumerTimeoutMillisWhenSuspend() <
-  //     getDefaultLitePullConsumerConfig()->getBrokerSuspendMaxTimeMillis()) {
-  //   THROW_MQEXCEPTION(
-  //       MQClientException,
-  //       "Long polling mode, the consumer consumerTimeoutMillisWhenSuspend must greater than
-  //       brokerSuspendMaxTimeMillis",
-  //       -1);
-  // }
+  if (config->consumer_timeout_millis_when_suspend() <= config->broker_suspend_max_time_millis()) {
+    THROW_MQEXCEPTION(MQClientException,
+                      "Long polling mode, the consumer_timeout_millis_when_suspend must greater than "
+                      "broker_suspend_max_time_millis ",
+                      -1);
+  }
 }
 
 void DefaultLitePullConsumerImpl::startScheduleTask() {
@@ -436,8 +329,7 @@ void DefaultLitePullConsumerImpl::operateAfterRunning() {
   }
   // If assign function invoke before start function, then update pull task after initialization.
   else if (subscription_type_ == SubscriptionType::ASSIGN) {
-    auto message_queues = assigned_message_queue_->messageQueues();
-    updateAssignPullTask(message_queues);
+    resume(assigned_message_queue_->messageQueues());
   }
 
   for (const auto& it : topic_message_queue_change_listener_map_) {
@@ -459,21 +351,6 @@ void DefaultLitePullConsumerImpl::updateTopicSubscribeInfoWhenSubscriptionChange
   }
 }
 
-void DefaultLitePullConsumerImpl::updateAssignPullTask(std::vector<MQMessageQueue>& mq_new_set) {
-  std::sort(mq_new_set.begin(), mq_new_set.end());
-  std::lock_guard<std::mutex> lock(task_table_mutex_);
-  for (auto it = task_table_.begin(); it != task_table_.end();) {
-    auto& mq = it->first;
-    if (!std::binary_search(mq_new_set.begin(), mq_new_set.end(), mq)) {
-      it->second->set_cancelled(true);
-      it = task_table_.erase(it);
-      continue;
-    }
-    it++;
-  }
-  startPullTask(mq_new_set);
-}
-
 void DefaultLitePullConsumerImpl::shutdown() {
   switch (service_state_) {
     case ServiceState::kCreateJust:
@@ -481,7 +358,6 @@ void DefaultLitePullConsumerImpl::shutdown() {
     case ServiceState::kRunning:
       persistConsumerOffset();
       client_instance_->unregisterConsumer(client_config_->group_name());
-      scheduled_thread_pool_executor_.shutdown();
       scheduled_executor_service_.shutdown();
       client_instance_->shutdown();
       rebalance_impl_->shutdown();
@@ -543,52 +419,41 @@ void DefaultLitePullConsumerImpl::doRebalance() {
 }
 
 void DefaultLitePullConsumerImpl::updateAssignedMessageQueue(const std::string& topic,
-                                                             std::vector<MQMessageQueue>& assigned_message_queue) {
-  assigned_message_queue_->updateAssignedMessageQueue(topic, assigned_message_queue);
+                                                             std::vector<MQMessageQueue>& assigned_message_queues) {
+  auto pull_request_list = assigned_message_queue_->updateAssignedMessageQueue(topic, assigned_message_queues);
+  dispatchAssigndPullRequest(pull_request_list);
 }
 
-void DefaultLitePullConsumerImpl::updatePullTask(const std::string& topic, std::vector<MQMessageQueue>& mq_new_set) {
-  std::sort(mq_new_set.begin(), mq_new_set.end());
-  std::lock_guard<std::mutex> lock(task_table_mutex_);
-  for (auto it = task_table_.begin(); it != task_table_.end();) {
-    auto& mq = it->first;
-    if (mq.topic() == topic) {
-      // remove unnecessary PullTask
-      if (!std::binary_search(mq_new_set.begin(), mq_new_set.end(), mq)) {
-        it->second->set_cancelled(true);
-        it = task_table_.erase(it);
-        continue;
-      }
-    }
-    it++;
-  }
-  startPullTask(mq_new_set);
+void DefaultLitePullConsumerImpl::updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues) {
+  auto pull_request_list = assigned_message_queue_->updateAssignedMessageQueue(assigned_message_queues);
+  dispatchAssigndPullRequest(pull_request_list);
 }
 
-void DefaultLitePullConsumerImpl::startPullTask(std::vector<MQMessageQueue>& mq_set) {
-  for (const auto& mq : mq_set) {
-    // add new PullTask
-    if (task_table_.find(mq) == task_table_.end()) {
-      auto pull_task = std::make_shared<PullTaskImpl>(shared_from_this(), mq);
-      task_table_.emplace(mq, pull_task);
-      scheduled_thread_pool_executor_.submit(std::bind(&PullTaskImpl::run, pull_task));
+void DefaultLitePullConsumerImpl::dispatchAssigndPullRequest(std::vector<PullRequestPtr>& pull_request_list) {
+  for (const auto& pull_request : pull_request_list) {
+    if (service_state_ != ServiceState::kRunning) {
+      pull_request->process_queue()->set_paused(true);
     }
+    executePullRequestImmediately(pull_request);
   }
 }
 
-int64_t DefaultLitePullConsumerImpl::nextPullOffset(const MQMessageQueue& message_queue) {
+int64_t DefaultLitePullConsumerImpl::nextPullOffset(const ProcessQueuePtr& process_queue) {
   int64_t offset = -1;
-  int64_t seek_offset = assigned_message_queue_->getSeekOffset(message_queue);
+
+  std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
+  int64_t seek_offset = process_queue->seek_offset();
   if (seek_offset != -1) {
     offset = seek_offset;
-    assigned_message_queue_->updateConsumeOffset(message_queue, offset);
-    assigned_message_queue_->setSeekOffset(message_queue, -1);
+    process_queue->set_consume_offset(offset);
+    process_queue->set_seek_offset(-1);
   } else {
-    offset = assigned_message_queue_->getPullOffset(message_queue);
+    offset = process_queue->pull_offset();
     if (offset == -1) {
-      offset = fetchConsumeOffset(message_queue);
+      offset = fetchConsumeOffset(process_queue->message_queue());
     }
   }
+
   return offset;
 }
 
@@ -597,67 +462,127 @@ int64_t DefaultLitePullConsumerImpl::fetchConsumeOffset(const MQMessageQueue& me
   return rebalance_impl_->computePullFromWhere(messageQueue);
 }
 
-std::unique_ptr<PullResult> DefaultLitePullConsumerImpl::pull(const MQMessageQueue& mq,
-                                                              SubscriptionData* subscription_data,
-                                                              int64_t offset,
-                                                              int max_nums) {
-  return pull(mq, subscription_data, offset, max_nums,
-              getDefaultLitePullConsumerConfig()->consumer_pull_timeout_millis());
+void DefaultLitePullConsumerImpl::executePullRequestLater(PullRequestPtr pull_request, long delay) {
+  client_instance_->getPullMessageService()->executePullRequestLater(pull_request, delay);
 }
 
-std::unique_ptr<PullResult> DefaultLitePullConsumerImpl::pull(const MQMessageQueue& mq,
-                                                              SubscriptionData* subscription_data,
-                                                              int64_t offset,
-                                                              int max_nums,
-                                                              long timeout) {
-  return pullSyncImpl(mq, subscription_data, offset, max_nums,
-                      getDefaultLitePullConsumerConfig()->long_polling_enable(), timeout);
+void DefaultLitePullConsumerImpl::executePullRequestImmediately(PullRequestPtr pull_request) {
+  client_instance_->getPullMessageService()->executePullRequestImmediately(pull_request);
 }
 
-std::unique_ptr<PullResult> DefaultLitePullConsumerImpl::pullSyncImpl(const MQMessageQueue& mq,
-                                                                      SubscriptionData* subscription_data,
-                                                                      int64_t offset,
-                                                                      int max_nums,
-                                                                      bool block,
-                                                                      long timeout) {
-  if (offset < 0) {
-    THROW_MQEXCEPTION(MQClientException, "offset < 0", -1);
+void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
+  if (nullptr == pull_request) {
+    LOG_ERROR("PullRequest is NULL, return");
+    return;
   }
 
-  if (max_nums <= 0) {
-    THROW_MQEXCEPTION(MQClientException, "maxNums <= 0", -1);
+  auto process_queue = pull_request->process_queue();
+  if (process_queue->dropped()) {
+    LOG_WARN_NEW("the pull request[{}] is dropped.", pull_request->toString());
+    return;
   }
 
-  int sysFlag = PullSysFlag::buildSysFlag(false, block, true, false, true);
+  auto& message_queue = pull_request->message_queue();
 
-  long timeoutMillis = block ? getDefaultLitePullConsumerConfig()->consumer_timeout_millis_when_suspend() : timeout;
+  if (process_queue->paused()) {
+    executePullRequestLater(pull_request, PULL_TIME_DELAY_MILLS_WHEN_PAUSE);
+    LOG_DEBUG_NEW("Message Queue: {} has been paused!", message_queue.toString());
+    return;
+  }
 
-  bool isTagType = ExpressionType::isTagType(subscription_data->expression_type());
+  auto config = getDefaultLitePullConsumerConfig();
 
-  std::unique_ptr<PullResult> pull_result(pull_api_wrapper_->pullKernelImpl(
-      mq,                                                                    // mq
-      subscription_data->sub_string(),                                       // subExpression
-      subscription_data->expression_type(),                                  // expressionType
-      isTagType ? 0L : subscription_data->sub_version(),                     // subVersion
-      offset,                                                                // offset
-      max_nums,                                                              // maxNums
-      sysFlag,                                                               // sysFlag
-      0,                                                                     // commitOffset
-      getDefaultLitePullConsumerConfig()->broker_suspend_max_time_millis(),  // brokerSuspendMaxTimeMillis
-      timeoutMillis,                                                         // timeoutMillis
-      CommunicationMode::SYNC,                                               // communicationMode
-      nullptr));                                                             // pullCallback
+  // FIXME
+  // if (consume_request_cache_.size() * config->pull_batch_size() > config->pull_threshold_for_all()) {
+  //  executePullRequestLater(pull_request, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
+  //  if ((consume_request_flow_control_times_++ % 1000) == 0) {
+  //    LOG_WARN_NEW(
+  //        "The consume request count exceeds threshold {}, so do flow control, consume request count={}, "
+  //        "flowControlTimes={}",
+  //        config->pull_threshold_for_all(), consume_request_cache_.size(), consume_request_flow_control_times_);
+  //  }
+  //  return;
+  //}
 
-  return pull_api_wrapper_->processPullResult(mq, std::move(pull_result), subscription_data);
-}
+  // FIXME
+  auto cached_message_count = process_queue->GetCachedMessagesCount();
+  if (cached_message_count > config->pull_threshold_for_queue()) {
+    executePullRequestLater(pull_request, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
+    if ((queue_flow_control_times_++ % 1000) == 0) {
+      LOG_WARN_NEW(
+          "The cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, "
+          "count={}, size={} MiB, flowControlTimes={}",
+          config->pull_threshold_for_queue(), process_queue->GetCachedMinOffset(), process_queue->GetCachedMaxOffset(),
+          cached_message_count, "unknown", queue_flow_control_times_);
+    }
+    return;
+  }
 
-void DefaultLitePullConsumerImpl::submitConsumeRequest(ConsumeRequest* consume_request) {
-  consume_request_cache_.push_back(consume_request);
-}
+  // long cachedMessageSizeInMiB = processQueue->getMsgSize() / (1024 * 1024);
+  // if (cachedMessageSizeInMiB > consumer.getPullThresholdSizeForQueue()) {
+  //   scheduledThreadPoolExecutor.schedule(this, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL, TimeUnit.MILLISECONDS);
+  //   if ((queueFlowControlTimes++ % 1000) == 0) {
+  //     log.warn(
+  //         "The cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={},
+  //         "
+  //         "count={}, size={} MiB, flowControlTimes={}",
+  //         consumer.getPullThresholdSizeForQueue(), processQueue.getMsgTreeMap().firstKey(),
+  //         processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB,
+  //         queueFlowControlTimes);
+  //   }
+  //   return;
+  // }
 
-void DefaultLitePullConsumerImpl::updatePullOffset(const MQMessageQueue& message_queue, int64_t next_pull_offset) {
-  if (assigned_message_queue_->getSeekOffset(message_queue) == -1) {
-    assigned_message_queue_->updatePullOffset(message_queue, next_pull_offset);
+  // if (processQueue.getMaxSpan() > consumer.getConsumeMaxSpan()) {
+  //   scheduledThreadPoolExecutor.schedule(this, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL, TimeUnit.MILLISECONDS);
+  //   if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
+  //     log.warn(
+  //         "The queue's messages, span too long, so do flow control, minOffset={}, maxOffset={}, maxSpan={}, "
+  //         "flowControlTimes={}",
+  //         processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(),
+  //         processQueue.getMaxSpan(),
+  //         queueMaxSpanFlowControlTimes);
+  //   }
+  //   return;
+  // }
+
+  auto offset = nextPullOffset(process_queue);
+  try {
+    SubscriptionData* subscription_data = nullptr;
+    if (subscription_type_ == SubscriptionType::SUBSCRIBE) {
+      subscription_data = rebalance_impl_->getSubscriptionData(message_queue.topic());
+    } else {
+      subscription_data = FilterAPI::buildSubscriptionData(message_queue.topic(), SUB_ALL).release();
+    }
+
+    std::unique_ptr<AsyncPullCallback> callback(new AsyncPullCallback(
+        shared_from_this(), pull_request, subscription_data, subscription_type_ != SubscriptionType::SUBSCRIBE));
+
+    int sysFlag = PullSysFlag::buildSysFlag(false,  // commit offset
+                                            true,   // suspend
+                                            true,   // suspend
+                                            false,  // class filter
+                                            true);
+
+    bool is_tag_type = ExpressionType::isTagType(subscription_data->expression_type());
+
+    pull_api_wrapper_->pullKernelImpl(message_queue,                                        // mq
+                                      subscription_data->sub_string(),                      // subExpression
+                                      subscription_data->expression_type(),                 // expressionType
+                                      is_tag_type ? 0L : subscription_data->sub_version(),  // subVersion
+                                      offset,                                               // offset
+                                      config->pull_batch_size(),                            // maxNums
+                                      sysFlag,                                              // sysFlag
+                                      0,                                                    // commitOffset
+                                      config->broker_suspend_max_time_millis(),        // brokerSuspendMaxTimeMillis
+                                      config->consumer_timeout_millis_when_suspend(),  // timeoutMillis
+                                      CommunicationMode::ASYNC,                        // communicationMode
+                                      callback.get());                                 // pullCallback
+
+    (void)callback.release();
+  } catch (std::exception& e) {
+    LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());
+    executePullRequestLater(pull_request, config->pull_time_delay_millis_when_exception());
   }
 }
 
@@ -671,35 +596,17 @@ std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll(long timeout) {
     maybeAutoCommit();
   }
 
-  int64_t endTime = UtilAll::currentTimeMillis() + timeout;
-
-  auto consume_request = consume_request_cache_.pop_front(timeout, time_unit::milliseconds);
-  if (endTime - UtilAll::currentTimeMillis() > 0) {
-    while (consume_request != nullptr && consume_request->process_queue()->dropped()) {
-      consume_request = consume_request_cache_.pop_front();
-      if (endTime - UtilAll::currentTimeMillis() <= 0) {
-        break;
-      }
-    }
-  }
-
-  if (consume_request != nullptr && !consume_request->process_queue()->dropped()) {
-    auto& messages = consume_request->message_exts();
-    long offset = consume_request->process_queue()->RemoveMessages(messages);
-    assigned_message_queue_->updateConsumeOffset(consume_request->message_queue(), offset);
-    // If namespace not null , reset Topic without namespace.
-    resetTopic(messages);
-    return MQMessageExt::from_list(messages);
-  }
-
-  return std::vector<MQMessageExt>();
+  auto messages = message_cache_.TakeMessages(timeout, getDefaultLitePullConsumerConfig()->pull_batch_size());
+  // if namespace not empty, reset Topic without namespace.
+  resetTopic(messages);
+  return MQMessageExt::from_list(messages);
 }
 
 void DefaultLitePullConsumerImpl::maybeAutoCommit() {
   auto now = UtilAll::currentTimeMillis();
   if (now >= next_auto_commit_deadline_) {
-    commitAll();
     next_auto_commit_deadline_ = now + getDefaultLitePullConsumerConfig()->auto_commit_interval_millis();
+    commitAll();
   }
 }
 
@@ -718,15 +625,13 @@ void DefaultLitePullConsumerImpl::resetTopic(std::vector<MessageExtPtr>& msg_lis
 }
 
 void DefaultLitePullConsumerImpl::commitAll() {
+  // TODO: lock
   try {
     std::vector<MQMessageQueue> message_queues = assigned_message_queue_->messageQueues();
     for (const auto& message_queue : message_queues) {
-      long consumer_offset = assigned_message_queue_->getConsumerOffset(message_queue);
-      if (consumer_offset != -1) {
-        auto process_queue = assigned_message_queue_->getProcessQueue(message_queue);
-        if (process_queue != nullptr && !process_queue->dropped()) {
-          updateConsumeOffset(message_queue, consumer_offset);
-        }
+      auto process_queue = assigned_message_queue_->getProcessQueue(message_queue);
+      if (process_queue != nullptr && !process_queue->dropped()) {
+        updateConsumeOffset(message_queue, process_queue->consume_offset());
       }
     }
     if (getDefaultLitePullConsumerConfig()->message_model() == MessageModel::BROADCASTING) {
@@ -744,12 +649,7 @@ void DefaultLitePullConsumerImpl::updateConsumeOffset(const MQMessageQueue& mq, 
 
 void DefaultLitePullConsumerImpl::persistConsumerOffset() {
   if (isServiceStateOk()) {
-    std::vector<MQMessageQueue> allocated_mqs;
-    if (subscription_type_ == SubscriptionType::SUBSCRIBE) {
-      allocated_mqs = rebalance_impl_->getAllocatedMQ();
-    } else if (subscription_type_ == SubscriptionType::ASSIGN) {
-      allocated_mqs = assigned_message_queue_->messageQueues();
-    }
+    std::vector<MQMessageQueue> allocated_mqs = assigned_message_queue_->messageQueues();
     offset_store_->persistAll(allocated_mqs);
   }
 }
