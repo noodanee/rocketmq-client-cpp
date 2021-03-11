@@ -17,7 +17,9 @@
 #ifndef ROCKETMQ_CONSUMER_PULLREQUEST_H_
 #define ROCKETMQ_CONSUMER_PULLREQUEST_H_
 
+#include <cassert>
 #include <sstream>  // std::stringstream
+#include <string>
 
 #include "MQMessageQueue.h"
 #include "ProcessQueue.h"
@@ -29,32 +31,28 @@ typedef std::shared_ptr<PullRequest> PullRequestPtr;
 
 class ROCKETMQCLIENT_API PullRequest {
  public:
-  PullRequest() : next_offset_(0), locked_first_(false) {}
-  virtual ~PullRequest() = default;
+  PullRequest(const std::string& consumer_group, ProcessQueuePtr process_queue)
+      : consumer_group_(consumer_group), process_queue_(std::move(process_queue)) {
+    assert(process_queue_ != nullptr);
+  }
 
-  inline bool locked_first() const { return locked_first_; }
-  inline void set_locked_first(bool lockedFirst) { locked_first_ = lockedFirst; }
+  const std::string& consumer_group() const { return consumer_group_; }
+  const ProcessQueuePtr& process_queue() const { return process_queue_; }
+  const MQMessageQueue& message_queue() const { return process_queue_->message_queue(); }
 
-  inline const std::string& consumer_group() const { return consumer_group_; }
-  inline void set_consumer_group(const std::string& consumerGroup) { consumer_group_ = consumerGroup; }
+  bool locked_first() const { return locked_first_; }
+  void set_locked_first(bool locked_first) { locked_first_ = locked_first; }
 
-  inline const MQMessageQueue& message_queue() { return message_queue_; }
-  inline void set_message_queue(const MQMessageQueue& messageQueue) { message_queue_ = messageQueue; }
-
-  inline int64_t next_offset() { return next_offset_; }
-  inline void set_next_offset(int64_t nextOffset) { next_offset_ = nextOffset; }
-
-  inline ProcessQueuePtr process_queue() { return process_queue_; }
-  inline void set_process_queue(ProcessQueuePtr processQueue) { process_queue_ = processQueue; }
+  int64_t next_offset() const { return process_queue_->pull_offset(); }
+  void set_next_offset(int64_t next_offset) { process_queue_->set_pull_offset(next_offset); }
 
   std::string toString() const;
+  operator std::string() const { return toString(); }
 
  private:
   std::string consumer_group_;
-  MQMessageQueue message_queue_;
   ProcessQueuePtr process_queue_;
-  int64_t next_offset_;
-  bool locked_first_;
+  bool locked_first_{false};
 };
 
 }  // namespace rocketmq

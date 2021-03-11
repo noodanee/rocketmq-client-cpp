@@ -73,7 +73,7 @@ class DefaultMQPushConsumerImpl::AsyncPullCallback : public AutoDeletePullCallba
         if (!pull_result->msg_found_list().empty()) {
           first_msg_offset = pull_result->msg_found_list()[0]->queue_offset();
 
-          pull_request_->process_queue()->putMessage(pull_result->msg_found_list());
+          pull_request_->process_queue()->PutMessages(pull_result->msg_found_list());
           consumer->consume_service_->submitConsumeRequest(pull_result->msg_found_list(),
                                                            pull_request_->process_queue(), true);
         }
@@ -424,7 +424,7 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
 
   process_queue->set_last_pull_timestamp(UtilAll::currentTimeMillis());
 
-  int cachedMessageCount = process_queue->getCacheMsgCount();
+  int cachedMessageCount = process_queue->GetCachedMessagesCount();
   if (cachedMessageCount > getDefaultMQPushConsumerConfig()->pull_threshold_for_queue()) {
     // too many message in cache, wait to process
     executePullRequestLater(pull_request, 1000);
@@ -505,7 +505,7 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
 }
 
 void DefaultMQPushConsumerImpl::correctTagsOffset(PullRequestPtr pullRequest) {
-  if (0L == pullRequest->process_queue()->getCacheMsgCount()) {
+  if (0L == pullRequest->process_queue()->GetCachedMessagesCount()) {
     offset_store_->updateOffset(pullRequest->message_queue(), pullRequest->next_offset(), true);
   }
 }
@@ -586,7 +586,7 @@ std::unique_ptr<ConsumerRunningInfo> DefaultMQPushConsumerImpl::consumerRunningI
 
     ProcessQueueInfo pq_info;
     pq_info.setCommitOffset(offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE));
-    pq->fillProcessQueueInfo(pq_info);
+    pq->FillProcessQueueInfo(pq_info);
     info->setMqTable(mq, pq_info);
   }
 

@@ -18,6 +18,7 @@
 #define ROCKETMQ_CONSUMER_PROCESSQUEUE_H_
 
 #include <atomic>  // std::atomic
+#include <limits>  // std::numeric_limits
 #include <map>     // std::map
 #include <memory>  // std::shared_ptr
 #include <mutex>   // std::mutex
@@ -35,69 +36,105 @@ typedef std::shared_ptr<ProcessQueue> ProcessQueuePtr;
 
 class ROCKETMQCLIENT_API ProcessQueue {
  public:
-  static const uint64_t REBALANCE_LOCK_MAX_LIVE_TIME;  // ms
-  static const uint64_t REBALANCE_LOCK_INTERVAL;       // ms
+  static const uint64_t kRebalanceLockInterval = 20000;     // ms
 
  public:
   ProcessQueue(const MQMessageQueue& message_queue);
   virtual ~ProcessQueue();
 
-  bool isLockExpired() const;
-  bool isPullExpired() const;
+  bool PutMessages(const std::vector<MessageExtPtr>& messages);
 
-  void putMessage(const std::vector<MessageExtPtr>& msgs);
-  int64_t removeMessage(const std::vector<MessageExtPtr>& msgs);
+  std::vector<MessageExtPtr> TakeMessages(int batch_size) {
+    int64_t next_offset;
+    bool remained;
+    return TakeMessages(batch_size, true, std::numeric_limits<int64_t>::max(), next_offset, remained);
+  }
+  std::vector<MessageExtPtr> TakeMessages(int batch_size,
+                                          bool need_commit,
+                                          int64_t offset_limit,
+                                          int64_t& next_offset,
+                                          bool& remained);
 
-  int getCacheMsgCount();
-  int64_t getCacheMinOffset();
-  int64_t getCacheMaxOffset();
+  void MakeMessagesToCosumeAgain(std::vector<MessageExtPtr>& messages);
 
-  int64_t commit();
-  void makeMessageToCosumeAgain(std::vector<MessageExtPtr>& msgs);
-  void takeMessages(std::vector<MessageExtPtr>& out_msgs, int batchSize);
+  int64_t Commit();
+  int64_t Commit(const std::vector<MessageExtPtr>& messages);
 
-  void clearAllMsgs();
+  int64_t RemoveMessages(const std::vector<MessageExtPtr>& messages);
 
-  void fillProcessQueueInfo(ProcessQueueInfo& info);
+  void ClearAllMessages();
+
+  int GetCachedMessagesCount();
+  int64_t GetCachedMinOffset();
+  int64_t GetCachedMaxOffset();
+
+  bool IsLockExpired() const;
+  bool IsPullExpired() const;
+
+  void FillProcessQueueInfo(ProcessQueueInfo& info);
 
  public:
-  inline const MQMessageQueue& message_queue() const { return message_queue_; }
+  const MQMessageQueue& message_queue() const { return message_queue_; }
 
-  inline std::timed_mutex& lock_consume() { return lock_consume_; }
+  bool dropped() const { return dropped_; }
+  void set_dropped(bool dropped) { dropped_ = dropped; }
 
-  inline long try_unlock_times() const { return try_unlock_times_.load(); }
-  inline void inc_try_unlock_times() { try_unlock_times_.fetch_add(1); }
+  bool locked() const { return locked_; }
+  void set_locked(bool locked) { locked_ = locked; }
 
-  inline bool dropped() const { return dropped_.load(); }
-  inline void set_dropped(bool dropped) { dropped_.store(dropped); }
+  bool paused() const { return paused_; }
+  void set_paused(bool paused) { paused_ = paused; }
 
-  inline uint64_t last_pull_timestamp() const { return last_pull_timestamp_; }
-  inline void set_last_pull_timestamp(uint64_t lastPullTimestamp) { last_pull_timestamp_ = lastPullTimestamp; }
+  int64_t pull_offset() const { return pull_offset_; }
+  void set_pull_offset(int64_t pull_offset) { pull_offset_ = pull_offset; }
 
-  inline uint64_t last_consume_timestamp() const { return last_consume_timestamp_; }
-  inline void set_last_consume_timestamp(uint64_t lastConsumeTimestamp) {
-    last_consume_timestamp_ = lastConsumeTimestamp;
-  }
+  int64_t consume_offset() const { return consume_offset_; }
+  void set_consume_offset(int64_t consume_offset) { consume_offset_ = consume_offset; }
 
-  inline bool locked() const { return locked_.load(); }
-  inline void set_locked(bool locked) { locked_.store(locked); }
+  int64_t seek_offset() const { return seek_offset_; }
+  void set_seek_offset(int64_t seek_offset) { seek_offset_ = seek_offset; }
 
-  inline uint64_t last_lock_timestamp() const { return last_lock_timestamp_; }
-  inline void set_last_lock_timestamp(int64_t lastLockTimestamp) { last_lock_timestamp_ = lastLockTimestamp; }
+  std::timed_mutex& consume_mutex() { return consume_mutex_; }
+
+  long try_unlock_times() const { return try_unlock_times_; }
+  void inc_try_unlock_times() { try_unlock_times_ += 1; }
+
+  uint64_t last_pull_timestamp() const { return last_pull_timestamp_; }
+  void set_last_pull_timestamp(uint64_t last_pull_timestamp) { last_pull_timestamp_ = last_pull_timestamp; }
+
+  uint64_t last_consume_timestamp() const { return last_consume_timestamp_; }
+  void set_last_consume_timestamp(uint64_t last_consume_timestamp) { last_consume_timestamp_ = last_consume_timestamp; }
+
+  uint64_t last_lock_timestamp() const { return last_lock_timestamp_; }
+  void set_last_lock_timestamp(int64_t last_lock_timestamp) { last_lock_timestamp_ = last_lock_timestamp; }
 
  private:
-  MQMessageQueue message_queue_;
-  std::mutex lock_tree_map_;
-  std::map<int64_t, MessageExtPtr> msg_tree_map_;
-  std::timed_mutex lock_consume_;
-  std::map<int64_t, MessageExtPtr> consuming_msg_orderly_tree_map_;
-  std::atomic<long> try_unlock_times_;
-  volatile int64_t queue_offset_max_;
-  std::atomic<bool> dropped_;
-  volatile uint64_t last_pull_timestamp_;
-  volatile uint64_t last_consume_timestamp_;
-  std::atomic<bool> locked_;
-  volatile uint64_t last_lock_timestamp_;  // ms
+  const MQMessageQueue message_queue_;
+
+  // message cache
+  std::mutex message_cache_mutex_;
+  std::map<int64_t, MessageExtPtr> message_cache_;
+  std::map<int64_t, MessageExtPtr> consuming_message_cache_;  // for orderly
+  int64_t queue_offset_max_{-1};
+
+  // flag
+  std::atomic<bool> dropped_{false};
+  std::atomic<bool> locked_{false};
+
+  // state
+  std::atomic<bool> paused_{false};
+  std::atomic<int64_t> pull_offset_{-1};
+  std::atomic<int64_t> consume_offset_{-1};
+  std::atomic<int64_t> seek_offset_{-1};
+
+  // consume lock
+  std::timed_mutex consume_mutex_;
+  std::atomic<long> try_unlock_times_{0};
+
+  // timestamp record
+  std::atomic<uint64_t> last_pull_timestamp_;
+  std::atomic<uint64_t> last_consume_timestamp_;
+  std::atomic<uint64_t> last_lock_timestamp_;  // ms
 };
 
 }  // namespace rocketmq

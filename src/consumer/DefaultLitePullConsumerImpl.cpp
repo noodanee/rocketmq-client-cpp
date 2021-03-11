@@ -136,7 +136,7 @@ class DefaultLitePullConsumerImpl::PullTaskImpl : public std::enable_shared_from
       return;
     }
 
-    auto cached_message_count = process_queue->getCacheMsgCount();
+    auto cached_message_count = process_queue->GetCachedMessagesCount();
     if (cached_message_count > config->pull_threshold_for_queue()) {
       consumer->scheduled_thread_pool_executor_.schedule(
           std::bind(&DefaultLitePullConsumerImpl::PullTaskImpl::run, shared_from_this()),
@@ -145,7 +145,7 @@ class DefaultLitePullConsumerImpl::PullTaskImpl : public std::enable_shared_from
         LOG_WARN_NEW(
             "The cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, "
             "count={}, size={} MiB, flowControlTimes={}",
-            config->pull_threshold_for_queue(), process_queue->getCacheMinOffset(), process_queue->getCacheMaxOffset(),
+            config->pull_threshold_for_queue(), process_queue->GetCachedMinOffset(), process_queue->GetCachedMaxOffset(),
             cached_message_count, "unknown", consumer->queue_flow_control_times_);
       }
       return;
@@ -198,7 +198,7 @@ class DefaultLitePullConsumerImpl::PullTaskImpl : public std::enable_shared_from
           std::lock_guard<std::mutex> lock(*objLock);
           if (!pull_result->msg_found_list().empty() &&
               consumer->assigned_message_queue_->getSeekOffset(message_queue_) == -1) {
-            process_queue->putMessage(pull_result->msg_found_list());
+            process_queue->PutMessages(pull_result->msg_found_list());
             consumer->submitConsumeRequest(
                 new ConsumeRequest(std::move(pull_result->msg_found_list()), message_queue_, process_queue));
           }
@@ -329,8 +329,9 @@ void DefaultLitePullConsumerImpl::start() {
       bool registerOK = client_instance_->registerConsumer(client_config_->group_name(), this);
       if (!registerOK) {
         service_state_ = ServiceState::kCreateJust;
-        THROW_MQEXCEPTION(MQClientException, "The cousumer group[" + client_config_->group_name() +
-                                                 "] has been created before, specify another name please.",
+        THROW_MQEXCEPTION(MQClientException,
+                          "The cousumer group[" + client_config_->group_name() +
+                              "] has been created before, specify another name please.",
                           -1);
       }
 
@@ -684,7 +685,7 @@ std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll(long timeout) {
 
   if (consume_request != nullptr && !consume_request->process_queue()->dropped()) {
     auto& messages = consume_request->message_exts();
-    long offset = consume_request->process_queue()->removeMessage(messages);
+    long offset = consume_request->process_queue()->RemoveMessages(messages);
     assigned_message_queue_->updateConsumeOffset(consume_request->message_queue(), offset);
     // If namespace not null , reset Topic without namespace.
     resetTopic(messages);
@@ -848,7 +849,7 @@ std::unique_ptr<ConsumerRunningInfo> DefaultLitePullConsumerImpl::consumerRunnin
 
     ProcessQueueInfo pq_info;
     pq_info.setCommitOffset(offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE));
-    pq->fillProcessQueueInfo(pq_info);
+    pq->FillProcessQueueInfo(pq_info);
     info->setMqTable(mq, pq_info);
   }
 

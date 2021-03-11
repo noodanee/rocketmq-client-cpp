@@ -16,6 +16,8 @@
  */
 #include "RebalanceImpl.h"
 
+#include <memory>
+
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
 
@@ -330,7 +332,7 @@ bool RebalanceImpl::updateProcessQueueTableInRebalance(const std::string& topic,
           changed = true;
           LOG_INFO_NEW("doRebalance, {}, remove unnecessary mq, {}", consumer_group_, mq.toString());
         }
-      } else if (pq->isPullExpired()) {
+      } else if (pq->IsPullExpired()) {
         switch (consumeType()) {
           case CONSUME_ACTIVELY:
             break;
@@ -370,12 +372,9 @@ bool RebalanceImpl::updateProcessQueueTableInRebalance(const std::string& topic,
           LOG_INFO_NEW("doRebalance, {}, mq already exists, {}", consumer_group_, mq.toString());
         } else {
           LOG_INFO_NEW("doRebalance, {}, add a new mq, {}", consumer_group_, mq.toString());
-          PullRequestPtr pullRequest(new PullRequest());
-          pullRequest->set_consumer_group(consumer_group_);
-          pullRequest->set_next_offset(nextOffset);
-          pullRequest->set_message_queue(mq);
-          pullRequest->set_process_queue(pq);
-          pullRequestList.push_back(std::move(pullRequest));
+          auto pull_request = std::make_shared<PullRequest>(consumer_group_, pq);
+          pull_request->set_next_offset(nextOffset);
+          pullRequestList.push_back(std::move(pull_request));
           changed = true;
         }
       } else {

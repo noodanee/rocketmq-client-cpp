@@ -145,7 +145,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
   }
 
   // update offset
-  int64_t offset = processQueue->removeMessage(msgs);
+  int64_t offset = processQueue->RemoveMessages(msgs);
   if (offset >= 0 && !processQueue->dropped()) {
     consumer_->getOffsetStore()->updateOffset(messageQueue, offset, true);
   }

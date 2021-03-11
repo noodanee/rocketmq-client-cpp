@@ -922,7 +922,7 @@ void MQClientInstance::resetOffset(const std::string& group,
       if (topic == mq.topic() && offsetTable.find(mq) != offsetTable.end()) {
         auto pq = it.second;
         pq->set_dropped(true);
-        pq->clearAllMsgs();
+        pq->ClearAllMessages();
       }
     }
 
