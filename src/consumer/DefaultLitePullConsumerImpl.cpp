@@ -674,12 +674,39 @@ void DefaultLitePullConsumerImpl::parseMessageQueues(std::vector<MQMessageQueue>
   }
 }
 
-void DefaultLitePullConsumerImpl::assign(const std::vector<MQMessageQueue>& messageQueues) {
-  // TODO:
+void DefaultLitePullConsumerImpl::assign(std::vector<MQMessageQueue>& messageQueues) {
+  if (messageQueues.empty()) {
+    THROW_MQEXCEPTION(MQClientException, "Message queues can not be empty.", -1);
+  }
+  std::lock_guard<std::mutex> lock(mutex_);  // synchronized
+  set_subscription_type(SubscriptionType::ASSIGN);
+  updateAssignedMessageQueue(messageQueues);
 }
 
 void DefaultLitePullConsumerImpl::seek(const MQMessageQueue& messageQueue, int64_t offset) {
-  // TODO:
+  auto process_queue = assigned_message_queue_->getProcessQueue(messageQueue);
+  if (process_queue == nullptr || process_queue->dropped()) {
+    if (subscription_type_ == SubscriptionType::SUBSCRIBE) {
+      THROW_MQEXCEPTION(
+          MQClientException,
+          "The message queue is not in assigned list, may be rebalancing, message queue: " + messageQueue.toString(),
+          -1);
+    } else {
+      THROW_MQEXCEPTION(MQClientException,
+                        "The message queue is not in assigned list, message queue: " + messageQueue.toString(), -1);
+    }
+  }
+  long min_offset = minOffset(messageQueue);
+  long max_offset = maxOffset(messageQueue);
+  if (offset < min_offset || offset > max_offset) {
+    THROW_MQEXCEPTION(MQClientException,
+                      "Seek offset illegal, seek offset = " + std::to_string(offset) + ", min offset = " +
+                          std::to_string(min_offset) + ", max offset = " + std::to_string(max_offset),
+                      -1);
+  }
+  std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
+  process_queue->set_seek_offset(offset);
+  message_cache_.ClearMessages(process_queue);
 }
 
 void DefaultLitePullConsumerImpl::seekToBegin(const MQMessageQueue& message_queue) {

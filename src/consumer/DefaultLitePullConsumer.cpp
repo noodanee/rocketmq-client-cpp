@@ -81,7 +81,7 @@ std::vector<MQMessageQueue> DefaultLitePullConsumer::fetchMessageQueues(const st
   return pull_consumer_impl_->fetchMessageQueues(topic);
 }
 
-void DefaultLitePullConsumer::assign(const std::vector<MQMessageQueue>& messageQueues) {
+void DefaultLitePullConsumer::assign(std::vector<MQMessageQueue>& messageQueues) {
   pull_consumer_impl_->assign(messageQueues);
 }
 

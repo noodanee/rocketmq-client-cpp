@@ -47,8 +47,7 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumer : public DefaultLitePullConsume
   std::vector<MQMessageExt> poll(long timeout) override;
 
   std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) override;
-
-  void assign(const std::vector<MQMessageQueue>& messageQueues) override;
+  void assign(std::vector<MQMessageQueue>& messageQueues) override;
 
   void seek(const MQMessageQueue& messageQueue, int64_t offset) override;
   void seekToBegin(const MQMessageQueue& messageQueue) override;

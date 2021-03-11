@@ -53,8 +53,7 @@ class ROCKETMQCLIENT_API LitePullConsumer {
   // Manually mode
 
   virtual std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) = 0;
-
-  virtual void assign(const std::vector<MQMessageQueue>& messageQueues) = 0;
+  virtual void assign(std::vector<MQMessageQueue>& messageQueues) = 0;
 
   virtual void seek(const MQMessageQueue& messageQueue, int64_t offset) = 0;
   virtual void seekToBegin(const MQMessageQueue& messageQueue) = 0;
