@@ -338,7 +338,7 @@ void DefaultMQPushConsumerImpl::shutdown() {
       persistConsumerOffset();
       client_instance_->unregisterConsumer(client_config_->group_name());
       client_instance_->shutdown();
-      rebalance_impl_->destroy();
+      rebalance_impl_->shutdown();
       service_state_ = ServiceState::kShutdownAlready;
       LOG_INFO_NEW("the consumer [{}] shutdown OK", client_config_->group_name());
       break;
