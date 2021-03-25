@@ -280,14 +280,14 @@ void DefaultLitePullConsumerImpl::start() {
 #endif
 
   switch (service_state_) {
-    case CREATE_JUST: {
+    case ServiceState::kCreateJust: {
       // wrap namespace
       client_config_->set_group_name(
           NamespaceUtil::wrapNamespace(client_config_->name_space(), client_config_->group_name()));
 
       LOG_INFO_NEW("the consumer [{}] start beginning.", client_config_->group_name());
 
-      service_state_ = START_FAILED;
+      service_state_ = ServiceState::kStartFailed;
 
       checkConfig();
 
@@ -326,7 +326,7 @@ void DefaultLitePullConsumerImpl::start() {
       // register consumer
       bool registerOK = client_instance_->registerConsumer(client_config_->group_name(), this);
       if (!registerOK) {
-        service_state_ = CREATE_JUST;
+        service_state_ = ServiceState::kCreateJust;
         THROW_MQEXCEPTION(MQClientException, "The cousumer group[" + client_config_->group_name() +
                                                  "] has been created before, specify another name please.",
                           -1);
@@ -337,14 +337,14 @@ void DefaultLitePullConsumerImpl::start() {
       startScheduleTask();
 
       LOG_INFO_NEW("the consumer [{}] start OK", client_config_->group_name());
-      service_state_ = RUNNING;
+      service_state_ = ServiceState::kRunning;
 
       operateAfterRunning();
       break;
     }
-    case RUNNING:
-    case START_FAILED:
-    case SHUTDOWN_ALREADY:
+    case ServiceState::kRunning:
+    case ServiceState::kStartFailed:
+    case ServiceState::kShutdownAlready:
       THROW_MQEXCEPTION(MQClientException, "The PullConsumer service state not OK, maybe started once", -1);
       break;
     default:
@@ -478,16 +478,16 @@ void DefaultLitePullConsumerImpl::updateAssignPullTask(std::vector<MQMessageQueu
 
 void DefaultLitePullConsumerImpl::shutdown() {
   switch (service_state_) {
-    case CREATE_JUST:
+    case ServiceState::kCreateJust:
       break;
-    case RUNNING:
+    case ServiceState::kRunning:
       persistConsumerOffset();
       client_instance_->unregisterConsumer(client_config_->group_name());
       scheduled_thread_pool_executor_.shutdown();
       scheduled_executor_service_.shutdown();
       client_instance_->shutdown();
       rebalance_impl_->destroy();
-      service_state_ = ServiceState::SHUTDOWN_ALREADY;
+      service_state_ = ServiceState::kShutdownAlready;
       LOG_INFO_NEW("the consumer [{}] shutdown OK", client_config_->group_name());
       break;
     default:
@@ -507,7 +507,7 @@ void DefaultLitePullConsumerImpl::subscribe(const std::string& topic, const std:
     message_queue_listener_.reset(new MessageQueueListenerImpl(shared_from_this()));
     assigned_message_queue_->set_rebalance_impl(rebalance_impl_.get());
 
-    if (service_state_ == ServiceState::RUNNING) {
+    if (service_state_ == ServiceState::kRunning) {
       client_instance_->sendHeartbeatToAllBrokerWithLock();
       updateTopicSubscribeInfoWhenSubscriptionChanged();
     }
@@ -831,7 +831,7 @@ void DefaultLitePullConsumerImpl::registerTopicMessageQueueChangeListener(
   }
 
   topic_message_queue_change_listener_map_[topic] = topicMessageQueueChangeListener;
-  if (service_state_ == ServiceState::RUNNING) {
+  if (service_state_ == ServiceState::kRunning) {
     auto messageQueues = fetchMessageQueues(topic);
     message_queues_for_topic_[topic] = std::move(messageQueues);
   }

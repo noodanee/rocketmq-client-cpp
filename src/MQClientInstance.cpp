@@ -61,7 +61,7 @@ MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std
 
   mq_admin_impl_.reset(new MQAdminImpl(this));
 
-  service_state_ = CREATE_JUST;
+  service_state_ = ServiceState::kCreateJust;
   LOG_DEBUG_NEW("MQClientInstance construct");
 }
 
@@ -168,9 +168,9 @@ std::vector<MQMessageQueue> MQClientInstance::topicRouteData2TopicSubscribeInfo(
 
 void MQClientInstance::start() {
   switch (service_state_) {
-    case CREATE_JUST:
+    case ServiceState::kCreateJust:
       LOG_INFO_NEW("the client instance [{}] is starting", client_id_);
-      service_state_ = START_FAILED;
+      service_state_ = ServiceState::kStartFailed;
 
       mq_client_api_impl_->start();
 
@@ -184,13 +184,13 @@ void MQClientInstance::start() {
       rebalance_service_->start();
 
       LOG_INFO_NEW("the client instance [{}] start OK", client_id_);
-      service_state_ = RUNNING;
+      service_state_ = ServiceState::kRunning;
       break;
-    case RUNNING:
+    case ServiceState::kRunning:
       LOG_INFO_NEW("the client instance [{}] already running.", client_id_, service_state_);
       break;
-    case SHUTDOWN_ALREADY:
-    case START_FAILED:
+    case ServiceState::kShutdownAlready:
+    case ServiceState::kStartFailed:
       LOG_INFO_NEW("the client instance [{}] start failed with fault state:{}", client_id_, service_state_);
       break;
     default:
@@ -208,10 +208,10 @@ void MQClientInstance::shutdown() {
   }
 
   switch (service_state_) {
-    case CREATE_JUST:
+    case ServiceState::kCreateJust:
       break;
-    case RUNNING: {
-      service_state_ = SHUTDOWN_ALREADY;
+    case ServiceState::kRunning: {
+      service_state_ = ServiceState::kShutdownAlready;
       pull_message_service_->shutdown();
       scheduled_executor_service_.shutdown();
       mq_client_api_impl_->shutdown();
@@ -220,7 +220,7 @@ void MQClientInstance::shutdown() {
       MQClientManager::getInstance()->removeMQClientInstance(client_id_);
       LOG_INFO_NEW("the client instance [{}] shutdown OK", client_id_);
     } break;
-    case SHUTDOWN_ALREADY:
+    case ServiceState::kShutdownAlready:
       break;
     default:
       break;
@@ -228,7 +228,7 @@ void MQClientInstance::shutdown() {
 }
 
 bool MQClientInstance::isRunning() {
-  return service_state_ == RUNNING;
+  return service_state_ == ServiceState::kRunning;
 }
 
 void MQClientInstance::startScheduledTask() {

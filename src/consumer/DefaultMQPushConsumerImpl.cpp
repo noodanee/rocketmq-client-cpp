@@ -175,14 +175,14 @@ void DefaultMQPushConsumerImpl::start() {
 #endif
 
   switch (service_state_) {
-    case CREATE_JUST: {
+    case ServiceState::kCreateJust: {
       // wrap namespace
       client_config_->set_group_name(
           NamespaceUtil::wrapNamespace(client_config_->name_space(), client_config_->group_name()));
 
       LOG_INFO_NEW("the consumer [{}] start beginning.", client_config_->group_name());
 
-      service_state_ = START_FAILED;
+      service_state_ = ServiceState::kStartFailed;
 
       checkConfig();
 
@@ -235,7 +235,7 @@ void DefaultMQPushConsumerImpl::start() {
       // register consumer
       bool registerOK = client_instance_->registerConsumer(client_config_->group_name(), this);
       if (!registerOK) {
-        service_state_ = CREATE_JUST;
+        service_state_ = ServiceState::kCreateJust;
         consume_service_->shutdown();
         THROW_MQEXCEPTION(MQClientException, "The cousumer group[" + client_config_->group_name() +
                                                  "] has been created before, specify another name please.",
@@ -245,12 +245,12 @@ void DefaultMQPushConsumerImpl::start() {
       client_instance_->start();
 
       LOG_INFO_NEW("the consumer [{}] start OK", client_config_->group_name());
-      service_state_ = RUNNING;
+      service_state_ = ServiceState::kRunning;
       break;
     }
-    case RUNNING:
-    case START_FAILED:
-    case SHUTDOWN_ALREADY:
+    case ServiceState::kRunning:
+    case ServiceState::kStartFailed:
+    case ServiceState::kShutdownAlready:
       THROW_MQEXCEPTION(MQClientException, "The PushConsumer service state not OK, maybe started once", -1);
       break;
     default:
@@ -335,18 +335,18 @@ void DefaultMQPushConsumerImpl::updateTopicSubscribeInfoWhenSubscriptionChanged(
 
 void DefaultMQPushConsumerImpl::shutdown() {
   switch (service_state_) {
-    case RUNNING: {
+    case ServiceState::kRunning: {
       consume_service_->shutdown();
       persistConsumerOffset();
       client_instance_->unregisterConsumer(client_config_->group_name());
       client_instance_->shutdown();
       rebalance_impl_->destroy();
-      service_state_ = SHUTDOWN_ALREADY;
+      service_state_ = ServiceState::kShutdownAlready;
       LOG_INFO_NEW("the consumer [{}] shutdown OK", client_config_->group_name());
       break;
     }
-    case CREATE_JUST:
-    case SHUTDOWN_ALREADY:
+    case ServiceState::kCreateJust:
+    case ServiceState::kShutdownAlready:
       break;
     default:
       break;

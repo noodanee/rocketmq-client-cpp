@@ -26,8 +26,7 @@ namespace rocketmq {
 
 class MQClientImpl : public MQAdmin {
  public:
-  MQClientImpl(MQClientConfigPtr config, RPCHookPtr rpcHook)
-      : client_config_(config), rpc_hook_(rpcHook), service_state_(CREATE_JUST), client_instance_(nullptr) {}
+  MQClientImpl(MQClientConfigPtr config, RPCHookPtr rpcHook) : client_config_(config), rpc_hook_(rpcHook) {}
 
  public:  // MQAdmin
   void createTopic(const std::string& key, const std::string& newTopic, int queueNum) override;
@@ -57,7 +56,7 @@ class MQClientImpl : public MQAdmin {
  protected:
   MQClientConfigPtr client_config_;
   RPCHookPtr rpc_hook_;
-  volatile ServiceState service_state_;
+  volatile ServiceState service_state_{ServiceState::kCreateJust};
   MQClientInstancePtr client_instance_;
 };
 

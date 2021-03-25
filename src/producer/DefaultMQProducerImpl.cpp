@@ -111,10 +111,10 @@ void DefaultMQProducerImpl::start() {
 #endif
 
   switch (service_state_) {
-    case CREATE_JUST: {
+    case ServiceState::kCreateJust: {
       LOG_INFO_NEW("DefaultMQProducerImpl: {} start", client_config_->group_name());
 
-      service_state_ = START_FAILED;
+      service_state_ = ServiceState::kStartFailed;
 
       client_config_->changeInstanceNameToPID();
 
@@ -123,7 +123,7 @@ void DefaultMQProducerImpl::start() {
       bool registerOK = client_instance_->registerProducer(
           dynamic_cast<DefaultMQProducerConfig*>(client_config_.get())->group_name(), this);
       if (!registerOK) {
-        service_state_ = CREATE_JUST;
+        service_state_ = ServiceState::kCreateJust;
         THROW_MQEXCEPTION(MQClientException,
                           "The producer group[" + client_config_->group_name() +
                               "] has been created before, specify another name please.",
@@ -140,12 +140,12 @@ void DefaultMQProducerImpl::start() {
       client_instance_->start();
 
       LOG_INFO_NEW("the producer [{}] start OK.", client_config_->group_name());
-      service_state_ = RUNNING;
+      service_state_ = ServiceState::kRunning;
       break;
     }
-    case RUNNING:
-    case START_FAILED:
-    case SHUTDOWN_ALREADY:
+    case ServiceState::kRunning:
+    case ServiceState::kStartFailed:
+    case ServiceState::kShutdownAlready:
       THROW_MQEXCEPTION(MQClientException, "The producer service state not OK, maybe started once", -1);
       break;
     default:
@@ -157,7 +157,7 @@ void DefaultMQProducerImpl::start() {
 
 void DefaultMQProducerImpl::shutdown() {
   switch (service_state_) {
-    case RUNNING: {
+    case ServiceState::kRunning: {
       LOG_INFO("DefaultMQProducerImpl shutdown");
 
       async_send_executor_->shutdown();
@@ -165,11 +165,11 @@ void DefaultMQProducerImpl::shutdown() {
       client_instance_->unregisterProducer(client_config_->group_name());
       client_instance_->shutdown();
 
-      service_state_ = SHUTDOWN_ALREADY;
+      service_state_ = ServiceState::kShutdownAlready;
       break;
     }
-    case SHUTDOWN_ALREADY:
-    case CREATE_JUST:
+    case ServiceState::kShutdownAlready:
+    case ServiceState::kCreateJust:
       break;
     default:
       break;

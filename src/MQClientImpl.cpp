@@ -84,7 +84,7 @@ QueryResult MQClientImpl::queryMessage(const std::string& topic,
 }
 
 bool MQClientImpl::isServiceStateOk() {
-  return service_state_ == RUNNING;
+  return service_state_ == ServiceState::kRunning;
 }
 
 MQClientInstancePtr MQClientImpl::getClientInstance() const {
@@ -92,7 +92,7 @@ MQClientInstancePtr MQClientImpl::getClientInstance() const {
 }
 
 void MQClientImpl::setClientInstance(MQClientInstancePtr clientInstance) {
-  if (service_state_ == CREATE_JUST) {
+  if (service_state_ == ServiceState::kCreateJust) {
     client_instance_ = clientInstance;
   } else {
     THROW_MQEXCEPTION(MQClientException, "Client already start, can not reset clientInstance!", -1);

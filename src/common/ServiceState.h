@@ -19,7 +19,7 @@
 
 namespace rocketmq {
 
-enum ServiceState { CREATE_JUST, RUNNING, SHUTDOWN_ALREADY, START_FAILED };
+enum class ServiceState { kCreateJust, kRunning, kShutdownAlready, kStartFailed };
 
 }  // namespace rocketmq
 
