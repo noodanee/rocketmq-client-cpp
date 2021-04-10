@@ -42,7 +42,6 @@ class RebalancePushImpl : public RebalanceImpl {
  public:
   void shutdown() override;
   ConsumeType consumeType() override final { return CONSUME_PASSIVELY; }
-  std::vector<MQMessageQueue> getAllocatedMQ() override;
 
  protected:
   bool updateMessageQueueInRebalance(const std::string& topic,
@@ -58,6 +57,7 @@ class RebalancePushImpl : public RebalanceImpl {
   bool removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq);
   void removeDirtyOffset(const MQMessageQueue& mq);
   int64_t computePullFromWhere(const MQMessageQueue& mq);
+  std::vector<MQMessageQueue> getAllocatedMQ();
 
  private:
   void dispatchPullRequest(const std::vector<PullRequestPtr>& pullRequestList);

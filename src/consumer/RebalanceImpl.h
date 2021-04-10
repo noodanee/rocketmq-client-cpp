@@ -47,7 +47,6 @@ class RebalanceImpl {
  public:
   virtual void shutdown(){};
   virtual ConsumeType consumeType() = 0;
-  virtual std::vector<MQMessageQueue> getAllocatedMQ() = 0;
 
  public:
   void doRebalance(bool orderly = false);

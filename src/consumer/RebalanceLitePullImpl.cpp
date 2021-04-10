@@ -65,9 +65,4 @@ void RebalanceLitePullImpl::messageQueueChanged(const std::string& topic,
 
 void RebalanceLitePullImpl::truncateMessageQueueNotMyTopic() {}
 
-std::vector<MQMessageQueue> RebalanceLitePullImpl::getAllocatedMQ() {
-  std::vector<MQMessageQueue> mqs;
-  return mqs;
-}
-
 }  // namespace rocketmq

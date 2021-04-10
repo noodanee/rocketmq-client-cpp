@@ -32,7 +32,6 @@ class RebalanceLitePullImpl : public RebalanceImpl {
  public:
   void shutdown() override;
   ConsumeType consumeType() override final { return CONSUME_ACTIVELY; }
-  std::vector<MQMessageQueue> getAllocatedMQ() override;
 
  protected:
   bool updateMessageQueueInRebalance(const std::string& topic,
