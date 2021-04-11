@@ -329,7 +329,7 @@ void DefaultLitePullConsumerImpl::operateAfterRunning() {
   }
   // If assign function invoke before start function, then update pull task after initialization.
   else if (subscription_type_ == SubscriptionType::ASSIGN) {
-    resume(assigned_message_queue_->messageQueues());
+    resume(assigned_message_queue_->GetMessageQueues());
   }
 
   for (const auto& it : topic_message_queue_change_listener_map_) {
@@ -427,12 +427,12 @@ void DefaultLitePullConsumerImpl::doRebalance() {
 
 void DefaultLitePullConsumerImpl::updateAssignedMessageQueue(const std::string& topic,
                                                              std::vector<MQMessageQueue>& assigned_message_queues) {
-  auto pull_request_list = assigned_message_queue_->updateAssignedMessageQueue(topic, assigned_message_queues);
+  auto pull_request_list = assigned_message_queue_->UpdateAssignedMessageQueue(topic, assigned_message_queues);
   dispatchAssigndPullRequest(pull_request_list);
 }
 
 void DefaultLitePullConsumerImpl::updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues) {
-  auto pull_request_list = assigned_message_queue_->updateAssignedMessageQueue(assigned_message_queues);
+  auto pull_request_list = assigned_message_queue_->UpdateAssignedMessageQueue(assigned_message_queues);
   dispatchAssigndPullRequest(pull_request_list);
 }
 
@@ -634,9 +634,9 @@ void DefaultLitePullConsumerImpl::resetTopic(std::vector<MessageExtPtr>& msg_lis
 void DefaultLitePullConsumerImpl::commitAll() {
   // TODO: lock
   try {
-    std::vector<MQMessageQueue> message_queues = assigned_message_queue_->messageQueues();
+    std::vector<MQMessageQueue> message_queues = assigned_message_queue_->GetMessageQueues();
     for (const auto& message_queue : message_queues) {
-      auto process_queue = assigned_message_queue_->getProcessQueue(message_queue);
+      auto process_queue = assigned_message_queue_->GetProcessQueue(message_queue);
       if (process_queue != nullptr && !process_queue->dropped()) {
         updateConsumeOffset(message_queue, process_queue->consume_offset());
       }
@@ -656,7 +656,7 @@ void DefaultLitePullConsumerImpl::updateConsumeOffset(const MQMessageQueue& mq, 
 
 void DefaultLitePullConsumerImpl::persistConsumerOffset() {
   if (isServiceStateOk()) {
-    std::vector<MQMessageQueue> allocated_mqs = assigned_message_queue_->messageQueues();
+    std::vector<MQMessageQueue> allocated_mqs = assigned_message_queue_->GetMessageQueues();
     offset_store_->persistAll(allocated_mqs);
   }
 }
@@ -691,7 +691,7 @@ void DefaultLitePullConsumerImpl::assign(std::vector<MQMessageQueue>& messageQue
 }
 
 void DefaultLitePullConsumerImpl::seek(const MQMessageQueue& messageQueue, int64_t offset) {
-  auto process_queue = assigned_message_queue_->getProcessQueue(messageQueue);
+  auto process_queue = assigned_message_queue_->GetProcessQueue(messageQueue);
   if (process_queue == nullptr || process_queue->dropped()) {
     if (subscription_type_ == SubscriptionType::SUBSCRIBE) {
       THROW_MQEXCEPTION(
@@ -731,11 +731,11 @@ int64_t DefaultLitePullConsumerImpl::offsetForTimestamp(const MQMessageQueue& me
 }
 
 void DefaultLitePullConsumerImpl::pause(const std::vector<MQMessageQueue>& message_queues) {
-  assigned_message_queue_->pause(message_queues);
+  assigned_message_queue_->Pause(message_queues);
 }
 
 void DefaultLitePullConsumerImpl::resume(const std::vector<MQMessageQueue>& message_queues) {
-  assigned_message_queue_->resume(message_queues);
+  assigned_message_queue_->Resume(message_queues);
 }
 
 void DefaultLitePullConsumerImpl::commitSync() {
@@ -776,9 +776,9 @@ std::unique_ptr<ConsumerRunningInfo> DefaultLitePullConsumerImpl::consumerRunnin
 
   info->setSubscriptionSet(subscriptions());
 
-  auto mqs = assigned_message_queue_->messageQueues();
+  auto mqs = assigned_message_queue_->GetMessageQueues();
   for (const auto& mq : mqs) {
-    auto pq = assigned_message_queue_->getProcessQueue(mq);
+    auto pq = assigned_message_queue_->GetProcessQueue(mq);
     if (pq != nullptr && !pq->dropped()) {
       ProcessQueueInfo pq_info;
       pq_info.setCommitOffset(offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE));

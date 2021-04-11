@@ -29,7 +29,7 @@ namespace rocketmq {
 
 class AssignedMessageQueue {
  public:
-  std::vector<MQMessageQueue> messageQueues() {
+  std::vector<MQMessageQueue> GetMessageQueues() {
     std::vector<MQMessageQueue> mqs;
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (const auto& it : assigned_message_queue_state_) {
@@ -38,7 +38,7 @@ class AssignedMessageQueue {
     return mqs;
   }
 
-  void pause(const std::vector<MQMessageQueue>& message_queues) {
+  void Pause(const std::vector<MQMessageQueue>& message_queues) {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (const auto& message_queue : message_queues) {
       auto it = assigned_message_queue_state_.find(message_queue);
@@ -49,7 +49,7 @@ class AssignedMessageQueue {
     }
   }
 
-  void resume(const std::vector<MQMessageQueue>& message_queues) {
+  void Resume(const std::vector<MQMessageQueue>& message_queues) {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (const auto& message_queue : message_queues) {
       auto it = assigned_message_queue_state_.find(message_queue);
@@ -60,7 +60,7 @@ class AssignedMessageQueue {
     }
   }
 
-  ProcessQueuePtr getProcessQueue(const MQMessageQueue& message_queue) {
+  ProcessQueuePtr GetProcessQueue(const MQMessageQueue& message_queue) {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
@@ -69,7 +69,7 @@ class AssignedMessageQueue {
     return nullptr;
   }
 
-  std::vector<PullRequestPtr> updateAssignedMessageQueue(const std::string& topic,
+  std::vector<PullRequestPtr> UpdateAssignedMessageQueue(const std::string& topic,
                                                          std::vector<MQMessageQueue>& assigned) {
     std::sort(assigned.begin(), assigned.end());
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
@@ -88,10 +88,10 @@ class AssignedMessageQueue {
       }
       it++;
     }
-    return addAssignedMessageQueue(assigned);
+    return AddAssignedMessageQueue(assigned);
   }
 
-  std::vector<PullRequestPtr> updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned) {
+  std::vector<PullRequestPtr> UpdateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned) {
     std::sort(assigned.begin(), assigned.end());
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (auto it = assigned_message_queue_state_.begin(); it != assigned_message_queue_state_.end();) {
@@ -107,11 +107,11 @@ class AssignedMessageQueue {
       }
       it++;
     }
-    return addAssignedMessageQueue(assigned);
+    return AddAssignedMessageQueue(assigned);
   }
 
  private:
-  std::vector<PullRequestPtr> addAssignedMessageQueue(const std::vector<MQMessageQueue>& assigned) {
+  std::vector<PullRequestPtr> AddAssignedMessageQueue(const std::vector<MQMessageQueue>& assigned) {
     std::vector<PullRequestPtr> pull_request_list;
     for (const auto& message_queue : assigned) {
       if (assigned_message_queue_state_.find(message_queue) == assigned_message_queue_state_.end()) {
