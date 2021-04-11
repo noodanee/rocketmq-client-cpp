@@ -17,43 +17,49 @@
 #ifndef ROCKETMQ_DEFAULTMQPUSHCONSUMER_H_
 #define ROCKETMQ_DEFAULTMQPUSHCONSUMER_H_
 
+#include <memory>
+
 #include "DefaultMQPushConsumerConfigProxy.h"
-#include "MQPushConsumer.h"
+#include "MQClientConfigProxy.h"
+#include "MQMessageListener.h"
 #include "RPCHook.h"
 
 namespace rocketmq {
 
-class ROCKETMQCLIENT_API DefaultMQPushConsumer : public DefaultMQPushConsumerConfigProxy,  // base
-                                                 public MQPushConsumer                     // interface
-{
+class DefaultMQPushConsumerConfigImpl;
+class DefaultMQPushConsumerImpl;
+
+class ROCKETMQCLIENT_API DefaultMQPushConsumer : public DefaultMQPushConsumerConfigProxy, public MQClientConfigProxy {
  public:
   DefaultMQPushConsumer(const std::string& groupname);
-  DefaultMQPushConsumer(const std::string& groupname, RPCHookPtr rpcHook);
+  DefaultMQPushConsumer(const std::string& groupname, RPCHookPtr rpc_hook);
 
-  virtual ~DefaultMQPushConsumer();
+ private:
+  DefaultMQPushConsumer(const std::string& groupname,
+                        RPCHookPtr rpc_hook,
+                        std::shared_ptr<DefaultMQPushConsumerConfigImpl> config);
 
  public:  // MQPushConsumer
-  void start() override;
-  void shutdown() override;
+  void start();
+  void shutdown();
 
-  void suspend() override;
-  void resume() override;
+  void suspend();
+  void resume();
 
-  MQMessageListener* getMessageListener() const override;
+  MQMessageListener* getMessageListener() const;
 
-  void registerMessageListener(MessageListenerConcurrently* messageListener) override;
-  void registerMessageListener(MessageListenerOrderly* messageListener) override;
+  void registerMessageListener(MessageListenerConcurrently* message_listener);
+  void registerMessageListener(MessageListenerOrderly* message_listener);
 
-  void subscribe(const std::string& topic, const std::string& subExpression) override;
-
-  bool sendMessageBack(MessageExtPtr msg, int delayLevel) override;
-  bool sendMessageBack(MessageExtPtr msg, int delayLevel, const std::string& brokerName) override;
+  void subscribe(const std::string& topic, const std::string& expression);
 
  public:
-  void setRPCHook(RPCHookPtr rpcHook);
+  void setRPCHook(RPCHookPtr rpc_hook);
 
  protected:
-  std::shared_ptr<MQPushConsumer> push_consumer_impl_;
+  std::shared_ptr<DefaultMQPushConsumerConfigImpl> push_consumer_config_impl_;
+  std::shared_ptr<DefaultMQPushConsumerImpl> push_consumer_impl_;
+  MQMessageListener* message_listener_;
 };
 
 }  // namespace rocketmq

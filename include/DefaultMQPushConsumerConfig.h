@@ -19,21 +19,14 @@
 
 #include "AllocateMQStrategy.h"
 #include "ConsumeType.h"
-#include "MQClientConfig.h"
 
 namespace rocketmq {
-
-class DefaultMQPushConsumerConfig;
-typedef std::shared_ptr<DefaultMQPushConsumerConfig> DefaultMQPushConsumerConfigPtr;
 
 /**
  * DefaultMQPushConsumerConfig - config for DefaultMQPushConsumer
  */
-class ROCKETMQCLIENT_API DefaultMQPushConsumerConfig : virtual public MQClientConfig  // base interface
-{
+class ROCKETMQCLIENT_API DefaultMQPushConsumerConfig {
  public:
-  virtual ~DefaultMQPushConsumerConfig() = default;
-
   virtual MessageModel message_model() const = 0;
   virtual void set_message_model(MessageModel messageModel) = 0;
 

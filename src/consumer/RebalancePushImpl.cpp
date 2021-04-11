@@ -304,12 +304,12 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
 }
 
 bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq) {
-  auto* pOffsetStore = default_mq_push_consumer_impl_->getOffsetStore();
+  auto* offset_store = default_mq_push_consumer_impl_->offset_store();
 
-  pOffsetStore->persist(mq);
-  pOffsetStore->removeOffset(mq);
+  offset_store->persist(mq);
+  offset_store->removeOffset(mq);
 
-  if (default_mq_push_consumer_impl_->getMessageListenerType() == messageListenerOrderly &&
+  if (default_mq_push_consumer_impl_->consume_orderly() &&
       CLUSTERING == default_mq_push_consumer_impl_->messageModel()) {
     try {
       if (UtilAll::try_lock_for(pq->consume_mutex(), 1000)) {
@@ -334,19 +334,19 @@ bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, 
 }
 
 void RebalancePushImpl::removeDirtyOffset(const MQMessageQueue& mq) {
-  default_mq_push_consumer_impl_->getOffsetStore()->removeOffset(mq);
+  default_mq_push_consumer_impl_->offset_store()->removeOffset(mq);
 }
 
 int64_t RebalancePushImpl::computePullFromWhere(const MQMessageQueue& mq) {
-  return RebalanceImpl::computePullFromWhereImpl(
-      mq, default_mq_push_consumer_impl_->getDefaultMQPushConsumerConfig()->consume_from_where(),
-      default_mq_push_consumer_impl_->getDefaultMQPushConsumerConfig()->consume_timestamp(),
-      *default_mq_push_consumer_impl_->getOffsetStore(), *default_mq_push_consumer_impl_);
+  return RebalanceImpl::computePullFromWhereImpl(mq, default_mq_push_consumer_impl_->config().consume_from_where(),
+                                                 default_mq_push_consumer_impl_->config().consume_timestamp(),
+                                                 *default_mq_push_consumer_impl_->offset_store(),
+                                                 *default_mq_push_consumer_impl_);
 }
 
 void RebalancePushImpl::dispatchPullRequest(const std::vector<PullRequestPtr>& pullRequestList) {
   for (const auto& pullRequest : pullRequestList) {
-    default_mq_push_consumer_impl_->executePullRequestImmediately(pullRequest);
+    default_mq_push_consumer_impl_->ExecutePullRequestImmediately(pullRequest);
     LOG_INFO_NEW("doRebalance, {}, add a new pull request {}", consumer_group_, pullRequest->toString());
   }
 }

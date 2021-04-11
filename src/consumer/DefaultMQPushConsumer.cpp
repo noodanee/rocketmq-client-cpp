@@ -16,17 +16,42 @@
  */
 #include "DefaultMQPushConsumer.h"
 
+#include <vector>
+
 #include "DefaultMQPushConsumerConfigImpl.hpp"
 #include "DefaultMQPushConsumerImpl.h"
+#include "MQClientConfigProxy.h"
 #include "UtilAll.h"
 
 namespace rocketmq {
 
+namespace {
+
+class MessageListenerImpl {
+ public:
+  MessageListenerImpl(MQMessageListener* listener) : listener_(listener) {}
+
+  ConsumeStatus operator()(std::vector<MessageExtPtr>& messages) {
+    auto message_list = MQMessageExt::Wrap(messages);
+    return listener_->consumeMessage(message_list);
+  }
+
+ private:
+  MQMessageListener* listener_;
+};
+
+}  // namespace
+
 DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname)
     : DefaultMQPushConsumer(groupname, nullptr) {}
 
-DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname, RPCHookPtr rpcHook)
-    : DefaultMQPushConsumerConfigProxy(std::make_shared<DefaultMQPushConsumerConfigImpl>()) {
+DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname, RPCHookPtr rpc_hook)
+    : DefaultMQPushConsumer(groupname, rpc_hook, std::make_shared<DefaultMQPushConsumerConfigImpl>()) {}
+
+DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname,
+                                             RPCHookPtr rpc_hook,
+                                             std::shared_ptr<DefaultMQPushConsumerConfigImpl> config)
+    : DefaultMQPushConsumerConfigProxy(*config), MQClientConfigProxy(config), push_consumer_config_impl_(config) {
   // set default group name
   if (groupname.empty()) {
     set_group_name(DEFAULT_CONSUMER_GROUP);
@@ -35,10 +60,8 @@ DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname, RPCHo
   }
 
   // create DefaultMQPushConsumerImpl
-  push_consumer_impl_ = DefaultMQPushConsumerImpl::create(real_config(), rpcHook);
+  push_consumer_impl_ = DefaultMQPushConsumerImpl::Create(push_consumer_config_impl_, rpc_hook);
 }
-
-DefaultMQPushConsumer::~DefaultMQPushConsumer() = default;
 
 void DefaultMQPushConsumer::start() {
   push_consumer_impl_->start();
@@ -49,39 +72,35 @@ void DefaultMQPushConsumer::shutdown() {
 }
 
 void DefaultMQPushConsumer::suspend() {
-  push_consumer_impl_->suspend();
+  push_consumer_impl_->Suspend();
 }
 
 void DefaultMQPushConsumer::resume() {
-  push_consumer_impl_->resume();
+  push_consumer_impl_->Resume();
 }
 
 MQMessageListener* DefaultMQPushConsumer::getMessageListener() const {
-  return push_consumer_impl_->getMessageListener();
+  return message_listener_;
 }
 
-void DefaultMQPushConsumer::registerMessageListener(MessageListenerConcurrently* messageListener) {
-  push_consumer_impl_->registerMessageListener(messageListener);
+void DefaultMQPushConsumer::registerMessageListener(MessageListenerConcurrently* message_listener) {
+  message_listener_ = message_listener;
+  push_consumer_impl_->RegisterMessageListener(MessageListenerImpl{message_listener},
+                                               DefaultMQPushConsumerImpl::MessageListenerType::kConcurrently);
 }
 
-void DefaultMQPushConsumer::registerMessageListener(MessageListenerOrderly* messageListener) {
-  push_consumer_impl_->registerMessageListener(messageListener);
+void DefaultMQPushConsumer::registerMessageListener(MessageListenerOrderly* message_listener) {
+  message_listener_ = message_listener;
+  push_consumer_impl_->RegisterMessageListener(MessageListenerImpl{message_listener},
+                                               DefaultMQPushConsumerImpl::MessageListenerType::kOrderly);
 }
 
-void DefaultMQPushConsumer::subscribe(const std::string& topic, const std::string& subExpression) {
-  push_consumer_impl_->subscribe(topic, subExpression);
+void DefaultMQPushConsumer::subscribe(const std::string& topic, const std::string& expression) {
+  push_consumer_impl_->Subscribe(topic, expression);
 }
 
-bool DefaultMQPushConsumer::sendMessageBack(MessageExtPtr msg, int delayLevel) {
-  return push_consumer_impl_->sendMessageBack(msg, delayLevel);
-}
-
-bool DefaultMQPushConsumer::sendMessageBack(MessageExtPtr msg, int delayLevel, const std::string& brokerName) {
-  return push_consumer_impl_->sendMessageBack(msg, delayLevel, brokerName);
-}
-
-void DefaultMQPushConsumer::setRPCHook(RPCHookPtr rpcHook) {
-  dynamic_cast<DefaultMQPushConsumerImpl*>(push_consumer_impl_.get())->setRPCHook(rpcHook);
+void DefaultMQPushConsumer::setRPCHook(RPCHookPtr rpc_hook) {
+  push_consumer_impl_->setRPCHook(rpc_hook);
 }
 
 }  // namespace rocketmq

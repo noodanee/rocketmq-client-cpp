@@ -17,9 +17,8 @@
 #ifndef ROCKETMQ_CONSUMER_CONSUMEMSGSERVICE_H_
 #define ROCKETMQ_CONSUMER_CONSUMEMSGSERVICE_H_
 
+#include "ConsumeResult.h"
 #include "DefaultMQPushConsumerImpl.h"
-#include "Logging.h"
-#include "MQMessageListener.h"
 #include "MessageQueueLock.hpp"
 #include "PullRequest.h"
 #include "concurrent/executor.hpp"
@@ -40,7 +39,10 @@ class ConsumeMsgService {
 
 class ConsumeMessageConcurrentlyService : public ConsumeMsgService {
  public:
-  ConsumeMessageConcurrentlyService(DefaultMQPushConsumerImpl*, int threadCount, MQMessageListener* msgListener);
+  using MessageListener = std::function<ConsumeStatus(std::vector<MessageExtPtr>&) /* noexcept */>;
+
+ public:
+  ConsumeMessageConcurrentlyService(DefaultMQPushConsumerImpl*, int threadCount, MessageListener msgListener);
   ~ConsumeMessageConcurrentlyService() override;
 
   void start() override;
@@ -57,7 +59,7 @@ class ConsumeMessageConcurrentlyService : public ConsumeMsgService {
 
  private:
   DefaultMQPushConsumerImpl* consumer_;
-  MQMessageListener* message_listener_;
+  MessageListener message_listener_;
 
   thread_pool_executor consume_executor_;
   scheduled_thread_pool_executor scheduled_executor_service_;
@@ -65,7 +67,10 @@ class ConsumeMessageConcurrentlyService : public ConsumeMsgService {
 
 class ConsumeMessageOrderlyService : public ConsumeMsgService {
  public:
-  ConsumeMessageOrderlyService(DefaultMQPushConsumerImpl*, int threadCount, MQMessageListener* msgListener);
+  using MessageListener = std::function<ConsumeStatus(std::vector<MessageExtPtr>&) /* noexcept */>;
+
+ public:
+  ConsumeMessageOrderlyService(DefaultMQPushConsumerImpl*, int threadCount, MessageListener msgListener);
   ~ConsumeMessageOrderlyService() override;
 
   void start() override;
@@ -86,7 +91,7 @@ class ConsumeMessageOrderlyService : public ConsumeMsgService {
 
  private:
   DefaultMQPushConsumerImpl* consumer_;
-  MQMessageListener* message_listener_;
+  MessageListener message_listener_;
 
   MessageQueueLock message_queue_lock_;
   thread_pool_executor consume_executor_;

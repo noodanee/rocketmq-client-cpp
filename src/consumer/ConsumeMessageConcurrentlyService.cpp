@@ -25,9 +25,9 @@ namespace rocketmq {
 
 ConsumeMessageConcurrentlyService::ConsumeMessageConcurrentlyService(DefaultMQPushConsumerImpl* consumer,
                                                                      int threadCount,
-                                                                     MQMessageListener* msgListener)
+                                                                     MessageListener msgListener)
     : consumer_(consumer),
-      message_listener_(msgListener),
+      message_listener_(std::move(msgListener)),
       consume_executor_("ConsumeMessageThread", threadCount, false),
       scheduled_executor_service_("ConsumeMessageScheduledThread", false) {}
 
@@ -61,7 +61,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
   const auto& messageQueue = processQueue->message_queue();
   if (processQueue->dropped()) {
     LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. group={} {}",
-                 consumer_->getDefaultMQPushConsumerConfig()->group_name(), messageQueue.toString());
+                 consumer_->config().group_name(), messageQueue.toString());
     return;
   }
 
@@ -71,7 +71,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
     return;
   }
 
-  consumer_->resetRetryAndNamespace(msgs);  // set where to sendMessageBack
+  consumer_->ResetRetryAndNamespace(msgs);  // set where to sendMessageBack
 
   ConsumeStatus status = RECONSUME_LATER;
   try {
@@ -83,8 +83,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
         MessageAccessor::setConsumeStartTimeStamp(*msg, timestamp);
       }
     }
-    auto message_list = MQMessageExt::Wrap(msgs);
-    status = message_listener_->consumeMessage(message_list);
+    status = message_listener_(msgs);
   } catch (const std::exception& e) {
     LOG_WARN_NEW("encounter unexpected exception when consume messages.\n{}", e.what());
   }
@@ -125,7 +124,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
         LOG_WARN_NEW("consume fail, MQ is:{}, its msgId is:{}, index is:{}, reconsume times is:{}",
                      messageQueue.toString(), (*iter)->msg_id(), idx, (*iter)->reconsume_times());
         auto& msg = (*iter);
-        bool result = consumer_->sendMessageBack(msg, 0, messageQueue.broker_name());
+        bool result = consumer_->SendMessageBack(msg, 0, messageQueue.broker_name());
         if (!result) {
           msg->set_reconsume_times(msg->reconsume_times() + 1);
           msgBackFailed.push_back(msg);
@@ -147,7 +146,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
   // update offset
   int64_t offset = processQueue->RemoveMessages(msgs);
   if (offset >= 0 && !processQueue->dropped()) {
-    consumer_->getOffsetStore()->updateOffset(messageQueue, offset, true);
+    consumer_->offset_store()->updateOffset(messageQueue, offset, true);
   }
 }
 

@@ -17,16 +17,10 @@
 #ifndef ROCKETMQ_MQMESSAGELISTENER_H_
 #define ROCKETMQ_MQMESSAGELISTENER_H_
 
+#include "ConsumeResult.h"
 #include "MQMessageExt.h"
 
 namespace rocketmq {
-
-enum ConsumeStatus {
-  // consume success, msg will be cleard from memory
-  CONSUME_SUCCESS,
-  // consume fail, but will be re-consume by call messageLisenter again
-  RECONSUME_LATER
-};
 
 enum MessageListenerType { messageListenerDefaultly = 0, messageListenerOrderly = 1, messageListenerConcurrently = 2 };
 

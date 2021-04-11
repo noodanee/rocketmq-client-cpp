@@ -21,7 +21,8 @@
 #include <string>
 #include <thread>
 
-#include "DefaultMQPushConsumer.h"
+#include "ConsumeResult.h"
+#include "DefaultMQPushConsumerConfigImpl.hpp"
 #include "MQClientImpl.h"
 #include "MQConsumerInner.h"
 #include "PullRequest.h"
@@ -37,51 +38,54 @@ class RebalancePushImpl;
 class SubscriptionData;
 
 class DefaultMQPushConsumerImpl;
-typedef std::shared_ptr<DefaultMQPushConsumerImpl> DefaultMQPushConsumerImplPtr;
+using DefaultMQPushConsumerImplPtr = std::shared_ptr<DefaultMQPushConsumerImpl>;
 
-class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQPushConsumerImpl>,
-                                  public MQPushConsumer,
-                                  public MQClientImpl,
-                                  public MQConsumerInner {
+class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<DefaultMQPushConsumerImpl>,
+                                        public MQClientImpl,
+                                        public MQConsumerInner {
  private:
   class AsyncPullCallback;
+
+ public:
+  enum class MessageListenerType { kConcurrently, kOrderly };
+  using MessageListener = std::function<ConsumeStatus(std::vector<MessageExtPtr>&) /* noexcept */>;
 
  public:
   /**
    * create() - Factory method for DefaultMQPushConsumerImpl, used to ensure that all objects of
    * DefaultMQPushConsumerImpl are managed by std::share_ptr
    */
-  static DefaultMQPushConsumerImplPtr create(DefaultMQPushConsumerConfigPtr config, RPCHookPtr rpcHook = nullptr) {
-    if (nullptr == rpcHook) {
-      return DefaultMQPushConsumerImplPtr(new DefaultMQPushConsumerImpl(config));
-    } else {
-      return DefaultMQPushConsumerImplPtr(new DefaultMQPushConsumerImpl(config, rpcHook));
-    }
+  static DefaultMQPushConsumerImplPtr Create(const std::shared_ptr<DefaultMQPushConsumerConfigImpl>& config,
+                                             RPCHookPtr rpc_hook = nullptr) {
+    return DefaultMQPushConsumerImplPtr{new DefaultMQPushConsumerImpl(config, std::move(rpc_hook))};
   }
 
- private:
-  DefaultMQPushConsumerImpl(DefaultMQPushConsumerConfigPtr config);
-  DefaultMQPushConsumerImpl(DefaultMQPushConsumerConfigPtr config, RPCHookPtr rpcHook);
+  ~DefaultMQPushConsumerImpl();
 
- public:
-  virtual ~DefaultMQPushConsumerImpl();
+  // disable copy
+  DefaultMQPushConsumerImpl(const DefaultMQPushConsumerImpl&) = delete;
+  DefaultMQPushConsumerImpl& operator=(const DefaultMQPushConsumerImpl&) = delete;
+
+  // disable move
+  DefaultMQPushConsumerImpl(DefaultMQPushConsumerImpl&&) = delete;
+  DefaultMQPushConsumerImpl& operator=(DefaultMQPushConsumerImpl&&) = delete;
+
+ private:
+  DefaultMQPushConsumerImpl(const std::shared_ptr<DefaultMQPushConsumerConfigImpl>& config, RPCHookPtr rpc_hook);
 
  public:  // MQPushConsumer
   void start() override;
   void shutdown() override;
 
-  void suspend() override;
-  void resume() override;
+  void Suspend();
+  void Resume();
 
-  MQMessageListener* getMessageListener() const override;
+  void RegisterMessageListener(MessageListener message_listener, MessageListenerType message_listener_type);
 
-  void registerMessageListener(MessageListenerConcurrently* messageListener) override;
-  void registerMessageListener(MessageListenerOrderly* messageListener) override;
+  void Subscribe(const std::string& topic, const std::string& expression);
 
-  void subscribe(const std::string& topic, const std::string& subExpression) override;
-
-  bool sendMessageBack(MessageExtPtr msg, int delayLevel) override;
-  bool sendMessageBack(MessageExtPtr msg, int delayLevel, const std::string& brokerName) override;
+  bool SendMessageBack(MessageExtPtr message, int delay_level);
+  bool SendMessageBack(MessageExtPtr message, int delay_level, const std::string& broker_name);
 
  public:  // MQConsumerInner
   const std::string& groupName() const override;
@@ -100,26 +104,26 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
   // offset persistence
   void persistConsumerOffset() override;
 
-  void pullMessage(PullRequestPtr pullrequest) override;
+  void pullMessage(PullRequestPtr pull_request) override;
 
   std::unique_ptr<ConsumerRunningInfo> consumerRunningInfo() override;
 
  public:
-  void executePullRequestLater(PullRequestPtr pullRequest, long timeDelay);
-  void executePullRequestImmediately(PullRequestPtr pullRequest);
+  void ExecutePullRequestLater(PullRequestPtr pull_request, long delay);
+  void ExecutePullRequestImmediately(PullRequestPtr pull_request);
 
-  void resetRetryAndNamespace(const std::vector<MessageExtPtr>& msgs);
+  void ResetRetryAndNamespace(const std::vector<MessageExtPtr>& messages);
 
-  void updateConsumeOffset(const MQMessageQueue& mq, int64_t offset);
+  void UpdateConsumeOffset(const MQMessageQueue& message_queue, int64_t offset);
 
  private:
-  void checkConfig();
-  void copySubscription();
-  void updateTopicSubscribeInfoWhenSubscriptionChanged();
+  void CheckConfig();
+  void CopySubscription();
+  void UpdateTopicSubscribeInfoWhenSubscriptionChanged();
 
-  void correctTagsOffset(PullRequestPtr pullRequest);
+  void CorrectTagsOffset(PullRequestPtr pull_request);
 
-  void executeTaskLater(const handler_type& task, long timeDelay);
+  void ExecuteTaskLater(const handler_type& task, long delay);
 
  public:
   bool pause() const { return pause_; };
@@ -127,19 +131,12 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
 
   bool consume_orderly() { return consume_orderly_; }
 
-  MessageListenerType getMessageListenerType() const {
-    if (nullptr != message_listener_) {
-      return message_listener_->getMessageListenerType();
-    }
-    return messageListenerDefaultly;
-  }
+  RebalancePushImpl* rebalance_impl() const { return rebalance_impl_.get(); }
 
-  RebalancePushImpl* getRebalanceImpl() const { return rebalance_impl_.get(); }
+  OffsetStore* offset_store() const { return offset_store_.get(); }
 
-  OffsetStore* getOffsetStore() const { return offset_store_.get(); }
-
-  DefaultMQPushConsumerConfig* getDefaultMQPushConsumerConfig() const {
-    return dynamic_cast<DefaultMQPushConsumerConfig*>(client_config_.get());
+  DefaultMQPushConsumerConfigImpl& config() const {
+    return dynamic_cast<DefaultMQPushConsumerConfigImpl&>(*client_config_);
   }
 
  private:
@@ -150,7 +147,7 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
 
   std::map<std::string, std::string> subscription_;
 
-  MQMessageListener* message_listener_{nullptr};
+  MessageListener message_listener_;
   std::unique_ptr<ConsumeMsgService> consume_service_;
 
   std::unique_ptr<RebalancePushImpl> rebalance_impl_;

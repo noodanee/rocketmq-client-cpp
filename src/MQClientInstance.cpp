@@ -914,9 +914,9 @@ void MQClientInstance::resetOffset(const std::string& group,
       LOG_INFO_NEW("[reset-offset] consumer dose not exist. group={}", group);
       return;
     }
-    consumer->suspend();
+    consumer->Suspend();
 
-    auto processQueueTable = consumer->getRebalanceImpl()->getProcessQueueTable();
+    auto processQueueTable = consumer->rebalance_impl()->getProcessQueueTable();
     for (const auto& it : processQueueTable) {
       const auto& mq = it.first;
       if (topic == mq.topic() && offsetTable.find(mq) != offsetTable.end()) {
@@ -933,19 +933,19 @@ void MQClientInstance::resetOffset(const std::string& group,
       const auto& it2 = offsetTable.find(mq);
       if (it2 != offsetTable.end()) {
         auto offset = it2->second;
-        consumer->updateConsumeOffset(mq, offset);
-        consumer->getRebalanceImpl()->removeUnnecessaryMessageQueue(mq, it.second);
-        consumer->getRebalanceImpl()->removeProcessQueueDirectly(mq);
+        consumer->UpdateConsumeOffset(mq, offset);
+        consumer->rebalance_impl()->removeUnnecessaryMessageQueue(mq, it.second);
+        consumer->rebalance_impl()->removeProcessQueueDirectly(mq);
       }
     }
   } catch (...) {
     if (consumer != nullptr) {
-      consumer->resume();
+      consumer->Resume();
     }
     throw;
   }
   if (consumer != nullptr) {
-    consumer->resume();
+    consumer->Resume();
   }
 }
 

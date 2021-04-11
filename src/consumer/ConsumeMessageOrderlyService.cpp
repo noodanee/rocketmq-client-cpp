@@ -27,7 +27,7 @@ const uint64_t MAX_TIME_CONSUME_CONTINUOUSLY = 60000;
 
 ConsumeMessageOrderlyService::ConsumeMessageOrderlyService(DefaultMQPushConsumerImpl* consumer,
                                                            int threadCount,
-                                                           MQMessageListener* msgListener)
+                                                           MessageListener msgListener)
     : consumer_(consumer),
       message_listener_(msgListener),
       consume_executor_("OderlyConsumeService", threadCount, false),
@@ -54,18 +54,18 @@ void ConsumeMessageOrderlyService::stopThreadPool() {
 }
 
 void ConsumeMessageOrderlyService::lockMQPeriodically() {
-  consumer_->getRebalanceImpl()->lockAll();
+  consumer_->rebalance_impl()->lockAll();
 
   scheduled_executor_service_.schedule(std::bind(&ConsumeMessageOrderlyService::lockMQPeriodically, this),
                                        ProcessQueue::kRebalanceLockInterval, time_unit::milliseconds);
 }
 
 void ConsumeMessageOrderlyService::unlockAllMQ() {
-  consumer_->getRebalanceImpl()->unlockAll(false);
+  consumer_->rebalance_impl()->unlockAll(false);
 }
 
 bool ConsumeMessageOrderlyService::lockOneMQ(const MQMessageQueue& mq) {
-  return consumer_->getRebalanceImpl()->lock(mq);
+  return consumer_->rebalance_impl()->lock(mq);
 }
 
 void ConsumeMessageOrderlyService::submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
@@ -142,10 +142,10 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
         break;
       }
 
-      const int consumeBatchSize = consumer_->getDefaultMQPushConsumerConfig()->consume_message_batch_max_size();
+      const int consumeBatchSize = consumer_->config().consume_message_batch_max_size();
 
       std::vector<MessageExtPtr> msgs = processQueue->TakeMessages(consumeBatchSize);
-      consumer_->resetRetryAndNamespace(msgs);
+      consumer_->ResetRetryAndNamespace(msgs);
       if (!msgs.empty()) {
         ConsumeStatus status = RECONSUME_LATER;
         try {
@@ -155,8 +155,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
                          messageQueue.toString());
             break;
           }
-          auto message_list = MQMessageExt::Wrap(msgs);
-          status = message_listener_->consumeMessage(message_list);
+          status = message_listener_(msgs);
         } catch (const std::exception& e) {
           LOG_WARN_NEW("encounter unexpected exception when consume messages.\n{}", e.what());
         }
@@ -177,7 +176,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
         }
 
         if (commitOffset >= 0 && !processQueue->dropped()) {
-          consumer_->getOffsetStore()->updateOffset(messageQueue, commitOffset, false);
+          consumer_->offset_store()->updateOffset(messageQueue, commitOffset, false);
         }
       } else {
         continueConsume = false;
