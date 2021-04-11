@@ -28,7 +28,7 @@ namespace rocketmq {
 /**
  * DefaultLitePullConsumerConfigImpl - implement for DefaultLitePullConsumerConfig
  */
-class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumerConfig, public MQClientConfigImpl {
+class DefaultLitePullConsumerConfigImpl : public DefaultLitePullConsumerConfig, public MQClientConfigImpl {
  public:
   MessageModel message_model() const override { return message_model_; }
   void set_message_model(MessageModel messageModel) override { message_model_ = messageModel; }

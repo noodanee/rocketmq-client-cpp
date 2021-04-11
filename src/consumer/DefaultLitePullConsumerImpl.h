@@ -17,17 +17,19 @@
 #ifndef ROCKETMQ_DEFAULTLITEPULLCONSUMERIMPL_H_
 #define ROCKETMQ_DEFAULTLITEPULLCONSUMERIMPL_H_
 
-#include <memory>  // std::shared_ptr
-#include <mutex>   // std::mutex
-#include <string>  // std::string
+#include <functional>  // std::function
+#include <memory>      // std::shared_ptr
+#include <mutex>       // std::mutex
+#include <string>      // std::string
+#include <utility>
 
-#include "DefaultLitePullConsumer.h"
+#include "DefaultLitePullConsumerConfigImpl.hpp"
 #include "MQClientImpl.h"
 #include "MQConsumerInner.h"
 #include "MessageQueueListener.h"
 #include "MessageQueueLock.hpp"
+#include "MessageSelector.h"
 #include "PollingMessageCache.hpp"
-#include "TopicMessageQueueChangeListener.h"
 #include "concurrent/executor.hpp"
 
 namespace rocketmq {
@@ -39,72 +41,75 @@ class PullResult;
 class RebalanceLitePullImpl;
 
 class DefaultLitePullConsumerImpl;
-typedef std::shared_ptr<DefaultLitePullConsumerImpl> DefaultLitePullConsumerImplPtr;
+using DefaultLitePullConsumerImplPtr = std::shared_ptr<DefaultLitePullConsumerImpl>;
 
-enum SubscriptionType { NONE, SUBSCRIBE, ASSIGN };
-
-class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultLitePullConsumerImpl>,
-                                    public LitePullConsumer,
-                                    public MQClientImpl,
-                                    public MQConsumerInner {
+class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<DefaultLitePullConsumerImpl>,
+                                          public MQClientImpl,
+                                          public MQConsumerInner {
  private:
+  enum class SubscriptionType { kNone, kSubscribe, kAssign };
   class MessageQueueListenerImpl;
   class AsyncPullCallback;
+
+ public:
+  using TopicMessageQueuesChangedListener =
+      std::function<void(const std::string&, const std::vector<MQMessageQueue>&) /* noexcept */>;
 
  public:
   /**
    * create() - Factory method for DefaultLitePullConsumerImpl, used to ensure that all objects of
    * DefaultLitePullConsumerImpl are managed by std::share_ptr
    */
-  static DefaultLitePullConsumerImplPtr create(DefaultLitePullConsumerConfigPtr config, RPCHookPtr rpcHook = nullptr) {
-    if (nullptr == rpcHook) {
-      return DefaultLitePullConsumerImplPtr(new DefaultLitePullConsumerImpl(config));
-    } else {
-      return DefaultLitePullConsumerImplPtr(new DefaultLitePullConsumerImpl(config, rpcHook));
-    }
+  static DefaultLitePullConsumerImplPtr Create(const std::shared_ptr<DefaultLitePullConsumerConfigImpl>& config,
+                                               RPCHookPtr rpc_hook = nullptr) {
+    return DefaultLitePullConsumerImplPtr{new DefaultLitePullConsumerImpl(config, std::move(rpc_hook))};
   }
 
- private:
-  DefaultLitePullConsumerImpl(DefaultLitePullConsumerConfigPtr config);
-  DefaultLitePullConsumerImpl(DefaultLitePullConsumerConfigPtr config, RPCHookPtr rpcHook);
+  ~DefaultLitePullConsumerImpl();
 
- public:
-  virtual ~DefaultLitePullConsumerImpl();
+  // disable copy
+  DefaultLitePullConsumerImpl(const DefaultLitePullConsumerImpl&) = delete;
+  DefaultLitePullConsumerImpl& operator=(const DefaultLitePullConsumerImpl&) = delete;
+
+  // disable move
+  DefaultLitePullConsumerImpl(DefaultLitePullConsumerImpl&&) = delete;
+  DefaultLitePullConsumerImpl& operator=(DefaultLitePullConsumerImpl&&) = delete;
+
+ private:
+  DefaultLitePullConsumerImpl(const std::shared_ptr<DefaultLitePullConsumerConfigImpl>& config, RPCHookPtr rpc_hook);
 
  public:  // LitePullConsumer
   void start() override;
   void shutdown() override;
 
-  bool isAutoCommit() const override;
-  void setAutoCommit(bool auto_commit) override;
+  bool isAutoCommit() const;
+  void setAutoCommit(bool auto_commit);
 
-  void subscribe(const std::string& topic, const std::string& subExpression) override;
-  void subscribe(const std::string& topic, const MessageSelector& selector) override;
+  std::vector<MQMessageExt> Poll(int64_t timeout);
 
-  void unsubscribe(const std::string& topic) override;
+  void Subscribe(const std::string& topic, const std::string& expression);
+  void Subscribe(const std::string& topic, const MessageSelector& selector);
+  void Unsubscribe(const std::string& topic);
 
-  std::vector<MQMessageExt> poll() override;
-  std::vector<MQMessageExt> poll(long timeout) override;
+  std::vector<MQMessageQueue> FetchMessageQueues(const std::string& topic);
+  void Assign(std::vector<MQMessageQueue>& message_queues);
 
-  std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) override;
-  void assign(std::vector<MQMessageQueue>& messageQueues) override;
+  void Seek(const MQMessageQueue& message_queue, int64_t offset);
+  void SeekToBegin(const MQMessageQueue& message_queue);
+  void SeekToEnd(const MQMessageQueue& message_queue);
 
-  void seek(const MQMessageQueue& messageQueue, int64_t offset) override;
-  void seekToBegin(const MQMessageQueue& messageQueue) override;
-  void seekToEnd(const MQMessageQueue& messageQueue) override;
+  int64_t OffsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp);
 
-  int64_t offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) override;
+  void Pause(const std::vector<MQMessageQueue>& message_queues);
+  void Resume(const std::vector<MQMessageQueue>& message_queues);
 
-  void pause(const std::vector<MQMessageQueue>& messageQueues) override;
-  void resume(const std::vector<MQMessageQueue>& messageQueues) override;
+  void CommitSync();
 
-  void commitSync() override;
+  int64_t Committed(const MQMessageQueue& message_queue);
 
-  int64_t committed(const MQMessageQueue& messageQueue) override;
-
-  void registerTopicMessageQueueChangeListener(
+  void RegisterTopicMessageQueuesChangedListener(
       const std::string& topic,
-      TopicMessageQueueChangeListener* topicMessageQueueChangeListener) override;
+      TopicMessageQueuesChangedListener topic_message_queues_changed_listener);
 
  public:  // MQConsumerInner
   const std::string& groupName() const override;
@@ -128,48 +133,44 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   std::unique_ptr<ConsumerRunningInfo> consumerRunningInfo() override;
 
  public:
-  void executePullRequestLater(PullRequestPtr pull_request, long delay);
-  void executePullRequestImmediately(PullRequestPtr pull_request);
+  void ExecutePullRequestLater(PullRequestPtr pull_request, long delay);
+  void ExecutePullRequestImmediately(PullRequestPtr pull_request);
 
  private:
-  void checkConfig();
-  void startScheduleTask();
-  void operateAfterRunning();
+  void CheckConfig();
+  void StartScheduleTask();
+  void OperateAfterRunning();
 
-  void fetchTopicMessageQueuesAndComparePeriodically();
-  void fetchTopicMessageQueuesAndCompare();
+  void FetchTopicMessageQueuesAndComparePeriodically();
+  void FetchTopicMessageQueuesAndCompare();
 
-  bool isSetEqual(std::vector<MQMessageQueue>& newMessageQueues, std::vector<MQMessageQueue>& oldMessageQueues);
+  void UpdateTopicSubscribeInfoWhenSubscriptionChanged();
 
-  void updateTopicSubscribeInfoWhenSubscriptionChanged();
+  void ResetTopic(std::vector<MessageExtPtr>& messages);
 
+  void UpdateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assigned_message_queues);
+  void UpdateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues);
+  void DispatchAssigndPullRequest(std::vector<PullRequestPtr>& pull_request_list);
 
-  void updateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assigned_message_queues);
-  void updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues);
-  void dispatchAssigndPullRequest(std::vector<PullRequestPtr>& pull_request_list);
+  int64_t NextPullOffset(const ProcessQueuePtr& process_queue);
+  int64_t FetchConsumeOffset(const MQMessageQueue& message_queue);
 
-  int64_t nextPullOffset(const ProcessQueuePtr& process_queue);
-  int64_t fetchConsumeOffset(const MQMessageQueue& messageQueue);
+  void MaybeAutoCommit();
+  void CommitAll();
 
-  void maybeAutoCommit();
+  void UpdateConsumeOffset(const MQMessageQueue& mq, int64_t offset);
 
-  void resetTopic(std::vector<MessageExtPtr>& msg_list);
-
-  void commitAll();
-
-  void updateConsumeOffset(const MQMessageQueue& mq, int64_t offset);
-
-  void parseMessageQueues(std::vector<MQMessageQueue>& queueSet);
+  void ParseMessageQueues(std::vector<MQMessageQueue>& queueSet);
 
  public:
   PollingMessageCache& message_cache() { return message_cache_; }
 
-  MessageQueueListener* getMessageQueueListener() const { return message_queue_listener_.get(); }
+  MessageQueueListener* message_queue_listener() const { return message_queue_listener_.get(); }
 
-  OffsetStore* getOffsetStore() const { return offset_store_.get(); }
+  OffsetStore* offset_store() const { return offset_store_.get(); }
 
-  DefaultLitePullConsumerConfig* getDefaultLitePullConsumerConfig() const {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get());
+  DefaultLitePullConsumerConfigImpl& config() const {
+    return dynamic_cast<DefaultLitePullConsumerConfigImpl&>(*client_config_);
   }
 
  private:
@@ -180,9 +181,9 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
 
   uint64_t start_time_{0};
 
-  SubscriptionType subscription_type_{SubscriptionType::NONE};
+  SubscriptionType subscription_type_{SubscriptionType::kNone};
 
-  long consume_request_flow_control_times_{0};
+  // long consume_request_flow_control_times_{0};
   long queue_flow_control_times_{0};
 
   int64_t next_auto_commit_deadline_{-1};
@@ -191,7 +192,7 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
 
   std::unique_ptr<MessageQueueListener> message_queue_listener_;
 
-  std::map<std::string, TopicMessageQueueChangeListener*> topic_message_queue_change_listener_map_;
+  std::map<std::string, TopicMessageQueuesChangedListener> topic_message_queues_changed_listener_map_;
   std::map<std::string, std::vector<MQMessageQueue>> message_queues_for_topic_;
 
   std::unique_ptr<AssignedMessageQueue> assigned_message_queue_;

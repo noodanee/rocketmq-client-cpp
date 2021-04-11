@@ -30,12 +30,12 @@ namespace rocketmq {
 class AssignedMessageQueue {
  public:
   std::vector<MQMessageQueue> GetMessageQueues() {
-    std::vector<MQMessageQueue> mqs;
+    std::vector<MQMessageQueue> message_queues;
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (const auto& it : assigned_message_queue_state_) {
-      mqs.push_back(it.first);
+      message_queues.push_back(it.first);
     }
-    return mqs;
+    return message_queues;
   }
 
   void Pause(const std::vector<MQMessageQueue>& message_queues) {
@@ -43,8 +43,8 @@ class AssignedMessageQueue {
     for (const auto& message_queue : message_queues) {
       auto it = assigned_message_queue_state_.find(message_queue);
       if (it != assigned_message_queue_state_.end()) {
-        auto& pq = it->second;
-        pq->set_paused(true);
+        auto& process_queue = it->second;
+        process_queue->set_paused(true);
       }
     }
   }
@@ -54,8 +54,8 @@ class AssignedMessageQueue {
     for (const auto& message_queue : message_queues) {
       auto it = assigned_message_queue_state_.find(message_queue);
       if (it != assigned_message_queue_state_.end()) {
-        auto& pq = it->second;
-        pq->set_paused(false);
+        auto& process_queue = it->second;
+        process_queue->set_paused(false);
       }
     }
   }
@@ -74,13 +74,13 @@ class AssignedMessageQueue {
     std::sort(assigned.begin(), assigned.end());
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (auto it = assigned_message_queue_state_.begin(); it != assigned_message_queue_state_.end();) {
-      auto& mq = it->first;
-      if (mq.topic() == topic) {
-        if (!std::binary_search(assigned.begin(), assigned.end(), mq)) {
-          auto& pq = it->second;
-          pq->set_dropped(true);
+      const auto& message_queue = it->first;
+      if (message_queue.topic() == topic) {
+        if (!std::binary_search(assigned.begin(), assigned.end(), message_queue)) {
+          auto& process_queue = it->second;
+          process_queue->set_dropped(true);
           if (rebalance_impl_ != nullptr) {
-            rebalance_impl_->removeUnnecessaryMessageQueue(mq, pq);
+            rebalance_impl_->removeUnnecessaryMessageQueue(message_queue, process_queue);
           }
           it = assigned_message_queue_state_.erase(it);
           continue;
@@ -95,12 +95,12 @@ class AssignedMessageQueue {
     std::sort(assigned.begin(), assigned.end());
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (auto it = assigned_message_queue_state_.begin(); it != assigned_message_queue_state_.end();) {
-      auto& mq = it->first;
-      if (!std::binary_search(assigned.begin(), assigned.end(), mq)) {
-        auto& pq = it->second;
-        pq->set_dropped(true);
+      const auto& message_queue = it->first;
+      if (!std::binary_search(assigned.begin(), assigned.end(), message_queue)) {
+        auto& process_queue = it->second;
+        process_queue->set_dropped(true);
         if (rebalance_impl_ != nullptr) {
-          rebalance_impl_->removeUnnecessaryMessageQueue(mq, pq);
+          rebalance_impl_->removeUnnecessaryMessageQueue(message_queue, process_queue);
         }
         it = assigned_message_queue_state_.erase(it);
         continue;

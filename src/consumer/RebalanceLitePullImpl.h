@@ -23,29 +23,29 @@
 
 namespace rocketmq {
 
-typedef std::map<MQMessageQueue, ProcessQueuePtr> MQ2PQ;
+using MQ2PQ = std::map<MQMessageQueue, ProcessQueuePtr>;
 
 class RebalanceLitePullImpl : public RebalanceImpl {
  public:
-  RebalanceLitePullImpl(DefaultLitePullConsumerImpl* consumerImpl);
+  RebalanceLitePullImpl(DefaultLitePullConsumerImpl* pull_consumer_impl);
 
  public:
   void shutdown() override;
-  ConsumeType consumeType() override final { return CONSUME_ACTIVELY; }
+  ConsumeType consumeType() final { return CONSUME_ACTIVELY; }
 
  protected:
   bool updateMessageQueueInRebalance(const std::string& topic,
-                                     std::vector<MQMessageQueue>& allocated_mqs,
-                                     const bool orderly) override;
+                                     std::vector<MQMessageQueue>& allocated_message_queues,
+                                     bool orderly) override;
   void messageQueueChanged(const std::string& topic,
-                           std::vector<MQMessageQueue>& all_mqs,
-                           std::vector<MQMessageQueue>& allocated_mqs) override;
+                           std::vector<MQMessageQueue>& all_message_queues,
+                           std::vector<MQMessageQueue>& allocated_message_queues) override;
   void truncateMessageQueueNotMyTopic() override;
 
  public:
-  bool removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq);
-  void removeDirtyOffset(const MQMessageQueue& mq);
-  int64_t computePullFromWhere(const MQMessageQueue& mq);
+  bool removeUnnecessaryMessageQueue(const MQMessageQueue& message_queue, ProcessQueuePtr process_queue);
+  void removeDirtyOffset(const MQMessageQueue& message_queue);
+  int64_t computePullFromWhere(const MQMessageQueue& message_queue);
 
  private:
   DefaultLitePullConsumerImpl* lite_pull_consumer_impl_;

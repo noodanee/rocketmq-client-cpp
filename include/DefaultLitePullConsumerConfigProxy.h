@@ -22,136 +22,80 @@
 
 namespace rocketmq {
 
-class ROCKETMQCLIENT_API DefaultLitePullConsumerConfigProxy : public MQClientConfigProxy,                   // base
-                                                              virtual public DefaultLitePullConsumerConfig  // interface
-{
+class ROCKETMQCLIENT_API DefaultLitePullConsumerConfigProxy : public DefaultLitePullConsumerConfig {
  public:
-  DefaultLitePullConsumerConfigProxy(DefaultLitePullConsumerConfigPtr consumerConfig)
-      : MQClientConfigProxy(consumerConfig) {}
-  virtual ~DefaultLitePullConsumerConfigProxy() = default;
+  DefaultLitePullConsumerConfigProxy(DefaultLitePullConsumerConfig& config) : config_(config) {}
 
-  MessageModel message_model() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->message_model();
-  }
+  MessageModel message_model() const override { return config_.message_model(); }
+  void set_message_model(MessageModel messageModel) override { config_.set_message_model(messageModel); }
 
-  void set_message_model(MessageModel messageModel) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_message_model(messageModel);
-  }
-
-  ConsumeFromWhere consume_from_where() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->consume_from_where();
-  }
-
+  ConsumeFromWhere consume_from_where() const override { return config_.consume_from_where(); }
   void set_consume_from_where(ConsumeFromWhere consumeFromWhere) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_consume_from_where(consumeFromWhere);
+    config_.set_consume_from_where(consumeFromWhere);
   }
 
-  const std::string& consume_timestamp() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->consume_timestamp();
-  }
+  const std::string& consume_timestamp() const override { return config_.consume_timestamp(); }
   void set_consume_timestamp(const std::string& consumeTimestamp) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_consume_timestamp(consumeTimestamp);
+    config_.set_consume_timestamp(consumeTimestamp);
   }
 
-  long auto_commit_interval_millis() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->auto_commit_interval_millis();
-  }
-
+  long auto_commit_interval_millis() const override { return config_.auto_commit_interval_millis(); }
   void set_auto_commit_interval_millis(long auto_commit_interval_millis) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_auto_commit_interval_millis(auto_commit_interval_millis);
+    config_.set_auto_commit_interval_millis(auto_commit_interval_millis);
   }
 
-  int pull_batch_size() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->pull_batch_size();
-  }
+  int pull_batch_size() const override { return config_.pull_batch_size(); }
+  void set_pull_batch_size(int pull_batch_size) override { config_.set_pull_batch_size(pull_batch_size); }
 
-  void set_pull_batch_size(int pull_batch_size) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_pull_batch_size(pull_batch_size);
-  }
-
-  long consumer_pull_timeout_millis() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->consumer_pull_timeout_millis();
-  }
-
+  long consumer_pull_timeout_millis() const override { return config_.consumer_pull_timeout_millis(); }
   void set_consumer_pull_timeout_millis(long consumer_pull_timeout_millis) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_consumer_pull_timeout_millis(consumer_pull_timeout_millis);
+    config_.set_consumer_pull_timeout_millis(consumer_pull_timeout_millis);
   }
 
-  long consumer_timeout_millis_when_suspend() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->consumer_timeout_millis_when_suspend();
-  }
-
+  long consumer_timeout_millis_when_suspend() const override { return config_.consumer_timeout_millis_when_suspend(); }
   void set_consumer_timeout_millis_when_suspend(long consumer_timeout_millis_when_suspend) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_consumer_timeout_millis_when_suspend(consumer_timeout_millis_when_suspend);
+    config_.set_consumer_timeout_millis_when_suspend(consumer_timeout_millis_when_suspend);
   }
 
-  long broker_suspend_max_time_millis() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->broker_suspend_max_time_millis();
-  }
-
+  long broker_suspend_max_time_millis() const override { return config_.broker_suspend_max_time_millis(); }
   void set_broker_suspend_max_time_millis(long broker_suspend_max_time_millis) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_broker_suspend_max_time_millis(broker_suspend_max_time_millis);
+    config_.set_broker_suspend_max_time_millis(broker_suspend_max_time_millis);
   }
 
-  long pull_threshold_for_all() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->pull_threshold_for_all();
-  }
-
+  long pull_threshold_for_all() const override { return config_.pull_threshold_for_all(); }
   void set_pull_threshold_for_all(long pull_threshold_for_all) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_pull_threshold_for_all(pull_threshold_for_all);
+    config_.set_pull_threshold_for_all(pull_threshold_for_all);
   }
 
-  int pull_threshold_for_queue() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->pull_threshold_for_queue();
-  }
-
+  int pull_threshold_for_queue() const override { return config_.pull_threshold_for_queue(); }
   void set_pull_threshold_for_queue(int pull_threshold_for_queue) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_pull_threshold_for_queue(pull_threshold_for_queue);
+    config_.set_pull_threshold_for_queue(pull_threshold_for_queue);
   }
 
   long pull_time_delay_millis_when_exception() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->pull_time_delay_millis_when_exception();
+    return config_.pull_time_delay_millis_when_exception();
   }
-
   void set_pull_time_delay_millis_when_exception(long pull_time_delay_millis_when_exception) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_pull_time_delay_millis_when_exception(pull_time_delay_millis_when_exception);
+    config_.set_pull_time_delay_millis_when_exception(pull_time_delay_millis_when_exception);
   }
 
-  long poll_timeout_millis() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->poll_timeout_millis();
-  }
-
+  long poll_timeout_millis() const override { return config_.poll_timeout_millis(); }
   void set_poll_timeout_millis(long poll_timeout_millis) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_poll_timeout_millis(poll_timeout_millis);
+    config_.set_poll_timeout_millis(poll_timeout_millis);
   }
 
-  long topic_metadata_check_interval_millis() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->topic_metadata_check_interval_millis();
+  long topic_metadata_check_interval_millis() const override { return config_.topic_metadata_check_interval_millis(); }
+  void set_topic_metadata_check_interval_millis(long topic_metadata_check_interval_millis) override {
+    config_.set_topic_metadata_check_interval_millis(topic_metadata_check_interval_millis);
   }
 
-  void set_topic_metadata_check_interval_millis(long topicMetadataCheckIntervalMillis) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())
-        ->set_topic_metadata_check_interval_millis(topicMetadataCheckIntervalMillis);
-  }
-
-  const AllocateMQStrategy& allocate_mq_strategy() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->allocate_mq_strategy();
-  }
-
+  const AllocateMQStrategy& allocate_mq_strategy() const override { return config_.allocate_mq_strategy(); }
   void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_allocate_mq_strategy(strategy);
+    config_.set_allocate_mq_strategy(strategy);
   }
 
-  DefaultLitePullConsumerConfigPtr real_config() const {
-    return std::dynamic_pointer_cast<DefaultLitePullConsumerConfig>(client_config_);
-  }
+ private:
+  DefaultLitePullConsumerConfig& config_;
 };
 
 }  // namespace rocketmq

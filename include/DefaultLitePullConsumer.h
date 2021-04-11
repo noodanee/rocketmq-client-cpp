@@ -17,60 +17,70 @@
 #ifndef ROCKETMQ_DEFAULTLITEPULLCONSUMER_H_
 #define ROCKETMQ_DEFAULTLITEPULLCONSUMER_H_
 
+#include <memory>
+
 #include "DefaultLitePullConsumerConfigProxy.h"
-#include "LitePullConsumer.h"
+#include "MQClientConfigProxy.h"
+#include "MQMessageExt.h"
+#include "MessageSelector.h"
 #include "RPCHook.h"
+#include "TopicMessageQueueChangeListener.h"
 
 namespace rocketmq {
 
-class ROCKETMQCLIENT_API DefaultLitePullConsumer : public DefaultLitePullConsumerConfigProxy,  // base
-                                                   public LitePullConsumer                     // interface
-{
+class DefaultLitePullConsumerConfigImpl;
+class DefaultLitePullConsumerImpl;
+
+class ROCKETMQCLIENT_API DefaultLitePullConsumer : public DefaultLitePullConsumerConfigProxy,
+                                                   public MQClientConfigProxy {
  public:
   DefaultLitePullConsumer(const std::string& groupname);
-  DefaultLitePullConsumer(const std::string& groupname, RPCHookPtr rpcHook);
-  virtual ~DefaultLitePullConsumer();
+  DefaultLitePullConsumer(const std::string& groupname, RPCHookPtr rpc_hook);
+
+ private:
+  DefaultLitePullConsumer(const std::string& groupname,
+                          RPCHookPtr rpc_hook,
+                          std::shared_ptr<DefaultLitePullConsumerConfigImpl> config);
 
  public:  // LitePullConsumer
-  void start() override;
-  void shutdown() override;
+  void start();
+  void shutdown();
 
-  bool isAutoCommit() const override;
-  void setAutoCommit(bool auto_commit) override;
+  bool isAutoCommit() const;
+  void setAutoCommit(bool auto_commit);
 
-  void subscribe(const std::string& topic, const std::string& subExpression) override;
-  void subscribe(const std::string& topic, const MessageSelector& selector) override;
+  std::vector<MQMessageExt> poll();
+  std::vector<MQMessageExt> poll(long timeout);
 
-  void unsubscribe(const std::string& topic) override;
+  void subscribe(const std::string& topic, const std::string& expression);
+  void subscribe(const std::string& topic, const MessageSelector& selector);
+  void unsubscribe(const std::string& topic);
 
-  std::vector<MQMessageExt> poll() override;
-  std::vector<MQMessageExt> poll(long timeout) override;
+  std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic);
+  void assign(std::vector<MQMessageQueue>& message_queues);
 
-  std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) override;
-  void assign(std::vector<MQMessageQueue>& messageQueues) override;
+  void seek(const MQMessageQueue& message_queue, int64_t offset);
+  void seekToBegin(const MQMessageQueue& message_queue);
+  void seekToEnd(const MQMessageQueue& message_queue);
 
-  void seek(const MQMessageQueue& messageQueue, int64_t offset) override;
-  void seekToBegin(const MQMessageQueue& messageQueue) override;
-  void seekToEnd(const MQMessageQueue& messageQueue) override;
+  int64_t offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp);
 
-  int64_t offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) override;
+  void pause(const std::vector<MQMessageQueue>& message_queues);
+  void resume(const std::vector<MQMessageQueue>& message_queues);
 
-  void pause(const std::vector<MQMessageQueue>& messageQueues) override;
-  void resume(const std::vector<MQMessageQueue>& messageQueues) override;
+  void commitSync();
 
-  void commitSync() override;
+  int64_t committed(const MQMessageQueue& message_queue);
 
-  int64_t committed(const MQMessageQueue& messageQueue) override;
-
-  void registerTopicMessageQueueChangeListener(
-      const std::string& topic,
-      TopicMessageQueueChangeListener* topicMessageQueueChangeListener) override;
+  void registerTopicMessageQueueChangeListener(const std::string& topic,
+                                               TopicMessageQueueChangeListener* topic_message_queue_change_listener);
 
  public:
-  void setRPCHook(RPCHookPtr rpcHook);
+  void setRPCHook(RPCHookPtr rpc_hook);
 
  protected:
-  std::shared_ptr<LitePullConsumer> pull_consumer_impl_;
+  std::shared_ptr<DefaultLitePullConsumerConfigImpl> pull_consumer_config_impl_;
+  std::shared_ptr<DefaultLitePullConsumerImpl> pull_consumer_impl_;
 };
 
 }  // namespace rocketmq

@@ -16,17 +16,41 @@
  */
 #include "DefaultLitePullConsumer.h"
 
+#include <memory>
+
 #include "DefaultLitePullConsumerConfigImpl.hpp"
 #include "DefaultLitePullConsumerImpl.h"
+#include "MQClientConfigProxy.h"
 #include "UtilAll.h"
 
 namespace rocketmq {
 
+namespace {
+
+class TopicMessageQueuesChangedListenerImpl {
+ public:
+  TopicMessageQueuesChangedListenerImpl(TopicMessageQueueChangeListener* listener) : listener_(listener) {}
+
+  void operator()(const std::string& topic, const std::vector<MQMessageQueue>& message_queues) noexcept {
+    listener_->onChanged(topic, message_queues);
+  }
+
+ private:
+  TopicMessageQueueChangeListener* listener_;
+};
+
+}  // namespace
+
 DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname)
     : DefaultLitePullConsumer(groupname, nullptr) {}
 
-DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname, RPCHookPtr rpcHook)
-    : DefaultLitePullConsumerConfigProxy(std::make_shared<DefaultLitePullConsumerConfigImpl>()) {
+DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname, RPCHookPtr rpc_hook)
+    : DefaultLitePullConsumer(groupname, rpc_hook, std::make_shared<DefaultLitePullConsumerConfigImpl>()) {}
+
+DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname,
+                                                 RPCHookPtr rpc_hook,
+                                                 std::shared_ptr<DefaultLitePullConsumerConfigImpl> config)
+    : DefaultLitePullConsumerConfigProxy(*config), MQClientConfigProxy(config), pull_consumer_config_impl_(config) {
   // set default group name
   if (groupname.empty()) {
     set_group_name(DEFAULT_CONSUMER_GROUP);
@@ -35,10 +59,8 @@ DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname, R
   }
 
   // create DefaultLitePullConsumerImpl
-  pull_consumer_impl_ = DefaultLitePullConsumerImpl::create(real_config(), rpcHook);
+  pull_consumer_impl_ = DefaultLitePullConsumerImpl::Create(pull_consumer_config_impl_, rpc_hook);
 }
-
-DefaultLitePullConsumer::~DefaultLitePullConsumer() = default;
 
 void DefaultLitePullConsumer::start() {
   pull_consumer_impl_->start();
@@ -56,74 +78,75 @@ void DefaultLitePullConsumer::setAutoCommit(bool auto_commit) {
   pull_consumer_impl_->setAutoCommit(auto_commit);
 }
 
-void DefaultLitePullConsumer::subscribe(const std::string& topic, const std::string& subExpression) {
-  pull_consumer_impl_->subscribe(topic, subExpression);
-}
-
-void DefaultLitePullConsumer::subscribe(const std::string& topic, const MessageSelector& selector) {
-  pull_consumer_impl_->subscribe(topic, selector);
-}
-
-void DefaultLitePullConsumer::unsubscribe(const std::string& topic) {
-  pull_consumer_impl_->unsubscribe(topic);
-}
-
 std::vector<MQMessageExt> DefaultLitePullConsumer::poll() {
-  return pull_consumer_impl_->poll();
+  return poll(pull_consumer_config_impl_->poll_timeout_millis());
 }
 
 std::vector<MQMessageExt> DefaultLitePullConsumer::poll(long timeout) {
-  return pull_consumer_impl_->poll(timeout);
+  return pull_consumer_impl_->Poll(timeout);
+}
+
+void DefaultLitePullConsumer::subscribe(const std::string& topic, const std::string& expression) {
+  pull_consumer_impl_->Subscribe(topic, expression);
+}
+
+void DefaultLitePullConsumer::subscribe(const std::string& topic, const MessageSelector& selector) {
+  pull_consumer_impl_->Subscribe(topic, selector);
+}
+
+void DefaultLitePullConsumer::unsubscribe(const std::string& topic) {
+  pull_consumer_impl_->Unsubscribe(topic);
 }
 
 std::vector<MQMessageQueue> DefaultLitePullConsumer::fetchMessageQueues(const std::string& topic) {
-  return pull_consumer_impl_->fetchMessageQueues(topic);
+  return pull_consumer_impl_->FetchMessageQueues(topic);
 }
 
-void DefaultLitePullConsumer::assign(std::vector<MQMessageQueue>& messageQueues) {
-  pull_consumer_impl_->assign(messageQueues);
+void DefaultLitePullConsumer::assign(std::vector<MQMessageQueue>& message_queues) {
+  pull_consumer_impl_->Assign(message_queues);
 }
 
-void DefaultLitePullConsumer::seek(const MQMessageQueue& messageQueue, int64_t offset) {
-  pull_consumer_impl_->seek(messageQueue, offset);
+void DefaultLitePullConsumer::seek(const MQMessageQueue& message_queue, int64_t offset) {
+  pull_consumer_impl_->Seek(message_queue, offset);
 }
 
-void DefaultLitePullConsumer::seekToBegin(const MQMessageQueue& messageQueue) {
-  pull_consumer_impl_->seekToBegin(messageQueue);
+void DefaultLitePullConsumer::seekToBegin(const MQMessageQueue& message_queue) {
+  pull_consumer_impl_->SeekToBegin(message_queue);
 }
 
-void DefaultLitePullConsumer::seekToEnd(const MQMessageQueue& messageQueue) {
-  pull_consumer_impl_->seekToEnd(messageQueue);
+void DefaultLitePullConsumer::seekToEnd(const MQMessageQueue& message_queue) {
+  pull_consumer_impl_->SeekToEnd(message_queue);
 }
 
-int64_t DefaultLitePullConsumer::offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) {
-  return pull_consumer_impl_->offsetForTimestamp(messageQueue, timestamp);
+int64_t DefaultLitePullConsumer::offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) {
+  return pull_consumer_impl_->OffsetForTimestamp(message_queue, timestamp);
 }
 
-void DefaultLitePullConsumer::pause(const std::vector<MQMessageQueue>& messageQueues) {
-  pull_consumer_impl_->pause(messageQueues);
+void DefaultLitePullConsumer::pause(const std::vector<MQMessageQueue>& message_queues) {
+  pull_consumer_impl_->Pause(message_queues);
 }
 
-void DefaultLitePullConsumer::resume(const std::vector<MQMessageQueue>& messageQueues) {
-  pull_consumer_impl_->resume(messageQueues);
+void DefaultLitePullConsumer::resume(const std::vector<MQMessageQueue>& message_queues) {
+  pull_consumer_impl_->Resume(message_queues);
 }
 
 void DefaultLitePullConsumer::commitSync() {
-  pull_consumer_impl_->commitSync();
+  pull_consumer_impl_->CommitSync();
 }
 
-int64_t DefaultLitePullConsumer::committed(const MQMessageQueue& messageQueue) {
-  return pull_consumer_impl_->committed(messageQueue);
+int64_t DefaultLitePullConsumer::committed(const MQMessageQueue& message_queue) {
+  return pull_consumer_impl_->Committed(message_queue);
 }
 
 void DefaultLitePullConsumer::registerTopicMessageQueueChangeListener(
     const std::string& topic,
-    TopicMessageQueueChangeListener* topicMessageQueueChangeListener) {
-  pull_consumer_impl_->registerTopicMessageQueueChangeListener(topic, topicMessageQueueChangeListener);
+    TopicMessageQueueChangeListener* topic_message_queue_change_listener) {
+  pull_consumer_impl_->RegisterTopicMessageQueuesChangedListener(
+      topic, TopicMessageQueuesChangedListenerImpl{topic_message_queue_change_listener});
 }
 
-void DefaultLitePullConsumer::setRPCHook(RPCHookPtr rpcHook) {
-  dynamic_cast<DefaultLitePullConsumerImpl*>(pull_consumer_impl_.get())->setRPCHook(rpcHook);
+void DefaultLitePullConsumer::setRPCHook(RPCHookPtr rpc_hook) {
+  pull_consumer_impl_->setRPCHook(rpc_hook);
 }
 
 }  // namespace rocketmq

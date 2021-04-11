@@ -28,8 +28,6 @@ namespace rocketmq {
  */
 class ROCKETMQCLIENT_API MQAdmin {
  public:
-  virtual ~MQAdmin() = default;
-
   /**
    * Creates an topic
    *

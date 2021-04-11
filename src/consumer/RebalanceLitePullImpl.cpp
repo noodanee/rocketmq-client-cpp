@@ -22,41 +22,41 @@
 
 namespace rocketmq {
 
-RebalanceLitePullImpl::RebalanceLitePullImpl(DefaultLitePullConsumerImpl* consumerImpl)
-    : RebalanceImpl(null, CLUSTERING, AllocateMQAveragely, nullptr), lite_pull_consumer_impl_(consumerImpl) {}
+RebalanceLitePullImpl::RebalanceLitePullImpl(DefaultLitePullConsumerImpl* pull_consumer_impl)
+    : RebalanceImpl(null, CLUSTERING, AllocateMQAveragely, nullptr), lite_pull_consumer_impl_(pull_consumer_impl) {}
 
 void RebalanceLitePullImpl::shutdown() {}
 
 bool RebalanceLitePullImpl::updateMessageQueueInRebalance(const std::string& topic,
-                                                          std::vector<MQMessageQueue>& allocated_mqs,
+                                                          std::vector<MQMessageQueue>& allocated_message_queues,
                                                           bool orderly) {
   return true;
 }
 
-bool RebalanceLitePullImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq) {
-  lite_pull_consumer_impl_->getOffsetStore()->persist(mq);
-  lite_pull_consumer_impl_->getOffsetStore()->removeOffset(mq);
+bool RebalanceLitePullImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& message_queue,
+                                                          ProcessQueuePtr process_queue) {
+  lite_pull_consumer_impl_->offset_store()->persist(message_queue);
+  lite_pull_consumer_impl_->offset_store()->removeOffset(message_queue);
   return true;
 }
 
-void RebalanceLitePullImpl::removeDirtyOffset(const MQMessageQueue& mq) {
-  lite_pull_consumer_impl_->getOffsetStore()->removeOffset(mq);
+void RebalanceLitePullImpl::removeDirtyOffset(const MQMessageQueue& message_queue) {
+  lite_pull_consumer_impl_->offset_store()->removeOffset(message_queue);
 }
 
-int64_t RebalanceLitePullImpl::computePullFromWhere(const MQMessageQueue& mq) {
-  return RebalanceImpl::computePullFromWhereImpl(
-      mq, lite_pull_consumer_impl_->getDefaultLitePullConsumerConfig()->consume_from_where(),
-      lite_pull_consumer_impl_->getDefaultLitePullConsumerConfig()->consume_timestamp(),
-      *lite_pull_consumer_impl_->getOffsetStore(), *lite_pull_consumer_impl_);
+int64_t RebalanceLitePullImpl::computePullFromWhere(const MQMessageQueue& message_queue) {
+  return RebalanceImpl::computePullFromWhereImpl(message_queue, lite_pull_consumer_impl_->config().consume_from_where(),
+                                                 lite_pull_consumer_impl_->config().consume_timestamp(),
+                                                 *lite_pull_consumer_impl_->offset_store(), *lite_pull_consumer_impl_);
 }
 
 void RebalanceLitePullImpl::messageQueueChanged(const std::string& topic,
-                                                std::vector<MQMessageQueue>& mqAll,
-                                                std::vector<MQMessageQueue>& mqDivided) {
-  auto* messageQueueListener = lite_pull_consumer_impl_->getMessageQueueListener();
-  if (messageQueueListener != nullptr) {
+                                                std::vector<MQMessageQueue>& all_message_queues,
+                                                std::vector<MQMessageQueue>& divided_message_queues) {
+  auto* message_queue_listener = lite_pull_consumer_impl_->message_queue_listener();
+  if (message_queue_listener != nullptr) {
     try {
-      messageQueueListener->messageQueueChanged(topic, mqAll, mqDivided);
+      message_queue_listener->messageQueueChanged(topic, all_message_queues, divided_message_queues);
     } catch (std::exception& e) {
       LOG_ERROR_NEW("messageQueueChanged exception {}", e.what());
     }

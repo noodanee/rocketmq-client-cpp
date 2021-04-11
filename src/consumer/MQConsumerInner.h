@@ -30,9 +30,6 @@ namespace rocketmq {
 class ConsumerRunningInfo;
 
 class MQConsumerInner {
- public:
-  virtual ~MQConsumerInner() = default;
-
  public:  // MQConsumerInner in Java Client
   virtual const std::string& groupName() const = 0;
   virtual MessageModel messageModel() const = 0;
