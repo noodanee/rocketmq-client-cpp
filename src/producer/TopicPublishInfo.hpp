@@ -35,10 +35,6 @@ class TopicPublishInfo {
   typedef std::vector<MQMessageQueue> QueuesVec;
 
  public:
-  TopicPublishInfo() : order_topic_(false), have_topic_router_info_(false), send_which_queue_(0) {}
-
-  virtual ~TopicPublishInfo() = default;
-
   bool isOrderTopic() const { return order_topic_; }
 
   void setOrderTopic(bool orderTopic) { order_topic_ = orderTopic; }
@@ -97,11 +93,11 @@ class TopicPublishInfo {
   void setTopicRouteData(TopicRouteDataPtr topicRouteData) { topic_route_data_ = topicRouteData; }
 
  private:
-  bool order_topic_;
-  bool have_topic_router_info_;
+  bool order_topic_{false};
+  bool have_topic_router_info_{false};
 
   QueuesVec message_queue_list_;  // no change after build
-  mutable std::atomic<std::size_t> send_which_queue_;
+  mutable std::atomic<std::size_t> send_which_queue_{0};
 
   TopicRouteDataPtr topic_route_data_;  // no change after set
 };

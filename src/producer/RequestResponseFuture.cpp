@@ -51,12 +51,7 @@ RequestResponseFuture::RequestResponseFuture(const std::string& correlationId,
     : correlation_id_(correlationId),
       request_callback_(requestCallback),
       begin_timestamp_(UtilAll::currentTimeMillis()),
-      request_msg_(nullptr),
-      timeout_millis_(timeoutMillis),
-      count_down_latch_(nullptr),
-      response_msg_(nullptr),
-      send_request_ok_(false),
-      cause_(nullptr) {
+      timeout_millis_(timeoutMillis) {
   if (nullptr == requestCallback) {
     count_down_latch_.reset(new latch(1));
   }

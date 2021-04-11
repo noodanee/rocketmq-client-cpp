@@ -30,7 +30,7 @@ DefaultMQProducer::DefaultMQProducer(const std::string& groupname, RPCHookPtr rp
 DefaultMQProducer::DefaultMQProducer(const std::string& groupname,
                                      RPCHookPtr rpcHook,
                                      DefaultMQProducerConfigPtr producerConfig)
-    : DefaultMQProducerConfigProxy(producerConfig), producer_impl_(nullptr) {
+    : DefaultMQProducerConfigProxy(producerConfig) {
   // set default group name
   if (groupname.empty()) {
     set_group_name(DEFAULT_PRODUCER_GROUP);

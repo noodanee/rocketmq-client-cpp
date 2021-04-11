@@ -32,11 +32,7 @@ namespace rocketmq {
  */
 class MQClientConfigImpl : virtual public MQClientConfig {
  public:
-  MQClientConfigImpl()
-      : instance_name_("DEFAULT"),
-        tcp_worker_thread_nums_(std::min(4, (int)std::thread::hardware_concurrency())),
-        tcp_connect_timeout(3000),
-        tcp_transport_try_lock_timeout_(3) {
+  MQClientConfigImpl() {
     const char* addr = std::getenv(ROCKETMQ_NAMESRV_ADDR_ENV.c_str());
     if (addr != nullptr) {
       namesrv_addr_ = addr;
@@ -97,14 +93,14 @@ class MQClientConfigImpl : virtual public MQClientConfig {
 
  protected:
   std::string namesrv_addr_;
-  std::string instance_name_;
+  std::string instance_name_{"DEFAULT"};
   std::string group_name_;
   std::string unit_name_;
   std::string name_space_;
 
-  int tcp_worker_thread_nums_;
-  uint64_t tcp_connect_timeout;              // ms
-  uint64_t tcp_transport_try_lock_timeout_;  // s
+  int tcp_worker_thread_nums_{std::min(4, (int)std::thread::hardware_concurrency())};
+  uint64_t tcp_connect_timeout{3000};           // 3000ms
+  uint64_t tcp_transport_try_lock_timeout_{3};  // 3s
 };
 
 }  // namespace rocketmq

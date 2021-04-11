@@ -88,7 +88,7 @@ class TcpTransport : public noncopyable, public std::enable_shared_from_this<Tcp
 
   std::unique_ptr<BufferEvent> event_;  // NOTE: use event_ in callback is unsafe.
 
-  std::atomic<TcpConnectStatus> tcp_connect_status_;
+  std::atomic<TcpConnectStatus> tcp_connect_status_{TCP_CONNECT_STATUS_CREATED};
   std::mutex status_mutex_;
   std::condition_variable status_event_;
 

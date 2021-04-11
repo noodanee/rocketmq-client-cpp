@@ -143,14 +143,14 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
   }
 
  private:
-  uint64_t start_time_;
+  uint64_t start_time_{0};
 
-  volatile bool pause_;
-  bool consume_orderly_;
+  volatile bool pause_{false};
+  bool consume_orderly_{false};
 
   std::map<std::string, std::string> subscription_;
 
-  MQMessageListener* message_listener_;
+  MQMessageListener* message_listener_{nullptr};
   std::unique_ptr<ConsumeMsgService> consume_service_;
 
   std::unique_ptr<RebalancePushImpl> rebalance_impl_;

@@ -54,7 +54,7 @@ class RequestResponseFuture {
   long timeout_millis_;
   std::unique_ptr<latch> count_down_latch_;  // use for synchronization rpc
   MessagePtr response_msg_;
-  bool send_request_ok_;
+  bool send_request_ok_{false};
   std::exception_ptr cause_;
 };
 

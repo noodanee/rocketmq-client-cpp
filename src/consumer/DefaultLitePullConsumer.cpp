@@ -26,8 +26,7 @@ DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname)
     : DefaultLitePullConsumer(groupname, nullptr) {}
 
 DefaultLitePullConsumer::DefaultLitePullConsumer(const std::string& groupname, RPCHookPtr rpcHook)
-    : DefaultLitePullConsumerConfigProxy(std::make_shared<DefaultLitePullConsumerConfigImpl>()),
-      pull_consumer_impl_(nullptr) {
+    : DefaultLitePullConsumerConfigProxy(std::make_shared<DefaultLitePullConsumerConfigImpl>()) {
   // set default group name
   if (groupname.empty()) {
     set_group_name(DEFAULT_CONSUMER_GROUP);

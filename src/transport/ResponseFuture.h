@@ -71,7 +71,7 @@ class ResponseFuture {
   std::unique_ptr<InvokeCallback> invoke_callback_;
 
   int64_t begin_timestamp_;
-  bool send_request_ok_;
+  bool send_request_ok_{false};
 
   std::unique_ptr<RemotingCommand> response_command_;
 

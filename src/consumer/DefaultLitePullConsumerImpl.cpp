@@ -150,18 +150,9 @@ DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(DefaultLitePullConsumer
 
 DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(DefaultLitePullConsumerConfigPtr config, RPCHookPtr rpcHook)
     : MQClientImpl(config, rpcHook),
-      start_time_(UtilAll::currentTimeMillis()),
-      subscription_type_(SubscriptionType::NONE),
-      consume_request_flow_control_times_(0),
-      queue_flow_control_times_(0),
-      next_auto_commit_deadline_(-1LL),
-      auto_commit_(true),
-      message_queue_listener_(nullptr),
       assigned_message_queue_(new AssignedMessageQueue()),
       scheduled_executor_service_("MonitorMessageQueueChangeThread", false),
-      rebalance_impl_(new RebalanceLitePullImpl(this)),
-      pull_api_wrapper_(nullptr),
-      offset_store_(nullptr) {}
+      rebalance_impl_(new RebalanceLitePullImpl(this)) {}
 
 DefaultLitePullConsumerImpl::~DefaultLitePullConsumerImpl() = default;
 
@@ -177,6 +168,8 @@ void DefaultLitePullConsumerImpl::start() {
 
   switch (service_state_) {
     case ServiceState::kCreateJust: {
+      start_time_ = UtilAll::currentTimeMillis();
+
       // wrap namespace
       client_config_->set_group_name(
           NamespaceUtil::wrapNamespace(client_config_->name_space(), client_config_->group_name()));

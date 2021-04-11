@@ -28,10 +28,7 @@ ResponseFuture::ResponseFuture(int requestCode,
       opaque_(opaque),
       timeout_millis_(timeoutMillis),
       invoke_callback_(std::move(invokeCallback)),
-      begin_timestamp_(UtilAll::currentTimeMillis()),
-      send_request_ok_(false),
-      response_command_(nullptr),
-      count_down_latch_(nullptr) {
+      begin_timestamp_(UtilAll::currentTimeMillis()) {
   if (nullptr == invokeCallback) {
     count_down_latch_.reset(new latch(1));
   }

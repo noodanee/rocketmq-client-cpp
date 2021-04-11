@@ -27,8 +27,6 @@ namespace rocketmq {
 
 class ServiceThread {
  public:
-  ServiceThread()
-      : wait_point_(1), has_notified_(false), stopped_(false), is_daemon_(false), thread_(nullptr), started_(false) {}
   virtual ~ServiceThread() = default;
 
   virtual std::string getServiceName() = 0;
@@ -46,14 +44,14 @@ class ServiceThread {
   virtual void onWaitEnd();
 
  protected:
-  latch wait_point_;
-  std::atomic<bool> has_notified_;
-  volatile bool stopped_;
-  bool is_daemon_;
+  latch wait_point_{1};
+  std::atomic<bool> has_notified_{false};
+  volatile bool stopped_{false};
+  bool is_daemon_{false};
 
  private:
   std::unique_ptr<thread> thread_;
-  std::atomic<bool> started_;
+  std::atomic<bool> started_{false};
 };
 
 }  // namespace rocketmq

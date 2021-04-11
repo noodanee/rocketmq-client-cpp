@@ -51,10 +51,10 @@ class EventLoop : public noncopyable {
   void runLoop();
 
  private:
-  struct event_base* event_base_;
-  thread loop_thread_;
+  struct event_base* event_base_{nullptr};
+  thread loop_thread_{"EventLoop"};
 
-  bool is_running_;  // aotmic is unnecessary
+  bool is_running_{false};  // aotmic is unnecessary
 };
 
 class TcpTransport;

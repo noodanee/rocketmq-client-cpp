@@ -34,15 +34,10 @@ namespace rocketmq {
 TcpTransport::TcpTransport(ReadCallback readCallback,
                            CloseCallback closeCallback,
                            std::unique_ptr<TcpTransportInfo> info)
-    : event_(nullptr),
-      tcp_connect_status_(TCP_CONNECT_STATUS_CREATED),
-      status_mutex_(),
-      status_event_(),
+    : start_time_(UtilAll::currentTimeMillis()),
       read_callback_(readCallback),
       close_callback_(closeCallback),
-      info_(std::move(info)) {
-  start_time_ = UtilAll::currentTimeMillis();
-}
+      info_(std::move(info)) {}
 
 TcpTransport::~TcpTransport() {
   closeBufferEvent(true);

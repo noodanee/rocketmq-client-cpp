@@ -26,8 +26,7 @@ DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname)
     : DefaultMQPushConsumer(groupname, nullptr) {}
 
 DefaultMQPushConsumer::DefaultMQPushConsumer(const std::string& groupname, RPCHookPtr rpcHook)
-    : DefaultMQPushConsumerConfigProxy(std::make_shared<DefaultMQPushConsumerConfigImpl>()),
-      push_consumer_impl_(nullptr) {
+    : DefaultMQPushConsumerConfigProxy(std::make_shared<DefaultMQPushConsumerConfigImpl>()) {
   // set default group name
   if (groupname.empty()) {
     set_group_name(DEFAULT_CONSUMER_GROUP);

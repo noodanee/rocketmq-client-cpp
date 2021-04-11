@@ -152,15 +152,7 @@ DefaultMQPushConsumerImpl::DefaultMQPushConsumerImpl(DefaultMQPushConsumerConfig
     : DefaultMQPushConsumerImpl(config, nullptr) {}
 
 DefaultMQPushConsumerImpl::DefaultMQPushConsumerImpl(DefaultMQPushConsumerConfigPtr config, RPCHookPtr rpcHook)
-    : MQClientImpl(config, rpcHook),
-      start_time_(UtilAll::currentTimeMillis()),
-      pause_(false),
-      consume_orderly_(false),
-      message_listener_(nullptr),
-      consume_service_(nullptr),
-      rebalance_impl_(new RebalancePushImpl(this)),
-      pull_api_wrapper_(nullptr),
-      offset_store_(nullptr) {}
+    : MQClientImpl(config, rpcHook), rebalance_impl_(new RebalancePushImpl(this)) {}
 
 DefaultMQPushConsumerImpl::~DefaultMQPushConsumerImpl() = default;
 
@@ -176,6 +168,8 @@ void DefaultMQPushConsumerImpl::start() {
 
   switch (service_state_) {
     case ServiceState::kCreateJust: {
+      start_time_ = UtilAll::currentTimeMillis();
+
       // wrap namespace
       client_config_->set_group_name(
           NamespaceUtil::wrapNamespace(client_config_->name_space(), client_config_->group_name()));

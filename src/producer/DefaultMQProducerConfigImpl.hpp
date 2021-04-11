@@ -30,18 +30,6 @@ namespace rocketmq {
  */
 class DefaultMQProducerConfigImpl : virtual public DefaultMQProducerConfig, public MQClientConfigImpl {
  public:
-  DefaultMQProducerConfigImpl()
-      : async_send_thread_nums_(std::min(4, (int)std::thread::hardware_concurrency())),
-        max_message_size_(1024 * 1024 * 4),         // 4MB
-        compress_msg_body_over_howmuch_(1024 * 4),  // 4KB
-        compress_level_(5),
-        send_msg_timeout_(3000),
-        retry_times_(2),
-        retry_times_for_async_(2),
-        retry_another_broker_when_not_store_ok_(false) {}
-
-  virtual ~DefaultMQProducerConfigImpl() = default;
-
   int async_send_thread_nums() const override { return async_send_thread_nums_; }
   void set_async_send_thread_nums(int async_send_thread_nums) override {
     async_send_thread_nums_ = async_send_thread_nums;
@@ -79,14 +67,14 @@ class DefaultMQProducerConfigImpl : virtual public DefaultMQProducerConfig, publ
   }
 
  protected:
-  int async_send_thread_nums_;
-  int max_message_size_;                // default: 4 MB
-  int compress_msg_body_over_howmuch_;  // default: 4 KB
-  int compress_level_;
-  int send_msg_timeout_;
-  int retry_times_;
-  int retry_times_for_async_;
-  bool retry_another_broker_when_not_store_ok_;
+  int async_send_thread_nums_{std::min(4, (int)std::thread::hardware_concurrency())};
+  int max_message_size_{1024 * 1024 * 4};         // default: 4 MB
+  int compress_msg_body_over_howmuch_{1024 * 4};  // default: 4 KB
+  int compress_level_{5};
+  int send_msg_timeout_{3000};  // 3s
+  int retry_times_{2};
+  int retry_times_for_async_{2};
+  bool retry_another_broker_when_not_store_ok_{false};
 };
 
 }  // namespace rocketmq

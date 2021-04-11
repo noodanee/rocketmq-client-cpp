@@ -92,7 +92,6 @@ TcpRemotingClient::TcpRemotingClient(int workerThreadNum,
                                      uint64_t tcpTransportTryLockTimeout)
     : tcp_connect_timeout_(tcpConnectTimeout),
       tcp_transport_try_lock_timeout_(tcpTransportTryLockTimeout),
-      namesrv_index_(0),
       dispatch_executor_("MessageDispatchExecutor", 1, false),
       handle_executor_("MessageHandleExecutor", workerThreadNum, false),
       timeout_executor_("TimeoutScanExecutor", false) {}

@@ -23,10 +23,6 @@
 namespace rocketmq {
 
 class TransactionMQProducerConfigImpl : virtual public TransactionMQProducerConfig, public DefaultMQProducerConfigImpl {
- public:
-  TransactionMQProducerConfigImpl() : transaction_listener_(nullptr) {}
-  virtual ~TransactionMQProducerConfigImpl() = default;
-
  public:  // TransactionMQProducerConfig
   TransactionListener* getTransactionListener() const override { return transaction_listener_; }
   void setTransactionListener(TransactionListener* transactionListener) override {
@@ -34,7 +30,7 @@ class TransactionMQProducerConfigImpl : virtual public TransactionMQProducerConf
   }
 
  protected:
-  TransactionListener* transaction_listener_;
+  TransactionListener* transaction_listener_{nullptr};
 };
 
 }  // namespace rocketmq

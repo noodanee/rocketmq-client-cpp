@@ -178,16 +178,16 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
  private:
   std::mutex mutex_;
 
-  uint64_t start_time_;
+  uint64_t start_time_{0};
 
-  SubscriptionType subscription_type_;
+  SubscriptionType subscription_type_{SubscriptionType::NONE};
 
-  long consume_request_flow_control_times_;
-  long queue_flow_control_times_;
+  long consume_request_flow_control_times_{0};
+  long queue_flow_control_times_{0};
 
-  int64_t next_auto_commit_deadline_;
+  int64_t next_auto_commit_deadline_{-1};
 
-  bool auto_commit_;
+  bool auto_commit_{true};
 
   std::unique_ptr<MessageQueueListener> message_queue_listener_;
 

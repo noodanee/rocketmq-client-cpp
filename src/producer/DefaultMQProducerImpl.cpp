@@ -93,10 +93,7 @@ DefaultMQProducerImpl::DefaultMQProducerImpl(DefaultMQProducerConfigPtr config)
     : DefaultMQProducerImpl(config, nullptr) {}
 
 DefaultMQProducerImpl::DefaultMQProducerImpl(DefaultMQProducerConfigPtr config, RPCHookPtr rpcHook)
-    : MQClientImpl(config, rpcHook),
-      mq_fault_strategy_(new MQFaultStrategy()),
-      async_send_executor_(nullptr),
-      check_transaction_executor_(nullptr) {}
+    : MQClientImpl(config, rpcHook), mq_fault_strategy_(new MQFaultStrategy()) {}
 
 DefaultMQProducerImpl::~DefaultMQProducerImpl() = default;
 

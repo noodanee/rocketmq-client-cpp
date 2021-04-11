@@ -118,7 +118,7 @@ class TcpRemotingClient {
   std::timed_mutex namesrv_lock_;
   std::vector<std::string> namesrv_addr_list_;
   std::string namesrv_addr_choosed_;
-  size_t namesrv_index_;
+  size_t namesrv_index_{0};
 
   thread_pool_executor dispatch_executor_;
   thread_pool_executor handle_executor_;
