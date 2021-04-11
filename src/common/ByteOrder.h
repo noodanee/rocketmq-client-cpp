@@ -46,22 +46,20 @@ class ByteOrderUtil {
   //==============================================================================
 
   template <typename T, typename F, typename std::enable_if<sizeof(T) == sizeof(F), int>::type = 0>
-  static inline T ReinterpretRawBits(F value) {
+  static T ReinterpretRawBits(F value) {
     return *reinterpret_cast<T*>(&value);
   }
 
-  static inline uint8_t swap(uint8_t n) { return n; }
+  static uint8_t swap(uint8_t n) { return n; }
 
   /** Swaps the upper and lower bytes of a 16-bit integer. */
-  static inline uint16_t swap(uint16_t n) { return static_cast<uint16_t>((n << 8) | (n >> 8)); }
+  static uint16_t swap(uint16_t n) { return static_cast<uint16_t>((n << 8) | (n >> 8)); }
 
   /** Reverses the order of the 4 bytes in a 32-bit integer. */
-  static inline uint32_t swap(uint32_t n) {
-    return (n << 24) | (n >> 24) | ((n & 0x0000ff00) << 8) | ((n & 0x00ff0000) >> 8);
-  }
+  static uint32_t swap(uint32_t n) { return (n << 24) | (n >> 24) | ((n & 0x0000ff00) << 8) | ((n & 0x00ff0000) >> 8); }
 
   /** Reverses the order of the 8 bytes in a 64-bit integer. */
-  static inline uint64_t swap(uint64_t value) {
+  static uint64_t swap(uint64_t value) {
     return (((uint64_t)swap((uint32_t)value)) << 32) | swap((uint32_t)(value >> 32));
   }
 
@@ -69,7 +67,7 @@ class ByteOrderUtil {
 
   /** convert integer to little-endian */
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline typename std::make_unsigned<T>::type NorminalLittleEndian(T value) {
+  static typename std::make_unsigned<T>::type NorminalLittleEndian(T value) {
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     return swap(static_cast<typename std::make_unsigned<T>::type>(value));
 #else
@@ -79,7 +77,7 @@ class ByteOrderUtil {
 
   /** convert integer to big-endian */
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline typename std::make_unsigned<T>::type NorminalBigEndian(T value) {
+  static typename std::make_unsigned<T>::type NorminalBigEndian(T value) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     return swap(static_cast<typename std::make_unsigned<T>::type>(value));
 #else
@@ -90,14 +88,14 @@ class ByteOrderUtil {
   //==============================================================================
 
   template <typename T, int Enable = 0>
-  static inline T Read(const char* bytes) {
+  static T Read(const char* bytes) {
     T value;
     std::memcpy(&value, bytes, sizeof(T));
     return value;
   }
 
   template <typename T, typename std::enable_if<sizeof(T) <= 8, int>::value = 0>
-  static inline T Read(const char* bytes) {
+  static T Read(const char* bytes) {
     T value;
     for (size_t i = 0; i < sizeof(T); i++) {
       ((char*)&value)[i] = bytes[i];
@@ -106,12 +104,12 @@ class ByteOrderUtil {
   }
 
   template <typename T, int Enable = 0>
-  static inline void Read(T* value, const char* bytes) {
+  static void Read(T* value, const char* bytes) {
     std::memcpy(value, bytes, sizeof(T));
   }
 
   template <typename T, typename std::enable_if<sizeof(T) <= 8, int>::value = 0>
-  static inline void Read(T* value, const char* bytes) {
+  static void Read(T* value, const char* bytes) {
     for (size_t i = 0; i < sizeof(T); i++) {
       ((char*)value)[i] = bytes[i];
     }
@@ -120,12 +118,12 @@ class ByteOrderUtil {
   //==============================================================================
 
   template <typename T, int Enable = 0>
-  static inline void Write(char* bytes, T value) {
+  static void Write(char* bytes, T value) {
     std::memcpy(bytes, &value, sizeof(T));
   }
 
   template <typename T, typename std::enable_if<sizeof(T) <= 8, int>::value = 0>
-  static inline void Write(char* bytes, T value) {
+  static void Write(char* bytes, T value) {
     for (size_t i = 0; i < sizeof(T); i++) {
       bytes[i] = ((char*)&value)[i];
     }
@@ -134,38 +132,38 @@ class ByteOrderUtil {
   //==============================================================================
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline T ReadLittleEndian(const char* bytes) {
+  static T ReadLittleEndian(const char* bytes) {
     auto value = Read<T>(bytes);
     return NorminalLittleEndian(value);
   }
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline T ReadBigEndian(const char* bytes) {
+  static T ReadBigEndian(const char* bytes) {
     auto value = Read<T>(bytes);
     return NorminalBigEndian(value);
   }
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline T Read(const char* bytes, bool big_endian) {
+  static T Read(const char* bytes, bool big_endian) {
     return big_endian ? ReadBigEndian<T>(bytes) : ReadLittleEndian<T>(bytes);
   }
 
   //==============================================================================
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline void WriteLittleEndian(char* bytes, T value) {
+  static void WriteLittleEndian(char* bytes, T value) {
     value = NorminalLittleEndian(value);
     Write(bytes, value);
   }
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline void WriteBigEndian(char* bytes, T value) {
+  static void WriteBigEndian(char* bytes, T value) {
     value = NorminalBigEndian(value);
     Write(bytes, value);
   }
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static inline void Write(char* bytes, T value, bool big_endian) {
+  static void Write(char* bytes, T value, bool big_endian) {
     if (big_endian) {
       WriteBigEndian(bytes, value);
     } else {

@@ -43,23 +43,21 @@ class ConsumerRunningInfo {
   std::string encode();
 
  public:
-  inline const std::map<std::string, std::string> getProperties() const { return properties_; }
-  inline void setProperties(const std::map<std::string, std::string>& properties) { properties_ = properties; }
-  inline void setProperty(const std::string& key, const std::string& value) { properties_[key] = value; }
+  const std::map<std::string, std::string> getProperties() const { return properties_; }
+  void setProperties(const std::map<std::string, std::string>& properties) { properties_ = properties; }
+  void setProperty(const std::string& key, const std::string& value) { properties_[key] = value; }
 
-  inline const std::map<MQMessageQueue, ProcessQueueInfo> getMqTable() const { return mq_table_; }
-  inline void setMqTable(const MQMessageQueue& queue, ProcessQueueInfo queueInfo) { mq_table_[queue] = queueInfo; }
+  const std::map<MQMessageQueue, ProcessQueueInfo> getMqTable() const { return mq_table_; }
+  void setMqTable(const MQMessageQueue& queue, ProcessQueueInfo queueInfo) { mq_table_[queue] = queueInfo; }
 
   // const std::map<std::string, ConsumeStatus> getStatusTable() const;
   // void setStatusTable(const std::map<std::string, ConsumeStatus>& statusTable) ;
 
-  inline const std::vector<SubscriptionData> getSubscriptionSet() const { return subscription_set_; }
-  inline void setSubscriptionSet(const std::vector<SubscriptionData>& subscriptionSet) {
-    subscription_set_ = subscriptionSet;
-  }
+  const std::vector<SubscriptionData> getSubscriptionSet() const { return subscription_set_; }
+  void setSubscriptionSet(const std::vector<SubscriptionData>& subscriptionSet) { subscription_set_ = subscriptionSet; }
 
-  inline const std::string getJstack() const { return jstack_; }
-  inline void setJstack(const std::string& jstack) { this->jstack_ = jstack; }
+  const std::string getJstack() const { return jstack_; }
+  void setJstack(const std::string& jstack) { this->jstack_ = jstack; }
 
  private:
   std::map<std::string, std::string> properties_;

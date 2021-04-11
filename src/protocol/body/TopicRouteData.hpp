@@ -53,17 +53,17 @@ class QueueData {
   bool operator!=(const QueueData& other) const { return !operator==(other); }
 
  public:
-  inline const std::string& broker_name() const { return broker_name_; }
-  inline void broker_name(const std::string& broker_name) { broker_name_ = broker_name; }
+  const std::string& broker_name() const { return broker_name_; }
+  void broker_name(const std::string& broker_name) { broker_name_ = broker_name; }
 
-  inline int read_queue_nums() const { return read_queue_nums_; }
-  inline void set_read_queue_nums(int read_queue_nums) { read_queue_nums_ = read_queue_nums; }
+  int read_queue_nums() const { return read_queue_nums_; }
+  void set_read_queue_nums(int read_queue_nums) { read_queue_nums_ = read_queue_nums; }
 
-  inline int write_queue_nums() const { return write_queue_nums_; }
-  inline void set_write_queue_nums(int write_queue_nums) { write_queue_nums_ = write_queue_nums; }
+  int write_queue_nums() const { return write_queue_nums_; }
+  void set_write_queue_nums(int write_queue_nums) { write_queue_nums_ = write_queue_nums; }
 
-  inline int perm() const { return perm_; }
-  inline void set_perm(int perm) { perm_ = perm; }
+  int perm() const { return perm_; }
+  void set_perm(int perm) { perm_ = perm; }
 
  private:
   std::string broker_name_;
@@ -90,11 +90,11 @@ class BrokerData {
   bool operator!=(const BrokerData& other) const { return !operator==(other); }
 
  public:
-  inline const std::string& broker_name() const { return broker_name_; }
-  inline void broker_name(const std::string& broker_name) { broker_name_ = broker_name; }
+  const std::string& broker_name() const { return broker_name_; }
+  void broker_name(const std::string& broker_name) { broker_name_ = broker_name; }
 
-  inline const std::map<int, std::string>& broker_addrs() const { return broker_addrs_; }
-  inline std::map<int, std::string>& broker_addrs() { return broker_addrs_; }
+  const std::map<int, std::string>& broker_addrs() const { return broker_addrs_; }
+  std::map<int, std::string>& broker_addrs() { return broker_addrs_; }
 
  private:
   std::string broker_name_;
@@ -171,12 +171,12 @@ class TopicRouteData {
   bool operator!=(const TopicRouteData& other) const { return !operator==(other); }
 
  public:
-  inline const std::string& order_topic_conf() const { return order_topic_conf_; }
-  inline void set_order_topic_conf(const std::string& orderTopicConf) { order_topic_conf_ = orderTopicConf; }
+  const std::string& order_topic_conf() const { return order_topic_conf_; }
+  void set_order_topic_conf(const std::string& orderTopicConf) { order_topic_conf_ = orderTopicConf; }
 
-  inline std::vector<QueueData>& queue_datas() { return queue_datas_; }
+  std::vector<QueueData>& queue_datas() { return queue_datas_; }
 
-  inline std::vector<BrokerData>& broker_datas() { return broker_datas_; }
+  std::vector<BrokerData>& broker_datas() { return broker_datas_; }
 
  private:
   std::string order_topic_conf_;

@@ -64,7 +64,7 @@ class ROCKETMQCLIENT_API MQClientConfigProxy : virtual public MQClientConfig  //
     client_config_->set_tcp_transport_try_lock_timeout(timeout);
   }
 
-  inline MQClientConfigPtr real_config() const { return client_config_; }
+  MQClientConfigPtr real_config() const { return client_config_; }
 
  protected:
   MQClientConfigPtr client_config_;

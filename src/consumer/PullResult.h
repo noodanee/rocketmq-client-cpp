@@ -62,15 +62,15 @@ class PullResult {
 
   std::string toString() const;
 
-  inline PullStatus pull_status() const { return pull_status_; };
-  inline void set_pull_status(PullStatus pull_status) { pull_status_ = pull_status; }
+  PullStatus pull_status() const { return pull_status_; };
+  void set_pull_status(PullStatus pull_status) { pull_status_ = pull_status; }
 
-  inline int64_t next_begin_offset() const { return next_begin_offset_; };
-  inline int64_t min_offset() const { return min_offset_; }
-  inline int64_t max_offset() const { return max_offset_; }
+  int64_t next_begin_offset() const { return next_begin_offset_; };
+  int64_t min_offset() const { return min_offset_; }
+  int64_t max_offset() const { return max_offset_; }
 
-  inline std::vector<MessageExtPtr>& msg_found_list() { return msg_found_list_; }
-  inline const std::vector<MessageExtPtr>& msg_found_list() const { return msg_found_list_; }
+  std::vector<MessageExtPtr>& msg_found_list() { return msg_found_list_; }
+  const std::vector<MessageExtPtr>& msg_found_list() const { return msg_found_list_; }
 
  private:
   PullStatus pull_status_;

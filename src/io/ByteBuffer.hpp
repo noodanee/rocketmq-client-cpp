@@ -136,14 +136,14 @@ class ByteBuffer : public Buffer<char> {
     return ss.str();
   }
 
-  inline ByteOrder order() const { return big_endian_ ? ByteOrder::BO_BIG_ENDIAN : ByteOrder::BO_LITTLE_ENDIAN; }
+  ByteOrder order() const { return big_endian_ ? ByteOrder::BO_BIG_ENDIAN : ByteOrder::BO_LITTLE_ENDIAN; }
 
-  inline ByteBuffer& order(ByteOrder bo) {
+  ByteBuffer& order(ByteOrder bo) {
     big_endian_ = (bo == ByteOrder::BO_BIG_ENDIAN);
     return *this;
   }
 
-  inline ByteArrayRef byte_array() { return byte_array_; }
+  ByteArrayRef byte_array() { return byte_array_; }
 
  public:
   virtual int16_t getShort() = 0;

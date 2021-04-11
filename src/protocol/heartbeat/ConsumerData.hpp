@@ -58,17 +58,17 @@ class ConsumerData {
   }
 
  public:
-  inline const std::string& group_name() const { return group_name_; }
-  inline void set_group_name(const std::string& group_name) { group_name_ = group_name; }
+  const std::string& group_name() const { return group_name_; }
+  void set_group_name(const std::string& group_name) { group_name_ = group_name; }
 
-  inline ConsumeType consume_type() const { return consume_type_; }
-  inline void set_consume_type(ConsumeType consume_type) { consume_type_ = consume_type; }
+  ConsumeType consume_type() const { return consume_type_; }
+  void set_consume_type(ConsumeType consume_type) { consume_type_ = consume_type; }
 
-  inline MessageModel message_model() const { return message_model_; }
+  MessageModel message_model() const { return message_model_; }
 
-  inline ConsumeFromWhere consume_from_where() const { return consume_from_where_; }
+  ConsumeFromWhere consume_from_where() const { return consume_from_where_; }
 
-  inline std::vector<SubscriptionData> subscription_data_set() { return subscription_data_set_; }
+  std::vector<SubscriptionData> subscription_data_set() { return subscription_data_set_; }
 
  private:
   std::string group_name_;

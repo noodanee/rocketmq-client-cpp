@@ -72,25 +72,25 @@ class ROCKETMQCLIENT_API RemotingCommand {
   std::string toString() const;
 
  public:
-  inline int32_t code() const { return code_; }
-  inline void set_code(int32_t code) { code_ = code; }
+  int32_t code() const { return code_; }
+  void set_code(int32_t code) { code_ = code; }
 
-  inline int32_t version() const { return version_; }
+  int32_t version() const { return version_; }
 
-  inline int32_t opaque() const { return opaque_; }
-  inline void set_opaque(int32_t opaque) { opaque_ = opaque; }
+  int32_t opaque() const { return opaque_; }
+  void set_opaque(int32_t opaque) { opaque_ = opaque; }
 
-  inline int32_t flag() const { return flag_; }
+  int32_t flag() const { return flag_; }
 
-  inline const std::string& remark() const { return remark_; }
-  inline void set_remark(const std::string& remark) { remark_ = remark; }
+  const std::string& remark() const { return remark_; }
+  void set_remark(const std::string& remark) { remark_ = remark; }
 
-  inline void set_ext_field(const std::string& name, const std::string& value) { ext_fields_[name] = value; }
+  void set_ext_field(const std::string& name, const std::string& value) { ext_fields_[name] = value; }
 
-  inline ByteArrayRef body() const { return body_; }
-  inline void set_body(ByteArrayRef body) { body_ = std::move(body); }
-  inline void set_body(const std::string& body) { body_ = stoba(body); }
-  inline void set_body(std::string&& body) { body_ = stoba(std::move(body)); }
+  ByteArrayRef body() const { return body_; }
+  void set_body(ByteArrayRef body) { body_ = std::move(body); }
+  void set_body(const std::string& body) { body_ = stoba(body); }
+  void set_body(std::string&& body) { body_ = stoba(std::move(body)); }
 
  private:
   int32_t code_;

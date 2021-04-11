@@ -38,13 +38,13 @@ class RequestResponseFuture {
   void putResponseMessage(MessagePtr responseMsg);
 
  public:
-  inline const std::string& correlation_id() const { return correlation_id_; }
+  const std::string& correlation_id() const { return correlation_id_; }
 
-  inline bool send_request_ok() const { return send_request_ok_; }
-  inline void set_send_request_ok(bool sendRequestOk) { send_request_ok_ = sendRequestOk; }
+  bool send_request_ok() const { return send_request_ok_; }
+  void set_send_request_ok(bool sendRequestOk) { send_request_ok_ = sendRequestOk; }
 
-  inline std::exception_ptr cause() const { return cause_; }
-  inline void set_cause(std::exception_ptr cause) { cause_ = cause; }
+  std::exception_ptr cause() const { return cause_; }
+  void set_cause(std::exception_ptr cause) { cause_ = cause; }
 
  private:
   std::string correlation_id_;

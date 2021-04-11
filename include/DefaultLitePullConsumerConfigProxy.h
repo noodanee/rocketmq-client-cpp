@@ -149,7 +149,7 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumerConfigProxy : public MQClientCon
     dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_allocate_mq_strategy(strategy);
   }
 
-  inline DefaultLitePullConsumerConfigPtr real_config() const {
+  DefaultLitePullConsumerConfigPtr real_config() const {
     return std::dynamic_pointer_cast<DefaultLitePullConsumerConfig>(client_config_);
   }
 };

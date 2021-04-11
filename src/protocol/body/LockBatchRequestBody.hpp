@@ -40,15 +40,15 @@ class LockBatchRequestBody : public RemotingSerializable {
   }
 
  public:
-  inline const std::string& consumer_group() { return consumer_group_; }
-  inline void set_consumer_group(const std::string& consumerGroup) { consumer_group_ = consumerGroup; }
+  const std::string& consumer_group() { return consumer_group_; }
+  void set_consumer_group(const std::string& consumerGroup) { consumer_group_ = consumerGroup; }
 
-  inline const std::string& client_id() { return client_id_; }
-  inline void set_client_id(const std::string& clientId) { client_id_ = clientId; }
+  const std::string& client_id() { return client_id_; }
+  void set_client_id(const std::string& clientId) { client_id_ = clientId; }
 
-  inline std::vector<MQMessageQueue>& mq_set() { return mq_set_; }
-  inline void set_mq_set(const std::vector<MQMessageQueue>& mq_set) { mq_set_ = mq_set; }
-  inline void set_mq_set(std::vector<MQMessageQueue>&& mq_set) { mq_set_ = std::move(mq_set); }
+  std::vector<MQMessageQueue>& mq_set() { return mq_set_; }
+  void set_mq_set(const std::vector<MQMessageQueue>& mq_set) { mq_set_ = mq_set; }
+  void set_mq_set(std::vector<MQMessageQueue>&& mq_set) { mq_set_ = std::move(mq_set); }
 
  private:
   std::string consumer_group_;

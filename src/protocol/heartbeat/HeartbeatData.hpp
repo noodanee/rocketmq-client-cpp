@@ -20,9 +20,9 @@
 #include <string>  // std::string
 #include <vector>  // std::vector
 
-#include "RemotingSerializable.h"
 #include "ConsumerData.hpp"
 #include "ProducerData.hpp"
+#include "RemotingSerializable.h"
 
 namespace rocketmq {
 
@@ -49,11 +49,11 @@ class HeartbeatData : public RemotingSerializable {
   }
 
  public:
-  inline void set_client_id(const std::string& clientID) { client_id_ = clientID; }
+  void set_client_id(const std::string& clientID) { client_id_ = clientID; }
 
-  inline std::vector<ConsumerData>& consumer_data_set() { return consumer_data_set_; }
+  std::vector<ConsumerData>& consumer_data_set() { return consumer_data_set_; }
 
-  inline std::vector<ProducerData>& producer_data_set() { return producer_data_set_; }
+  std::vector<ProducerData>& producer_data_set() { return producer_data_set_; }
 
  private:
   std::string client_id_;

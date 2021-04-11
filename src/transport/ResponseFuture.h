@@ -53,16 +53,16 @@ class ResponseFuture {
   int64_t leftTime() const;
 
  public:
-  inline int request_code() const { return request_code_; }
-  inline int opaque() const { return opaque_; }
-  inline int64_t timeout_millis() const { return timeout_millis_; }
+  int request_code() const { return request_code_; }
+  int opaque() const { return opaque_; }
+  int64_t timeout_millis() const { return timeout_millis_; }
 
-  inline int64_t begin_timestamp() const { return begin_timestamp_; }
+  int64_t begin_timestamp() const { return begin_timestamp_; }
 
-  inline bool send_request_ok() const { return send_request_ok_; }
-  inline void set_send_request_ok(bool sendRequestOK = true) { send_request_ok_ = sendRequestOK; };
+  bool send_request_ok() const { return send_request_ok_; }
+  void set_send_request_ok(bool sendRequestOK = true) { send_request_ok_ = sendRequestOK; };
 
-  inline std::unique_ptr<InvokeCallback>& invoke_callback() { return invoke_callback_; }
+  std::unique_ptr<InvokeCallback>& invoke_callback() { return invoke_callback_; }
 
  private:
   int request_code_;

@@ -41,12 +41,10 @@ class LockBatchResponseBody {
   }
 
  public:
-  inline const std::vector<MQMessageQueue>& lock_ok_mq_set() const { return lock_ok_mq_set_; }
-  inline std::vector<MQMessageQueue>& lock_ok_mq_set() { return lock_ok_mq_set_; }
-  inline void set_lock_ok_mq_set(const std::vector<MQMessageQueue>& lockOKMQSet) { lock_ok_mq_set_ = lockOKMQSet; }
-  inline void set_lock_ok_mq_set(std::vector<MQMessageQueue>&& lockOKMQSet) {
-    lock_ok_mq_set_ = std::move(lockOKMQSet);
-  }
+  const std::vector<MQMessageQueue>& lock_ok_mq_set() const { return lock_ok_mq_set_; }
+  std::vector<MQMessageQueue>& lock_ok_mq_set() { return lock_ok_mq_set_; }
+  void set_lock_ok_mq_set(const std::vector<MQMessageQueue>& lock_ok_mq_set) { lock_ok_mq_set_ = lock_ok_mq_set; }
+  void set_lock_ok_mq_set(std::vector<MQMessageQueue>&& lock_ok_mq_set) { lock_ok_mq_set_ = std::move(lock_ok_mq_set); }
 
  private:
   std::vector<MQMessageQueue> lock_ok_mq_set_;

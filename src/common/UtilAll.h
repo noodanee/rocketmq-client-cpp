@@ -84,7 +84,7 @@ class UtilAll {
  public:
   static bool try_lock_for(std::timed_mutex& mutex, long timeout);
 
-  static inline bool stob(std::string const& s) {
+  static bool stob(std::string const& s) {
     return s.size() == 4 && (s[0] == 't' || s[0] == 'T') && (s[1] == 'r' || s[1] == 'R') &&
            (s[2] == 'u' || s[2] == 'U') && (s[3] == 'e' || s[3] == 'E');
   }

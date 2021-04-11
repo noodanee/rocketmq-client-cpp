@@ -39,20 +39,20 @@ class TopicConfig {
   bool decode(const std::string& in);
 
  public:
-  inline const std::string& topic_name() const { return topic_name_; }
-  inline void set_topic_name(const std::string& topicName) { topic_name_ = topicName; }
+  const std::string& topic_name() const { return topic_name_; }
+  void set_topic_name(const std::string& topicName) { topic_name_ = topicName; }
 
-  inline int read_queue_nums() const { return read_queue_nums_; }
-  inline void set_read_queue_nums(int readQueueNums) { read_queue_nums_ = readQueueNums; }
+  int read_queue_nums() const { return read_queue_nums_; }
+  void set_read_queue_nums(int readQueueNums) { read_queue_nums_ = readQueueNums; }
 
-  inline int write_queue_nums() const { return write_queue_nums_; }
-  inline void set_write_queue_nums(int writeQueueNums) { write_queue_nums_ = writeQueueNums; }
+  int write_queue_nums() const { return write_queue_nums_; }
+  void set_write_queue_nums(int writeQueueNums) { write_queue_nums_ = writeQueueNums; }
 
-  inline int perm() const { return perm_; }
-  inline void set_perm(int perm) { perm_ = perm; }
+  int perm() const { return perm_; }
+  void set_perm(int perm) { perm_ = perm; }
 
-  inline TopicFilterType topic_filter_type() const { return topic_filter_type_; }
-  inline void set_topic_filter_type(TopicFilterType topicFilterType) { topic_filter_type_ = topicFilterType; }
+  TopicFilterType topic_filter_type() const { return topic_filter_type_; }
+  void set_topic_filter_type(TopicFilterType topicFilterType) { topic_filter_type_ = topicFilterType; }
 
  private:
   std::string topic_name_;

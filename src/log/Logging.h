@@ -42,54 +42,48 @@ class Logger {
   virtual ~Logger();
 
   template <typename FormatString, typename... Args>
-  inline void Log(spdlog::source_loc&& location,
-                  spdlog::level::level_enum level,
-                  FormatString&& format,
-                  Args&&... args) {
+  void Log(spdlog::source_loc&& location, spdlog::level::level_enum level, FormatString&& format, Args&&... args) {
     logger_->log(std::forward<spdlog::source_loc>(location), level, format, std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Trace(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void Trace(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Log(std::forward<spdlog::source_loc>(location), spdlog::level::trace, std::forward<FormatString>(format),
         std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Debug(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void Debug(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Log(std::forward<spdlog::source_loc>(location), spdlog::level::debug, std::forward<FormatString>(format),
         std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Info(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void Info(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Log(std::forward<spdlog::source_loc>(location), spdlog::level::info, std::forward<FormatString>(format),
         std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Warn(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void Warn(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Log(std::forward<spdlog::source_loc>(location), spdlog::level::warn, std::forward<FormatString>(format),
         std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Error(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void Error(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Log(std::forward<spdlog::source_loc>(location), spdlog::level::err, std::forward<FormatString>(format),
         std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Fatal(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void Fatal(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Log(std::forward<spdlog::source_loc>(location), spdlog::level::critical, std::forward<FormatString>(format),
         std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void Printf(spdlog::source_loc&& location,
-                     spdlog::level::level_enum level,
-                     FormatString&& format,
-                     Args&&... args) {
+  void Printf(spdlog::source_loc&& location, spdlog::level::level_enum level, FormatString&& format, Args&&... args) {
     if (logger_->should_log(level)) {
       std::string message = fmt::sprintf(format, std::forward<Args>(args)...);
       logger_->log(std::forward<spdlog::source_loc>(location), level, message);
@@ -97,37 +91,37 @@ class Logger {
   }
 
   template <typename FormatString, typename... Args>
-  inline void TracePrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void TracePrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Printf(std::forward<spdlog::source_loc>(location), spdlog::level::trace, std::forward<FormatString>(format),
            std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void DebugPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void DebugPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Printf(std::forward<spdlog::source_loc>(location), spdlog::level::debug, std::forward<FormatString>(format),
            std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void InfoPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void InfoPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Printf(std::forward<spdlog::source_loc>(location), spdlog::level::info, std::forward<FormatString>(format),
            std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void WarnPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void WarnPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Printf(std::forward<spdlog::source_loc>(location), spdlog::level::warn, std::forward<FormatString>(format),
            std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void ErrorPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void ErrorPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Printf(std::forward<spdlog::source_loc>(location), spdlog::level::err, std::forward<FormatString>(format),
            std::forward<Args>(args)...);
   }
 
   template <typename FormatString, typename... Args>
-  inline void FatalPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
+  void FatalPrintf(spdlog::source_loc&& location, FormatString&& format, Args&&... args) {
     Printf(std::forward<spdlog::source_loc>(location), spdlog::level::critical, std::forward<FormatString>(format),
            std::forward<Args>(args)...);
   }

@@ -129,7 +129,7 @@ class AssignedMessageQueue {
   }
 
  public:
-  inline void set_rebalance_impl(RebalanceLitePullImpl* rebalance_impl) { rebalance_impl_ = rebalance_impl; }
+  void set_rebalance_impl(RebalanceLitePullImpl* rebalance_impl) { rebalance_impl_ = rebalance_impl; }
 
  private:
   std::map<MQMessageQueue, ProcessQueuePtr> assigned_message_queue_state_;

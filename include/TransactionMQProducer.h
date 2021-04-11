@@ -42,7 +42,7 @@ class ROCKETMQCLIENT_API TransactionMQProducer : public DefaultMQProducer,      
   void setTransactionListener(TransactionListener* transactionListener) override;
 
  public:  // DefaultMQProducerConfigProxy
-  inline TransactionMQProducerConfigPtr real_config() const {
+  TransactionMQProducerConfigPtr real_config() const {
     return std::dynamic_pointer_cast<TransactionMQProducer>(client_config_);
   }
 };

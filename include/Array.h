@@ -70,9 +70,9 @@ class ROCKETMQCLIENT_API Array {
   const element_type& operator[](size_t index) const { return array_[index]; }
 
  public:
-  inline T* array() { return array_; }
-  inline const T* array() const { return array_; }
-  inline size_t size() const { return size_; }
+  T* array() { return array_; }
+  const T* array() const { return array_; }
+  size_t size() const { return size_; }
 
  protected:
   element_type* array_;

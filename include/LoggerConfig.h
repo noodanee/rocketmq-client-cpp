@@ -39,23 +39,23 @@ class LoggerConfig {
       : name_(name), level_(level), path_(path), file_size_(file_size), file_count_(file_count) {}
 
  public:
-  inline const std::string& name() const { return name_; }
-  inline void set_name(const std::string& name) { name_ = name; }
+  const std::string& name() const { return name_; }
+  void set_name(const std::string& name) { name_ = name; }
 
-  inline LogLevel level() const { return level_; }
-  inline void set_level(LogLevel level) { level_ = level; }
+  LogLevel level() const { return level_; }
+  void set_level(LogLevel level) { level_ = level; }
 
-  inline const std::string& path() const { return path_; }
-  inline void set_path(const std::string& path) { path_ = path; }
+  const std::string& path() const { return path_; }
+  void set_path(const std::string& path) { path_ = path; }
 
-  inline int file_size() const { return file_size_; }
-  inline void set_file_size(int file_size) { file_size_ = file_size; }
+  int file_size() const { return file_size_; }
+  void set_file_size(int file_size) { file_size_ = file_size; }
 
-  inline int file_count() const { return file_count_; }
-  inline void set_file_count(int file_count) { file_count_ = file_count; }
+  int file_count() const { return file_count_; }
+  void set_file_count(int file_count) { file_count_ = file_count; }
 
-  inline bool config_spdlog() const { return config_spdlog_; }
-  inline void set_config_spdlog(bool config_spdlog) { config_spdlog_ = config_spdlog; }
+  bool config_spdlog() const { return config_spdlog_; }
+  void set_config_spdlog(bool config_spdlog) { config_spdlog_ = config_spdlog; }
 
  private:
   std::string name_;

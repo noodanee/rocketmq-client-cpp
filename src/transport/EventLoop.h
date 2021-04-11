@@ -73,25 +73,27 @@ class BufferEvent : public noncopyable {
 
   void setCallback(DataCallback readCallback, DataCallback writeCallback, EventCallback eventCallback);
 
-  inline void setWatermark(short events, size_t lowmark, size_t highmark) {
+  void setWatermark(short events, size_t lowmark, size_t highmark) {
     bufferevent_setwatermark(buffer_event_, events, lowmark, highmark);
   }
 
-  inline int enable(short event) { return bufferevent_enable(buffer_event_, event); }
-  inline int disable(short event) { return bufferevent_disable(buffer_event_, event); }
+  int enable(short event) { return bufferevent_enable(buffer_event_, event); }
+  int disable(short event) { return bufferevent_disable(buffer_event_, event); }
 
   int connect(const std::string& addr);
   void close();
 
-  inline int write(const void* data, size_t size) { return bufferevent_write(buffer_event_, data, size); }
+  int write(const void* data, size_t size) { return bufferevent_write(buffer_event_, data, size); }
 
-  inline size_t read(void* data, size_t size) { return bufferevent_read(buffer_event_, data, size); }
+  size_t read(void* data, size_t size) { return bufferevent_read(buffer_event_, data, size); }
 
-  inline struct evbuffer* getInput() { return bufferevent_get_input(buffer_event_); }
+  struct evbuffer* getInput() {
+    return bufferevent_get_input(buffer_event_);
+  }
 
-  inline socket_t getfd() const { return bufferevent_getfd(buffer_event_); }
+  socket_t getfd() const { return bufferevent_getfd(buffer_event_); }
 
-  inline const std::string& getPeerAddrPort() const { return peer_addr_port_; }
+  const std::string& getPeerAddrPort() const { return peer_addr_port_; }
 
  private:
   static void read_callback(struct bufferevent* bev, void* ctx);

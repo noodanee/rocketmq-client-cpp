@@ -25,11 +25,11 @@ class FindBrokerResult {
  public:
   FindBrokerResult(const std::string& sbrokerAddr, bool bslave) : broker_addr_(sbrokerAddr), slave_(bslave) {}
 
-  inline const std::string& broker_addr() const { return broker_addr_; }
-  inline void set_borker_addr(const std::string& broker_addr) { broker_addr_ = broker_addr; }
+  const std::string& broker_addr() const { return broker_addr_; }
+  void set_borker_addr(const std::string& broker_addr) { broker_addr_ = broker_addr; }
 
-  inline bool slave() const { return slave_; }
-  inline void set_slave(bool slave) { slave_ = slave; }
+  bool slave() const { return slave_; }
+  void set_slave(bool slave) { slave_ = slave; }
 
  private:
   std::string broker_addr_;

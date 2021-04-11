@@ -107,7 +107,7 @@ class ROCKETMQCLIENT_API DefaultMQProducerConfigProxy : public MQClientConfigPro
         ->set_send_latency_fault_enable(send_latency_fault_enable);
   }
 
-  inline DefaultMQProducerConfigPtr real_config() const {
+  DefaultMQProducerConfigPtr real_config() const {
     return std::dynamic_pointer_cast<DefaultMQProducerConfig>(client_config_);
   }
 };

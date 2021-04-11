@@ -104,8 +104,8 @@ class Buffer {
     return *this;
   }
 
-  inline int32_t remaining() const { return limit_ - position_; }
-  inline bool hasRemaining() const { return position_ < limit_; }
+  int32_t remaining() const { return limit_ - position_; }
+  bool hasRemaining() const { return position_ < limit_; }
 
   virtual bool isReadOnly() = 0;
   virtual bool hasArray() = 0;
@@ -175,10 +175,10 @@ class Buffer {
   }
 
  public:
-  inline int32_t mark_value() const { return mark_; }
-  inline int32_t position() const { return position_; }
-  inline int32_t limit() const { return limit_; }
-  inline int32_t capacity() const { return capacity_; }
+  int32_t mark_value() const { return mark_; }
+  int32_t position() const { return position_; }
+  int32_t limit() const { return limit_; }
+  int32_t capacity() const { return capacity_; }
 
  private:
   // Invariants: mark <= position <= limit <= capacity

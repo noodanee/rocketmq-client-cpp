@@ -19,31 +19,32 @@
 
 #include <algorithm>
 
+#include "MQMessageConst.h"
 #include "Message.h"
 
 namespace rocketmq {
 
 class MessageAccessor {
  public:
-  static inline void clearProperty(Message& msg, const std::string& name) { msg.clearProperty(name); }
+  static void clearProperty(Message& msg, const std::string& name) { msg.clearProperty(name); }
 
-  static inline void setProperties(Message& msg, std::map<std::string, std::string>&& properties) {
+  static void setProperties(Message& msg, std::map<std::string, std::string>&& properties) {
     msg.set_properties(std::move(properties));
   }
 
-  static inline void putProperty(Message& msg, const std::string& name, const std::string& value) {
+  static void putProperty(Message& msg, const std::string& name, const std::string& value) {
     msg.putProperty(name, value);
   }
 
-  static inline const std::string& getReconsumeTime(Message& msg) {
+  static const std::string& getReconsumeTime(Message& msg) {
     return msg.getProperty(MQMessageConst::PROPERTY_RECONSUME_TIME);
   }
 
-  static inline const std::string& getMaxReconsumeTimes(Message& msg) {
+  static const std::string& getMaxReconsumeTimes(Message& msg) {
     return msg.getProperty(MQMessageConst::PROPERTY_MAX_RECONSUME_TIMES);
   }
 
-  static inline void setConsumeStartTimeStamp(Message& msg, const std::string& propertyConsumeStartTimeStamp) {
+  static void setConsumeStartTimeStamp(Message& msg, const std::string& propertyConsumeStartTimeStamp) {
     putProperty(msg, MQMessageConst::PROPERTY_CONSUME_START_TIMESTAMP, propertyConsumeStartTimeStamp);
   }
 };

@@ -65,7 +65,7 @@ class SubscriptionData {
     }
   }
 
-  inline bool containsTag(const std::string& tag) const {
+  bool containsTag(const std::string& tag) const {
     return std::find(tag_set_.begin(), tag_set_.end(), tag) != tag_set_.end();
   }
 
@@ -87,18 +87,18 @@ class SubscriptionData {
   }
 
  public:
-  inline const std::string& topic() const { return topic_; }
+  const std::string& topic() const { return topic_; }
 
-  inline const std::string& sub_string() const { return sub_string_; }
-  inline void set_sub_string(const std::string& sub) { sub_string_ = sub; }
+  const std::string& sub_string() const { return sub_string_; }
+  void set_sub_string(const std::string& sub) { sub_string_ = sub; }
 
-  inline int64_t sub_version() const { return sub_version_; }
+  int64_t sub_version() const { return sub_version_; }
 
-  inline std::vector<std::string>& tags_set() { return tag_set_; }
+  std::vector<std::string>& tags_set() { return tag_set_; }
 
-  inline std::vector<int32_t>& code_set() { return code_set_; }
+  std::vector<int32_t>& code_set() { return code_set_; }
 
-  inline const std::string& expression_type() { return expression_type_; }
+  const std::string& expression_type() { return expression_type_; }
 
  private:
   std::string topic_;

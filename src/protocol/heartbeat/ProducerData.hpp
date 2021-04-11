@@ -36,8 +36,8 @@ class ProducerData {
   }
 
  public:
-  inline const std::string& group_name() const { return group_name_; }
-  inline void group_name(const std::string& group_name) { group_name_ = group_name; }
+  const std::string& group_name() const { return group_name_; }
+  void group_name(const std::string& group_name) { group_name_ = group_name; }
 
  private:
   std::string group_name_;

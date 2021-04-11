@@ -47,8 +47,8 @@ class PullResultExt : public PullResult {
   ~PullResultExt() override = default;
 
  public:
-  inline int suggert_which_boker_id() const { return suggert_which_boker_id_; }
-  inline ByteArrayRef message_binary() const { return message_binary_; }
+  int suggert_which_boker_id() const { return suggert_which_boker_id_; }
+  ByteArrayRef message_binary() const { return message_binary_; }
 
  private:
   int suggert_which_boker_id_;

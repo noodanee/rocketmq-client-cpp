@@ -216,7 +216,7 @@ class DefaultByteBuffer : public ByteBuffer {
   }
 
  protected:
-  inline int32_t ix(int32_t i) const { return i + offset_; }
+  int32_t ix(int32_t i) const { return i + offset_; }
 };
 
 }  // namespace rocketmq

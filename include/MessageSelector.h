@@ -41,8 +41,8 @@ class ROCKETMQCLIENT_API MessageSelector {
     return *this;
   }
 
-  static inline MessageSelector bySql(const std::string& sql) { return MessageSelector(ExpressionType::SQL92, sql); }
-  static inline MessageSelector byTag(const std::string& tag) { return MessageSelector(ExpressionType::TAG, tag); }
+  static MessageSelector bySql(const std::string& sql) { return MessageSelector(ExpressionType::SQL92, sql); }
+  static MessageSelector byTag(const std::string& tag) { return MessageSelector(ExpressionType::TAG, tag); }
 
  public:
   const std::string& type() const { return type_; }

@@ -164,11 +164,11 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
  public:
   PollingMessageCache& message_cache() { return message_cache_; }
 
-  inline MessageQueueListener* getMessageQueueListener() const { return message_queue_listener_.get(); }
+  MessageQueueListener* getMessageQueueListener() const { return message_queue_listener_.get(); }
 
-  inline OffsetStore* getOffsetStore() const { return offset_store_.get(); }
+  OffsetStore* getOffsetStore() const { return offset_store_.get(); }
 
-  inline DefaultLitePullConsumerConfig* getDefaultLitePullConsumerConfig() const {
+  DefaultLitePullConsumerConfig* getDefaultLitePullConsumerConfig() const {
     return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get());
   }
 

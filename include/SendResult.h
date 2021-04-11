@@ -60,23 +60,23 @@ class ROCKETMQCLIENT_API SendResult {
 
   virtual ~SendResult() = default;
 
-  inline SendStatus send_status() const { return send_status_; }
-  inline void send_status(SendStatus send_status) { send_status_ = send_status; }
+  SendStatus send_status() const { return send_status_; }
+  void send_status(SendStatus send_status) { send_status_ = send_status; }
 
-  inline const std::string& msg_id() const { return msg_id_; }
-  inline void msg_id(const std::string& msg_id) { msg_id_ = msg_id; }
+  const std::string& msg_id() const { return msg_id_; }
+  void msg_id(const std::string& msg_id) { msg_id_ = msg_id; }
 
-  inline const std::string& offset_msg_id() const { return offset_msg_id_; }
-  inline void offset_msg_id(std::string& offset_msg_id) { offset_msg_id_ = offset_msg_id; }
+  const std::string& offset_msg_id() const { return offset_msg_id_; }
+  void offset_msg_id(std::string& offset_msg_id) { offset_msg_id_ = offset_msg_id; }
 
-  inline const MQMessageQueue& message_queue() const { return message_queue_; }
-  inline void message_queue(const MQMessageQueue& message_queue) { message_queue_ = message_queue; }
+  const MQMessageQueue& message_queue() const { return message_queue_; }
+  void message_queue(const MQMessageQueue& message_queue) { message_queue_ = message_queue; }
 
-  inline int64_t queue_offset() const { return queue_offset_; }
-  inline void set_queue_offset(int64_t queue_offset) { queue_offset_ = queue_offset; }
+  int64_t queue_offset() const { return queue_offset_; }
+  void set_queue_offset(int64_t queue_offset) { queue_offset_ = queue_offset; }
 
-  inline const std::string& transaction_id() const { return transaction_id_; }
-  inline void set_transaction_id(const std::string& id) { transaction_id_ = id; }
+  const std::string& transaction_id() const { return transaction_id_; }
+  void set_transaction_id(const std::string& id) { transaction_id_ = id; }
 
   std::string toString() const;
 

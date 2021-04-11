@@ -122,23 +122,23 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
   void executeTaskLater(const handler_type& task, long timeDelay);
 
  public:
-  inline bool pause() const { return pause_; };
-  inline void set_pause(bool pause) { pause_ = pause; }
+  bool pause() const { return pause_; };
+  void set_pause(bool pause) { pause_ = pause; }
 
-  inline bool consume_orderly() { return consume_orderly_; }
+  bool consume_orderly() { return consume_orderly_; }
 
-  inline MessageListenerType getMessageListenerType() const {
+  MessageListenerType getMessageListenerType() const {
     if (nullptr != message_listener_) {
       return message_listener_->getMessageListenerType();
     }
     return messageListenerDefaultly;
   }
 
-  inline RebalancePushImpl* getRebalanceImpl() const { return rebalance_impl_.get(); }
+  RebalancePushImpl* getRebalanceImpl() const { return rebalance_impl_.get(); }
 
-  inline OffsetStore* getOffsetStore() const { return offset_store_.get(); }
+  OffsetStore* getOffsetStore() const { return offset_store_.get(); }
 
-  inline DefaultMQPushConsumerConfig* getDefaultMQPushConsumerConfig() const {
+  DefaultMQPushConsumerConfig* getDefaultMQPushConsumerConfig() const {
     return dynamic_cast<DefaultMQPushConsumerConfig*>(client_config_.get());
   }
 
