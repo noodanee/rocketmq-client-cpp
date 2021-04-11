@@ -17,7 +17,7 @@
 #include "SendCallbackWrap.h"
 
 #include <cassert>
-
+#include <exception>
 #include <typeindex>
 
 #include "DefaultMQProducer.h"
@@ -62,7 +62,7 @@ SendCallbackWrap::SendCallbackWrap(const std::string& addr,
                                    const std::string& brokerName,
                                    const MessagePtr msg,
                                    RemotingCommand&& request,
-                                   SendCallback* sendCallback,
+                                   SendCallback sendCallback,
                                    TopicPublishInfoPtr topicPublishInfo,
                                    MQClientInstancePtr instance,
                                    int retryTimesWhenSendFailed,
@@ -72,18 +72,20 @@ SendCallbackWrap::SendCallbackWrap(const std::string& addr,
       broker_name_(brokerName),
       msg_(msg),
       request_(std::forward<RemotingCommand>(request)),
-      send_callback_(sendCallback),
+      send_callback_(std::move(sendCallback)),
       topic_publish_info_(topicPublishInfo),
       instance_(instance),
       times_total_(retryTimesWhenSendFailed),
       times_(times),
-      producer_(producer) {}
+      producer_(producer) {
+  assert(send_callback_ != nullptr);
+}
 
 void SendCallbackWrap::operationComplete(ResponseFuture* responseFuture) noexcept {
   auto producer = producer_.lock();
   if (nullptr == producer) {
     MQException exception("DefaultMQProducer is released.", -1, __FILE__, __LINE__);
-    send_callback_->invokeOnException(exception);
+    send_callback_({std::make_exception_ptr(exception)});
     return;
   }
 
@@ -99,16 +101,16 @@ void SendCallbackWrap::operationComplete(ResponseFuture* responseFuture) noexcep
     // } catch (...) {
     // }
 
-    producer->updateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), false);
+    producer->UpdateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), false);
     return;
   }
 
   if (response != nullptr) {
     int opaque = responseFuture->opaque();
     try {
-      std::unique_ptr<SendResult> sendResult(
-          instance_->getMQClientAPIImpl()->processSendResponse(broker_name_, msg_, response.get()));
-      assert(sendResult != nullptr);
+      std::unique_ptr<SendResult> send_result(
+          instance_->getMQClientAPIImpl()->processSendResponse(broker_name_, *msg_, response.get()));
+      assert(send_result != nullptr);
 
       LOG_DEBUG("operationComplete: processSendResponse success, opaque:%d, maxRetryTime:%d, retrySendTimes:%d", opaque,
                 times_total_, times_);
@@ -119,19 +121,16 @@ void SendCallbackWrap::operationComplete(ResponseFuture* responseFuture) noexcep
       //   context.getProducer().executeSendMessageHookAfter(context);
       // }
 
-      try {
-        send_callback_->invokeOnSuccess(*sendResult);
-      } catch (...) {
-      }
+      send_callback_({std::move(send_result)});
 
-      producer->updateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), false);
+      producer->UpdateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), false);
     } catch (MQException& e) {
-      producer->updateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), true);
+      producer->UpdateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), true);
       LOG_ERROR("operationComplete: processSendResponse exception: %s", e.what());
       return onExceptionImpl(responseFuture, responseFuture->leftTime(), e, false);
     }
   } else {
-    producer->updateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), true);
+    producer->UpdateFaultItem(broker_name_, UtilAll::currentTimeMillis() - responseFuture->begin_timestamp(), true);
     std::string err;
     if (!responseFuture->send_request_ok()) {
       err = "send request failed";
@@ -152,7 +151,7 @@ void SendCallbackWrap::onExceptionImpl(ResponseFuture* responseFuture,
   auto producer = producer_.lock();
   if (nullptr == producer) {
     MQException exception("DefaultMQProducer is released.", -1, __FILE__, __LINE__);
-    send_callback_->invokeOnException(exception);
+    send_callback_({std::make_exception_ptr(exception)});
     return;
   }
 
@@ -161,7 +160,7 @@ void SendCallbackWrap::onExceptionImpl(ResponseFuture* responseFuture,
     std::string retryBrokerName = broker_name_;  // by default, it will send to the same broker
     if (topic_publish_info_ != nullptr) {
       // select one message queue accordingly, in order to determine which broker to send
-      const auto& mqChosen = producer->selectOneMessageQueue(topic_publish_info_.get(), broker_name_);
+      const auto& mqChosen = producer->SelectOneMessageQueue(topic_publish_info_.get(), broker_name_);
       retryBrokerName = mqChosen.broker_name();
 
       // set queueId to requestHeader
@@ -185,11 +184,11 @@ void SendCallbackWrap::onExceptionImpl(ResponseFuture* responseFuture,
       instance_->getMQClientAPIImpl()->sendMessageAsyncImpl(responseFuture->invoke_callback(), timeoutMillis);
       return;
     } catch (MQException& e1) {
-      producer->updateFaultItem(broker_name_, 3000, true);
+      producer->UpdateFaultItem(broker_name_, 3000, true);
       return onExceptionImpl(responseFuture, responseFuture->leftTime(), e1, true);
     }
   } else {
-    send_callback_->invokeOnException(e);
+    send_callback_({std::make_exception_ptr(e)});
   }
 }
 

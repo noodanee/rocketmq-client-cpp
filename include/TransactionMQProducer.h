@@ -18,33 +18,21 @@
 #define ROCKETMQ_TRANSACTIONMQPRODUCER_H_
 
 #include "DefaultMQProducer.h"
-#include "TransactionMQProducerConfig.h"
+#include "TransactionMQProducerConfigProxy.h"
 
 namespace rocketmq {
 
-class ROCKETMQCLIENT_API TransactionMQProducer : public DefaultMQProducer,                   // base
-                                                 virtual public TransactionMQProducerConfig  // interface
-{
+class ROCKETMQCLIENT_API TransactionMQProducer : public DefaultMQProducer, public TransactionMQProducerConfigProxy {
  public:
   TransactionMQProducer(const std::string& groupname);
   TransactionMQProducer(const std::string& groupname, RPCHookPtr rpcHook);
-  virtual ~TransactionMQProducer();
 
- public:  // MQProducer
-  void start() override;
-  void shutdown() override;
+ public:
+  void start();
+  void shutdown();
 
   // Transaction
-  TransactionSendResult sendMessageInTransaction(MQMessage& msg, void* arg) override;
-
- public:  // TransactionMQProducerConfig
-  TransactionListener* getTransactionListener() const override;
-  void setTransactionListener(TransactionListener* transactionListener) override;
-
- public:  // DefaultMQProducerConfigProxy
-  TransactionMQProducerConfigPtr real_config() const {
-    return std::dynamic_pointer_cast<TransactionMQProducer>(client_config_);
-  }
+  TransactionSendResult sendMessageInTransaction(MQMessage& message, void* arg);
 };
 
 }  // namespace rocketmq

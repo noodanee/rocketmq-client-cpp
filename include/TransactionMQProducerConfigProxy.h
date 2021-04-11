@@ -14,25 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PRODUCER_MQPRODUCERINNER_H_
-#define ROCKETMQ_PRODUCER_MQPRODUCERINNER_H_
+#ifndef ROCKETMQ_TRANSACTIONMQPRODUCERCONFIPROXY_H_
+#define ROCKETMQ_TRANSACTIONMQPRODUCERCONFIPROXY_H_
 
-#include "TransactionListener.h"
+#include "TransactionMQProducerConfig.h"
 
 namespace rocketmq {
 
-class CheckTransactionStateRequestHeader;
-
-class MQProducerInner {
+/**
+ * TransactionMQProducerConfigProxy - proxy for TransactionMQProducerConfig
+ */
+class ROCKETMQCLIENT_API TransactionMQProducerConfigProxy : public TransactionMQProducerConfig {
  public:
-  virtual void checkTransactionState(const std::string& addr,
-                                     MessageExtPtr msg,
-                                     CheckTransactionStateRequestHeader* checkRequestHeader) = 0;
+  TransactionMQProducerConfigProxy(TransactionMQProducerConfig& config) : config_(config) {}
 
-  //  virtual std::vector<std::string> getPublishTopicList() = 0;
-  //  virtual void updateTopicPublishInfo(const std::string& topic, TopicPublishInfoPtr info) = 0;
+  TransactionListener* transaction_listener() const override { return config_.transaction_listener(); }
+  void set_transaction_listener(TransactionListener* transaction_listener) override {
+    config_.set_transaction_listener(transaction_listener);
+  }
+
+ private:
+  TransactionMQProducerConfig& config_;
 };
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_PRODUCER_MQPRODUCERINNER_H_
+#endif  // ROCKETMQ_TRANSACTIONMQPRODUCERCONFIPROXY_H_

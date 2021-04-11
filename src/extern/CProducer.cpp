@@ -199,7 +199,7 @@ CProducer* CreateTransactionProducer(const char* groupId, CLocalTransactionCheck
   auto* transactionMQProducer = new TransactionMQProducer(groupId);
   auto* producer = reinterpret_cast<CProducer*>(static_cast<DefaultMQProducer*>(transactionMQProducer));
   auto* transcationListener = new LocalTransactionListenerInner(producer, callback, userData);
-  transactionMQProducer->setTransactionListener(transcationListener);
+  transactionMQProducer->set_transaction_listener(transcationListener);
   return producer;
 }
 
@@ -455,7 +455,7 @@ int SendMessageTransaction(CProducer* producer,
     return NULL_POINTER;
   }
   try {
-    auto* transactionMQProducer = reinterpret_cast<DefaultMQProducer*>(producer);
+    auto* transactionMQProducer = static_cast<TransactionMQProducer*>(reinterpret_cast<DefaultMQProducer*>(producer));
     auto* message = reinterpret_cast<MQMessage*>(msg);
     LocalTransactionExecutorInner executorInner(callback, msg, userData);
     auto send_result = transactionMQProducer->sendMessageInTransaction(*message, &executorInner);

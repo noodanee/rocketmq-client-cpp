@@ -22,13 +22,16 @@
 
 #include "DefaultMQProducerConfig.h"
 #include "MQClientConfigImpl.hpp"
+#include "TransactionMQProducerConfig.h"
 
 namespace rocketmq {
 
 /**
  * DefaultMQProducerConfigImpl - implement for DefaultMQProducerConfig
  */
-class DefaultMQProducerConfigImpl : virtual public DefaultMQProducerConfig, public MQClientConfigImpl {
+class DefaultMQProducerConfigImpl : public DefaultMQProducerConfig,
+                                    public TransactionMQProducerConfig,
+                                    public MQClientConfigImpl {
  public:
   int async_send_thread_nums() const override { return async_send_thread_nums_; }
   void set_async_send_thread_nums(int async_send_thread_nums) override {
@@ -66,6 +69,16 @@ class DefaultMQProducerConfigImpl : virtual public DefaultMQProducerConfig, publ
     retry_another_broker_when_not_store_ok_ = retry_another_broker_when_not_store_ok;
   }
 
+  bool send_latency_fault_enable() const override { return send_latency_fault_enable_; };
+  void set_send_latency_fault_enable(bool send_latency_fault_enable) override {
+    send_latency_fault_enable_ = send_latency_fault_enable;
+  };
+
+  TransactionListener* transaction_listener() const override { return transaction_listener_; }
+  void set_transaction_listener(TransactionListener* transaction_listener) override {
+    transaction_listener_ = transaction_listener;
+  }
+
  protected:
   int async_send_thread_nums_{std::min(4, (int)std::thread::hardware_concurrency())};
   int max_message_size_{1024 * 1024 * 4};         // default: 4 MB
@@ -75,6 +88,8 @@ class DefaultMQProducerConfigImpl : virtual public DefaultMQProducerConfig, publ
   int retry_times_{2};
   int retry_times_for_async_{2};
   bool retry_another_broker_when_not_store_ok_{false};
+  bool send_latency_fault_enable_{false};
+  TransactionListener* transaction_listener_{nullptr};
 };
 
 }  // namespace rocketmq

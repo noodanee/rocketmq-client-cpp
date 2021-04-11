@@ -17,45 +17,28 @@
 #include "TransactionMQProducer.h"
 
 #include "DefaultMQProducerImpl.h"
-#include "TransactionMQProducerConfigImpl.hpp"
+#include "TransactionMQProducerConfigProxy.h"
 
 namespace rocketmq {
 
 TransactionMQProducer::TransactionMQProducer(const std::string& groupname)
     : TransactionMQProducer(groupname, nullptr) {}
 
-TransactionMQProducer::TransactionMQProducer(const std::string& groupname, RPCHookPtr rpcHook)
-    : DefaultMQProducer(groupname, rpcHook, std::make_shared<TransactionMQProducerConfigImpl>()) {}
-
-TransactionMQProducer::~TransactionMQProducer() = default;
+TransactionMQProducer::TransactionMQProducer(const std::string& groupname, RPCHookPtr rpc_hook)
+    : DefaultMQProducer(groupname, rpc_hook), TransactionMQProducerConfigProxy(*producer_config_impl_) {}
 
 void TransactionMQProducer::start() {
-  dynamic_cast<DefaultMQProducerImpl*>(producer_impl_.get())->initTransactionEnv();
+  producer_impl_->InitialTransactionEnv();
   DefaultMQProducer::start();
 }
 
 void TransactionMQProducer::shutdown() {
   DefaultMQProducer::shutdown();
-  dynamic_cast<DefaultMQProducerImpl*>(producer_impl_.get())->destroyTransactionEnv();
+  producer_impl_->DestroyTransactionEnv();
 }
 
-TransactionSendResult TransactionMQProducer::sendMessageInTransaction(MQMessage& msg, void* arg) {
-  return producer_impl_->sendMessageInTransaction(msg, arg);
-}
-
-TransactionListener* TransactionMQProducer::getTransactionListener() const {
-  auto transactionProducerConfig = dynamic_cast<TransactionMQProducerConfig*>(client_config_.get());
-  if (transactionProducerConfig != nullptr) {
-    return transactionProducerConfig->getTransactionListener();
-  }
-  return nullptr;
-}
-
-void TransactionMQProducer::setTransactionListener(TransactionListener* transactionListener) {
-  auto transactionProducerConfig = dynamic_cast<TransactionMQProducerConfig*>(client_config_.get());
-  if (transactionProducerConfig != nullptr) {
-    transactionProducerConfig->setTransactionListener(transactionListener);
-  }
+TransactionSendResult TransactionMQProducer::sendMessageInTransaction(MQMessage& message, void* arg) {
+  return producer_impl_->SendMessageInTransaction(message.getMessageImpl(), arg);
 }
 
 }  // namespace rocketmq

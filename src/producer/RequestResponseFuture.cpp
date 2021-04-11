@@ -16,40 +16,18 @@
  */
 #include "RequestResponseFuture.h"
 
+#include <algorithm>
+
 #include "Logging.h"
 #include "UtilAll.h"
 
 namespace rocketmq {
 
-void RequestCallback::invokeOnSuccess(MQMessage message) noexcept {
-  auto type = getRequestCallbackType();
-  try {
-    onSuccess(std::move(message));
-  } catch (const std::exception& e) {
-    LOG_WARN_NEW("encounter exception when invoke RequestCallback::onSuccess(), {}", e.what());
-  }
-  if (type == RequestCallbackType::kAutoDelete) {
-    delete this;
-  }
-}
-
-void RequestCallback::invokeOnException(MQException& exception) noexcept {
-  auto type = getRequestCallbackType();
-  try {
-    onException(exception);
-  } catch (const std::exception& e) {
-    LOG_WARN_NEW("encounter exception when invoke RequestCallback::onException(), {}", e.what());
-  }
-  if (type == RequestCallbackType::kAutoDelete) {
-    delete this;
-  }
-}
-
 RequestResponseFuture::RequestResponseFuture(const std::string& correlationId,
                                              long timeoutMillis,
-                                             RequestCallback* requestCallback)
+                                             RequestCallback requestCallback)
     : correlation_id_(correlationId),
-      request_callback_(requestCallback),
+      request_callback_(std::move(requestCallback)),
       begin_timestamp_(UtilAll::currentTimeMillis()),
       timeout_millis_(timeoutMillis) {
   if (nullptr == requestCallback) {
@@ -60,19 +38,9 @@ RequestResponseFuture::RequestResponseFuture(const std::string& correlationId,
 void RequestResponseFuture::executeRequestCallback() noexcept {
   if (request_callback_ != nullptr) {
     if (send_request_ok_ && cause_ == nullptr) {
-      try {
-        request_callback_->invokeOnSuccess(std::move(response_msg_));
-      } catch (const std::exception& e) {
-        LOG_WARN_NEW("RequestCallback throw an exception: {}", e.what());
-      }
+      request_callback_(std::move(response_msg_));
     } else {
-      try {
-        std::rethrow_exception(cause_);
-      } catch (MQException& e) {
-        request_callback_->invokeOnException(e);
-      } catch (const std::exception& e) {
-        LOG_WARN_NEW("unexpected exception in RequestResponseFuture: {}", e.what());
-      }
+      request_callback_(cause_);
     }
   }
 }

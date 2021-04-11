@@ -28,37 +28,32 @@ namespace rocketmq {
 
 class MQFaultStrategy {
  public:
-  MQFaultStrategy();
+  const MQMessageQueue& SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
+                                              const std::string& last_broker_name);
 
-  std::vector<long> getNotAvailableDuration() { return m_notAvailableDuration; }
-
-  void setNotAvailableDuration(const std::vector<long>& notAvailableDuration) {
-    m_notAvailableDuration = notAvailableDuration;
-  }
-
-  std::vector<long> getLatencyMax() { return m_latencyMax; }
-
-  void setLatencyMax(const std::vector<long>& latencyMax) { m_latencyMax = latencyMax; }
-
-  bool isSendLatencyFaultEnable() { return m_sendLatencyFaultEnable; }
-
-  void setSendLatencyFaultEnable(const bool sendLatencyFaultEnable) {
-    m_sendLatencyFaultEnable = sendLatencyFaultEnable;
-  }
-
-  const MQMessageQueue& selectOneMessageQueue(const TopicPublishInfo* tpInfo, const std::string& lastBrokerName);
-
-  void updateFaultItem(const std::string& brokerName, const long currentLatency, bool isolation);
+  void UpdateFaultItem(const std::string& broker_name, long current_latency, bool isolation);
 
  private:
-  long computeNotAvailableDuration(const long currentLatency);
+  long ComputeNotAvailableDuration(long current_latency);
+
+ public:
+  bool enable() const { return enable_; }
+  void set_enable(bool enable) { enable_ = enable; }
+
+  const std::vector<long>& latency_max() const { return latency_max_; }
+  void set_latency_max(const std::vector<long>& latency_max) { latency_max_ = latency_max; }
+
+  const std::vector<long>& not_available_duration() const { return not_available_duration_; }
+  void set_not_available_duration(std::vector<long> not_available_duration) {
+    not_available_duration_ = std::move(not_available_duration);
+  }
 
  private:
-  LatencyFaultTolerancyImpl m_latencyFaultTolerance;
-  bool m_sendLatencyFaultEnable;
+  bool enable_{false};
+  LatencyFaultTolerancyImpl latency_fault_tolerance_;
 
-  std::vector<long> m_latencyMax;
-  std::vector<long> m_notAvailableDuration;
+  std::vector<long> latency_max_{50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L};
+  std::vector<long> not_available_duration_{0L, 0L, 30000L, 60000L, 120000L, 180000L, 600000L};
 };
 
 }  // namespace rocketmq

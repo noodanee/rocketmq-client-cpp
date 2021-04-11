@@ -24,7 +24,7 @@
 #include "MQException.h"
 #include "MQMessageExt.h"
 #include "PullCallback.h"
-#include "SendCallback.h"
+#include "RemotingCommand.h"
 #include "SendResult.h"
 #include "TopicConfig.h"
 #include "TopicList.h"
@@ -47,6 +47,9 @@ class InvokeCallback;
  */
 class MQClientAPIImpl {
  public:
+  using SendCallback = std::function<void(ResultState<std::unique_ptr<SendResult>>) /* noexcept */>;
+
+ public:
   MQClientAPIImpl(ClientRemotingProcessor* clientRemotingProcessor,
                   RPCHookPtr rpcHook,
                   const MQClientConfig& clientConfig);
@@ -61,24 +64,24 @@ class MQClientAPIImpl {
 
   std::unique_ptr<SendResult> sendMessage(const std::string& addr,
                                           const std::string& brokerName,
-                                          const MessagePtr msg,
+                                          const MessagePtr& msg,
                                           std::unique_ptr<SendMessageRequestHeader> requestHeader,
                                           int timeoutMillis,
                                           CommunicationMode communicationMode,
                                           DefaultMQProducerImplPtr producer);
   std::unique_ptr<SendResult> sendMessage(const std::string& addr,
                                           const std::string& brokerName,
-                                          const MessagePtr msg,
+                                          const MessagePtr& msg,
                                           std::unique_ptr<SendMessageRequestHeader> requestHeader,
                                           int timeoutMillis,
                                           CommunicationMode communicationMode,
-                                          SendCallback* sendCallback,
+                                          SendCallback sendCallback,
                                           TopicPublishInfoPtr topicPublishInfo,
                                           MQClientInstancePtr instance,
                                           int retryTimesWhenSendFailed,
                                           DefaultMQProducerImplPtr producer);
   std::unique_ptr<SendResult> processSendResponse(const std::string& brokerName,
-                                                  const MessagePtr msg,
+                                                  Message& msg,
                                                   RemotingCommand* pResponse);
 
   std::unique_ptr<PullResult> pullMessage(const std::string& addr,
@@ -177,7 +180,7 @@ class MQClientAPIImpl {
                         const std::string& brokerName,
                         const MessagePtr msg,
                         RemotingCommand&& request,
-                        SendCallback* sendCallback,
+                        SendCallback sendCallback,
                         TopicPublishInfoPtr topicPublishInfo,
                         MQClientInstancePtr instance,
                         int64_t timeoutMilliseconds,

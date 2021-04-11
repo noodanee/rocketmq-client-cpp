@@ -17,21 +17,15 @@
 #ifndef ROCKETMQ_DEFAULTMQPRODUCERCONFIG_H_
 #define ROCKETMQ_DEFAULTMQPRODUCERCONFIG_H_
 
-#include "MQClientConfig.h"
+#include "RocketMQClient.h"
 
 namespace rocketmq {
-
-class DefaultMQProducerConfig;
-typedef std::shared_ptr<DefaultMQProducerConfig> DefaultMQProducerConfigPtr;
 
 /**
  * DefaultMQProducerConfig - config interface for DefaultMQProducer
  */
-class ROCKETMQCLIENT_API DefaultMQProducerConfig : virtual public MQClientConfig  // base interface
-{
+class ROCKETMQCLIENT_API DefaultMQProducerConfig {
  public:
-  virtual ~DefaultMQProducerConfig() = default;
-
   virtual int async_send_thread_nums() const = 0;
   virtual void set_async_send_thread_nums(int async_send_thread_nums) = 0;
 
@@ -63,8 +57,8 @@ class ROCKETMQCLIENT_API DefaultMQProducerConfig : virtual public MQClientConfig
   virtual bool retry_another_broker_when_not_store_ok() const = 0;
   virtual void set_retry_another_broker_when_not_store_ok(bool retry_another_broker_when_not_store_ok) = 0;
 
-  virtual bool send_latency_fault_enable() const { return false; };
-  virtual void set_send_latency_fault_enable(bool send_latency_fault_enable){};
+  virtual bool send_latency_fault_enable() const = 0;
+  virtual void set_send_latency_fault_enable(bool send_latency_fault_enable) = 0;
 };
 
 }  // namespace rocketmq

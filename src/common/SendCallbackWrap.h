@@ -18,6 +18,7 @@
 #define ROCKETMQ_COMMON_SENDCALLBACKWRAP_H_
 
 #include <functional>
+#include <memory>
 
 #include "DefaultMQProducerImpl.h"
 #include "InvokeCallback.h"
@@ -32,11 +33,14 @@ namespace rocketmq {
 
 class SendCallbackWrap : public InvokeCallback {
  public:
+  using SendCallback = std::function<void(ResultState<std::unique_ptr<SendResult>>) noexcept>;
+
+ public:
   SendCallbackWrap(const std::string& addr,
                    const std::string& brokerName,
                    const MessagePtr msg,
                    RemotingCommand&& request,
-                   SendCallback* sendCallback,
+                   SendCallback sendCallback,
                    TopicPublishInfoPtr topicPublishInfo,
                    MQClientInstancePtr instance,
                    int retryTimesWhenSendFailed,
@@ -59,7 +63,7 @@ class SendCallbackWrap : public InvokeCallback {
   std::string broker_name_;
   const MessagePtr msg_;
   RemotingCommand request_;
-  SendCallback* send_callback_;
+  SendCallback send_callback_;
   TopicPublishInfoPtr topic_publish_info_;
   MQClientInstancePtr instance_;
   int times_total_;

@@ -308,12 +308,12 @@ std::string MessageDecoder::encodeMessage(Message& message) {
   return encodeMsg;
 }
 
-std::string MessageDecoder::encodeMessages(std::vector<MQMessage>& msgs) {
-  std::string encodedBody;
-  for (auto msg : msgs) {
-    encodedBody.append(encodeMessage(msg));
+std::string MessageDecoder::encodeMessages(std::vector<MessagePtr>& messages) {
+  std::string encoded_body;
+  for (auto message : messages) {
+    encoded_body.append(encodeMessage(*message));
   }
-  return encodedBody;
+  return encoded_body;
 }
 
 }  // namespace rocketmq

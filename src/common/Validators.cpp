@@ -20,32 +20,36 @@
 
 #include "MQProtos.h"
 
-const std::string VALID_PATTERN_STR = "^[a-zA-Z0-9_-]+$";
-const int CHARACTER_MAX_LENGTH = 255;
+namespace {
+
+const char* kValidPattern = "^[a-zA-Z0-9_-]+$";
+const int kCharacterMaxLength = 255;
+
+}  // namespace
 
 namespace rocketmq {
 
-bool Validators::regularExpressionMatcher(const std::string& origin, const std::string& patternStr) {
+bool Validators::regularExpressionMatcher(const std::string& origin, const std::string& pattern) {
   if (UtilAll::isBlank(origin)) {
     return false;
   }
 
-  if (UtilAll::isBlank(patternStr)) {
+  if (UtilAll::isBlank(pattern)) {
     return true;
   }
 
 #if defined(__GNUC__) && ((__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
   return true;
 #else
-  const std::regex regex(patternStr, std::regex::extended);
+  const std::regex regex(pattern, std::regex::extended);
   return std::regex_match(origin, regex);
 #endif
 }
 
-std::string Validators::getGroupWithRegularExpression(const std::string& origin, const std::string& patternStr) {
-  if (!UtilAll::isBlank(patternStr)) {
+std::string Validators::getGroupWithRegularExpression(const std::string& origin, const std::string& pattern) {
+  if (!UtilAll::isBlank(pattern)) {
 #if !defined(__GNUC__) || __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 8)
-    const std::regex regex(patternStr, std::regex::extended);
+    const std::regex regex(pattern, std::regex::extended);
     std::smatch match;
 
     if (std::regex_match(origin, match, regex)) {
@@ -66,7 +70,7 @@ void Validators::checkTopic(const std::string& topic) {
     THROW_MQEXCEPTION(MQClientException, "the specified topic is blank", -1);
   }
 
-  if ((int)topic.length() > CHARACTER_MAX_LENGTH) {
+  if ((int)topic.length() > kCharacterMaxLength) {
     THROW_MQEXCEPTION(MQClientException, "the specified topic is longer than topic max length 255.", -1);
   }
 
@@ -74,9 +78,8 @@ void Validators::checkTopic(const std::string& topic) {
     THROW_MQEXCEPTION(MQClientException, "the topic[" + topic + "] is conflict with default topic.", -1);
   }
 
-  if (!regularExpressionMatcher(topic, VALID_PATTERN_STR)) {
-    std::string str =
-        "the specified topic[" + topic + "] contains illegal characters, allowing only" + VALID_PATTERN_STR;
+  if (!regularExpressionMatcher(topic, kValidPattern)) {
+    std::string str = "the specified topic[" + topic + "] contains illegal characters, allowing only" + kValidPattern;
     THROW_MQEXCEPTION(MQClientException, str, -1);
   }
 }
@@ -86,20 +89,19 @@ void Validators::checkGroup(const std::string& group) {
     THROW_MQEXCEPTION(MQClientException, "the specified group is blank", -1);
   }
 
-  if (!regularExpressionMatcher(group, VALID_PATTERN_STR)) {
-    std::string str =
-        "the specified group[" + group + "] contains illegal characters, allowing only" + VALID_PATTERN_STR;
+  if (!regularExpressionMatcher(group, kValidPattern)) {
+    std::string str = "the specified group[" + group + "] contains illegal characters, allowing only" + kValidPattern;
     THROW_MQEXCEPTION(MQClientException, str, -1);
   }
-  if ((int)group.length() > CHARACTER_MAX_LENGTH) {
+  if ((int)group.length() > kCharacterMaxLength) {
     THROW_MQEXCEPTION(MQClientException, "the specified group is longer than group max length 255.", -1);
   }
 }
 
-void Validators::checkMessage(const Message& msg, int maxMessageSize) {
-  checkTopic(msg.topic());
+void Validators::checkMessage(const Message& message, int maxMessageSize) {
+  checkTopic(message.topic());
 
-  const auto& body = msg.body();
+  const auto& body = message.body();
   if (body.empty()) {
     THROW_MQEXCEPTION(MQClientException, "the message body is empty", MESSAGE_ILLEGAL);
   }

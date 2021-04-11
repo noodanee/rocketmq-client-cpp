@@ -18,58 +18,53 @@
 
 namespace rocketmq {
 
-MQFaultStrategy::MQFaultStrategy() : m_sendLatencyFaultEnable(false) {
-  m_latencyMax = std::vector<long>{50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L};
-  m_notAvailableDuration = std::vector<long>{0L, 0L, 30000L, 60000L, 120000L, 180000L, 600000L};
-}
-
-const MQMessageQueue& MQFaultStrategy::selectOneMessageQueue(const TopicPublishInfo* tpInfo,
-                                                             const std::string& lastBrokerName) {
-  if (m_sendLatencyFaultEnable) {
+const MQMessageQueue& MQFaultStrategy::SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
+                                                             const std::string& last_broker_name) {
+  if (enable_) {
     {
-      auto index = tpInfo->getSendWhichQueue().fetch_add(1);
-      const auto& messageQueueList = tpInfo->getMessageQueueList();
-      for (size_t i = 0; i < messageQueueList.size(); i++) {
-        auto pos = index++ % messageQueueList.size();
-        const auto& mq = messageQueueList[pos];
-        if (m_latencyFaultTolerance.isAvailable(mq.broker_name())) {
-          return mq;
+      auto index = topic_publish_info->getSendWhichQueue().fetch_add(1);
+      const auto& message_queue_list = topic_publish_info->getMessageQueueList();
+      for (size_t i = 0; i < message_queue_list.size(); i++) {
+        auto pos = index++ % message_queue_list.size();
+        const auto& message_queue = message_queue_list[pos];
+        if (latency_fault_tolerance_.IsAvailable(message_queue.broker_name())) {
+          return message_queue;
         }
       }
     }
 
-    auto notBestBroker = m_latencyFaultTolerance.pickOneAtLeast();
-    int writeQueueNums = tpInfo->getQueueIdByBroker(notBestBroker);
-    if (writeQueueNums > 0) {
+    auto not_best_broker = latency_fault_tolerance_.PickOneAtLeast();
+    int write_queue_nums = topic_publish_info->getQueueIdByBroker(not_best_broker);
+    if (write_queue_nums > 0) {
       // FIXME: why modify origin mq object, not return a new one?
-      static thread_local MQMessageQueue mq;
-      mq = tpInfo->selectOneMessageQueue();
-      if (!notBestBroker.empty()) {
-        mq.set_broker_name(notBestBroker);
-        mq.set_queue_id(tpInfo->getSendWhichQueue().fetch_add(1) % writeQueueNums);
+      static thread_local MQMessageQueue message_queue;
+      message_queue = topic_publish_info->selectOneMessageQueue();
+      if (!not_best_broker.empty()) {
+        message_queue.set_broker_name(not_best_broker);
+        message_queue.set_queue_id(topic_publish_info->getSendWhichQueue().fetch_add(1) % write_queue_nums);
       }
-      return mq;
+      return message_queue;
     } else {
-      m_latencyFaultTolerance.remove(notBestBroker);
+      latency_fault_tolerance_.Remove(not_best_broker);
     }
 
-    return tpInfo->selectOneMessageQueue();
+    return topic_publish_info->selectOneMessageQueue();
   }
 
-  return tpInfo->selectOneMessageQueue(lastBrokerName);
+  return topic_publish_info->selectOneMessageQueue(last_broker_name);
 }
 
-void MQFaultStrategy::updateFaultItem(const std::string& brokerName, const long currentLatency, bool isolation) {
-  if (m_sendLatencyFaultEnable) {
-    long duration = computeNotAvailableDuration(isolation ? 30000 : currentLatency);
-    m_latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration);
+void MQFaultStrategy::UpdateFaultItem(const std::string& broker_name, long current_latency, bool isolation) {
+  if (enable_) {
+    long duration = ComputeNotAvailableDuration(isolation ? 30000 : current_latency);
+    latency_fault_tolerance_.UpdateFaultItem(broker_name, current_latency, duration);
   }
 }
 
-long MQFaultStrategy::computeNotAvailableDuration(const long currentLatency) {
-  for (size_t i = m_latencyMax.size(); i > 0; i--) {
-    if (currentLatency >= m_latencyMax[i - 1]) {
-      return m_notAvailableDuration[i - 1];
+long MQFaultStrategy::ComputeNotAvailableDuration(long current_latency) {
+  for (size_t i = latency_max_.size(); i > 0; i--) {
+    if (current_latency >= latency_max_[i - 1]) {
+      return not_available_duration_[i - 1];
     }
   }
   return 0;

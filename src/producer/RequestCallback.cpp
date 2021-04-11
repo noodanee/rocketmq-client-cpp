@@ -14,25 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PRODUCER_TRANSACTIONMQPRODUCERCONFIGIMPL_HPP_
-#define ROCKETMQ_PRODUCER_TRANSACTIONMQPRODUCERCONFIGIMPL_HPP_
+#include "RequestCallback.h"
 
-#include "DefaultMQProducerConfigImpl.hpp"
-#include "TransactionMQProducerConfig.h"
+#include <algorithm>
+#include <exception>
+
+#include "Logging.h"
 
 namespace rocketmq {
 
-class TransactionMQProducerConfigImpl : virtual public TransactionMQProducerConfig, public DefaultMQProducerConfigImpl {
- public:  // TransactionMQProducerConfig
-  TransactionListener* getTransactionListener() const override { return transaction_listener_; }
-  void setTransactionListener(TransactionListener* transactionListener) override {
-    transaction_listener_ = transactionListener;
+void RequestCallback::invokeOnSuccess(MQMessage message) noexcept {
+  auto type = getRequestCallbackType();
+  try {
+    onSuccess(std::move(message));
+  } catch (const std::exception& e) {
+    LOG_WARN_NEW("encounter exception when invoke RequestCallback::onSuccess(), {}", e.what());
   }
+  if (type == RequestCallbackType::kAutoDelete) {
+    delete this;
+  }
+}
 
- protected:
-  TransactionListener* transaction_listener_{nullptr};
-};
+void RequestCallback::invokeOnException(MQException& exception) noexcept {
+  auto type = getRequestCallbackType();
+  try {
+    onException(exception);
+  } catch (const std::exception& e) {
+    LOG_WARN_NEW("encounter exception when invoke RequestCallback::onException(), {}", e.what());
+  }
+  if (type == RequestCallbackType::kAutoDelete) {
+    delete this;
+  }
+}
 
 }  // namespace rocketmq
-
-#endif  // ROCKETMQ_PRODUCER_TRANSACTIONMQPRODUCERCONFIGIMPL_HPP_

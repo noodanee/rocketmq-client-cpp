@@ -31,7 +31,7 @@ class ROCKETMQCLIENT_API SendCallback {
  public:
   virtual ~SendCallback() = default;
 
-  virtual void onSuccess(SendResult& sendResult) = 0;
+  virtual void onSuccess(SendResult& send_result) = 0;
   virtual void onException(MQException& e) noexcept = 0;
 
   virtual SendCallbackType getSendCallbackType() const { return SendCallbackType::kSimple; }
@@ -46,10 +46,9 @@ class ROCKETMQCLIENT_API SendCallback {
  *
  * the object of AutoDeleteSendCallback will be deleted automatically by SDK after invoke callback interface
  */
-class ROCKETMQCLIENT_API AutoDeleteSendCallback : public SendCallback  // base interface
-{
+class ROCKETMQCLIENT_API AutoDeleteSendCallback : public SendCallback {
  public:
-  SendCallbackType getSendCallbackType() const override final { return SendCallbackType::kAutoDelete; }
+  SendCallbackType getSendCallbackType() const final { return SendCallbackType::kAutoDelete; }
 };
 
 }  // namespace rocketmq

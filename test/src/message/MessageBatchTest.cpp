@@ -19,9 +19,10 @@
 
 #include <memory>
 
-#include "MessageDecoder.h"
-#include "MQMessage.h"
+#include "Message.h"
 #include "MessageBatch.h"
+#include "MessageDecoder.h"
+#include "MessageImpl.h"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
@@ -29,26 +30,26 @@ using testing::Return;
 
 using rocketmq::MessageBatch;
 using rocketmq::MessageDecoder;
-using rocketmq::MQMessage;
-using rocketmq::stoba;
+using rocketmq::MessageImpl;
+using rocketmq::MessagePtr;
 
 TEST(MessageBatchTest, Encode) {
-  std::vector<MQMessage> msgs;
-  msgs.push_back(MQMessage("topic", "*", "test1"));
-  auto msgBatch = MessageBatch::generateFromList(msgs);
-  auto encodeMessage = msgBatch->encode();
+  std::vector<MessagePtr> msgs;
+  msgs.push_back(std::make_shared<MessageImpl>("topic", "test1"));
+  auto msgBatch = MessageBatch::Wrap(msgs);
+  auto encodeMessage = msgBatch->Encode();
   auto encodeMessage2 = MessageDecoder::encodeMessages(msgs);
   EXPECT_EQ(encodeMessage, encodeMessage2);
-  // 20 + bodyLen(test1) + 2 + propertiesLength(TAGS:*;WAIT:true;);
-  EXPECT_EQ(encodeMessage.size(), 44);
+  // 20 + bodyLen(test1) + 2 + propertiesLength(WAIT:true;);
+  EXPECT_EQ(encodeMessage.size(), 37);
 
-  msgs.push_back(MQMessage("topic", "*", "test2"));
-  msgs.push_back(MQMessage("topic", "*", "test3"));
-  msgBatch = MessageBatch::generateFromList(msgs);
-  encodeMessage = msgBatch->encode();
+  msgs.push_back(std::make_shared<MessageImpl>("topic", "test2"));
+  msgs.push_back(std::make_shared<MessageImpl>("topic", "test3"));
+  msgBatch = MessageBatch::Wrap(msgs);
+  encodeMessage = msgBatch->Encode();
   encodeMessage2 = MessageDecoder::encodeMessages(msgs);
   EXPECT_EQ(encodeMessage, encodeMessage2);
-  EXPECT_EQ(encodeMessage.size(), 132);  // 44 * 3
+  EXPECT_EQ(encodeMessage.size(), 111);  // 37 * 3
 }
 
 int main(int argc, char* argv[]) {

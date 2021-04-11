@@ -27,8 +27,7 @@ namespace rocketmq {
 class ROCKETMQCLIENT_API MQClientConfigProxy : virtual public MQClientConfig  // interface
 {
  public:
-  MQClientConfigProxy(MQClientConfigPtr clientConfig) : client_config_(clientConfig) {}
-  virtual ~MQClientConfigProxy() = default;
+  MQClientConfigProxy(MQClientConfigPtr config) : client_config_(config) {}
 
   std::string buildMQClientId() const override { return client_config_->buildMQClientId(); }
   void changeInstanceNameToPID() override { client_config_->changeInstanceNameToPID(); }
@@ -63,6 +62,8 @@ class ROCKETMQCLIENT_API MQClientConfigProxy : virtual public MQClientConfig  //
   void set_tcp_transport_try_lock_timeout(uint64_t timeout) override {
     client_config_->set_tcp_transport_try_lock_timeout(timeout);
   }
+
+  virtual MQClientConfig& config() const { return *client_config_; }
 
   MQClientConfigPtr real_config() const { return client_config_; }
 

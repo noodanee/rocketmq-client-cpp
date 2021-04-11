@@ -90,7 +90,7 @@ void MQClientAPIImpl::createTopic(const std::string& addr, const std::string& de
 
 std::unique_ptr<SendResult> MQClientAPIImpl::sendMessage(const std::string& addr,
                                                          const std::string& brokerName,
-                                                         const MessagePtr msg,
+                                                         const MessagePtr& msg,
                                                          std::unique_ptr<SendMessageRequestHeader> requestHeader,
                                                          int timeoutMillis,
                                                          CommunicationMode communicationMode,
@@ -101,21 +101,17 @@ std::unique_ptr<SendResult> MQClientAPIImpl::sendMessage(const std::string& addr
 
 std::unique_ptr<SendResult> MQClientAPIImpl::sendMessage(const std::string& addr,
                                                          const std::string& brokerName,
-                                                         const MessagePtr msg,
+                                                         const MessagePtr& msg,
                                                          std::unique_ptr<SendMessageRequestHeader> requestHeader,
                                                          int timeoutMillis,
                                                          CommunicationMode communicationMode,
-                                                         SendCallback* sendCallback,
+                                                         SendCallback sendCallback,
                                                          TopicPublishInfoPtr topicPublishInfo,
                                                          MQClientInstancePtr instance,
                                                          int retryTimesWhenSendFailed,
                                                          DefaultMQProducerImplPtr producer) {
   int code = SEND_MESSAGE;
-  std::unique_ptr<CommandCustomHeader> header;
-
-  const auto& msgType = msg->getProperty(MQMessageConst::PROPERTY_MESSAGE_TYPE);
-  bool isReply = msgType == REPLY_MESSAGE_FLAG;
-  if (isReply) {
+  if (msg->getProperty(MQMessageConst::PROPERTY_MESSAGE_TYPE) == REPLY_MESSAGE_FLAG) {
     code = SEND_REPLY_MESSAGE_V2;
   } else if (msg->isBatch()) {
     code = SEND_BATCH_MESSAGE;
@@ -123,6 +119,7 @@ std::unique_ptr<SendResult> MQClientAPIImpl::sendMessage(const std::string& addr
     code = SEND_MESSAGE_V2;
   }
 
+  std::unique_ptr<CommandCustomHeader> header;
   if (code != SEND_MESSAGE && code != SEND_REPLY_MESSAGE) {
     header = SendMessageRequestHeaderV2::createSendMessageRequestHeaderV2(requestHeader.get());
   } else {
@@ -154,14 +151,14 @@ void MQClientAPIImpl::sendMessageAsync(const std::string& addr,
                                        const std::string& brokerName,
                                        const MessagePtr msg,
                                        RemotingCommand&& request,
-                                       SendCallback* sendCallback,
+                                       SendCallback sendCallback,
                                        TopicPublishInfoPtr topicPublishInfo,
                                        MQClientInstancePtr instance,
                                        int64_t timeoutMillis,
                                        int retryTimesWhenSendFailed,
                                        DefaultMQProducerImplPtr producer) {
   std::unique_ptr<InvokeCallback> cbw(
-      new SendCallbackWrap(addr, brokerName, msg, std::forward<RemotingCommand>(request), sendCallback,
+      new SendCallbackWrap(addr, brokerName, msg, std::forward<RemotingCommand>(request), std::move(sendCallback),
                            topicPublishInfo, instance, retryTimesWhenSendFailed, 0, producer));
   sendMessageAsyncImpl(cbw, timeoutMillis);
 }
@@ -181,11 +178,11 @@ std::unique_ptr<SendResult> MQClientAPIImpl::sendMessageSync(const std::string& 
   // block until response
   std::unique_ptr<RemotingCommand> response(remoting_client_->invokeSync(addr, request, timeoutMillis));
   assert(response != nullptr);
-  return processSendResponse(brokerName, msg, response.get());
+  return processSendResponse(brokerName, *msg, response.get());
 }
 
 std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::string& brokerName,
-                                                                 const MessagePtr msg,
+                                                                 Message& msg,
                                                                  RemotingCommand* response) {
   SendStatus sendStatus = SEND_OK;
   switch (response->code()) {
@@ -209,17 +206,17 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
   auto* responseHeader = response->decodeCommandCustomHeader<SendMessageResponseHeader>();
   assert(responseHeader != nullptr);
 
-  MQMessageQueue messageQueue(msg->topic(), brokerName, responseHeader->queueId);
+  MQMessageQueue messageQueue(msg.topic(), brokerName, responseHeader->queueId);
 
-  std::string uniqMsgId = MessageClientIDSetter::getUniqID(*msg);
+  std::string uniqMsgId = MessageClientIDSetter::getUniqID(msg);
 
   // MessageBatch
-  if (msg->isBatch()) {
-    const auto& messages = dynamic_cast<MessageBatch*>(msg.get())->messages();
+  if (msg.isBatch()) {
+    const auto& messages = dynamic_cast<MessageBatch&>(msg).messages();
     uniqMsgId.clear();
     uniqMsgId.reserve(33 * messages.size() + 1);
     for (const auto& message : messages) {
-      uniqMsgId.append(MessageClientIDSetter::getUniqID(message));
+      uniqMsgId.append(MessageClientIDSetter::getUniqID(*message));
       uniqMsgId.append(",");
     }
     if (!uniqMsgId.empty()) {

@@ -21,14 +21,17 @@
 #include <string>
 
 #include "Message.h"
-#include "RequestCallback.h"
+#include "common/ResultState.hpp"
 #include "concurrent/latch.hpp"
 
 namespace rocketmq {
 
 class RequestResponseFuture {
  public:
-  RequestResponseFuture(const std::string& correlationId, long timeoutMillis, RequestCallback* requestCallback);
+  using RequestCallback = std::function<void(ResultState<MessagePtr>) /* noexcept */>;
+
+ public:
+  RequestResponseFuture(const std::string& correlationId, long timeoutMillis, RequestCallback requestCallback);
 
   void executeRequestCallback() noexcept;
 
@@ -48,7 +51,7 @@ class RequestResponseFuture {
 
  private:
   std::string correlation_id_;
-  RequestCallback* request_callback_;
+  RequestCallback request_callback_;
   uint64_t begin_timestamp_;
   MessagePtr request_msg_;
   long timeout_millis_;

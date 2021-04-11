@@ -28,11 +28,11 @@
 namespace rocketmq {
 
 class TopicPublishInfo;
-typedef std::shared_ptr<const TopicPublishInfo> TopicPublishInfoPtr;
+using TopicPublishInfoPtr = std::shared_ptr<const TopicPublishInfo>;
 
 class TopicPublishInfo {
  public:
-  typedef std::vector<MQMessageQueue> QueuesVec;
+  using QueuesVec = std::vector<MQMessageQueue>;
 
  public:
   bool isOrderTopic() const { return order_topic_; }
@@ -45,7 +45,7 @@ class TopicPublishInfo {
 
   std::atomic<std::size_t>& getSendWhichQueue() const { return send_which_queue_; }
 
-  bool isHaveTopicRouterInfo() { return have_topic_router_info_; }
+  bool isHaveTopicRouterInfo() const { return have_topic_router_info_; }
 
   void setHaveTopicRouterInfo(bool haveTopicRouterInfo) { have_topic_router_info_ = haveTopicRouterInfo; }
 

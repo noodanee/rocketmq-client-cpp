@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
   producer->set_tcp_transport_connect_timeout(400);
 
   MyTransactionListener myListener;
-  producer->setTransactionListener(&myListener);
+  producer->set_transaction_listener(&myListener);
 
   producer->start();
 

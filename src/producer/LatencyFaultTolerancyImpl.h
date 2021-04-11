@@ -26,20 +26,20 @@ namespace rocketmq {
 
 class LatencyFaultTolerancyImpl {
  public:
-  void updateFaultItem(const std::string& name, const long currentLatency, const long notAvailableDuration);
+  void UpdateFaultItem(const std::string& name, const long current_latency, const long not_available_duration);
 
-  bool isAvailable(const std::string& name);
+  bool IsAvailable(const std::string& name);
 
-  void remove(const std::string& name);
+  void Remove(const std::string& name);
 
-  std::string pickOneAtLeast();
+  std::string PickOneAtLeast();
 
  private:
   class FaultItem {
    public:
     FaultItem(const std::string& name);
 
-    bool isAvailable() const;
+    bool IsAvailable() const;
 
     std::string toString() const;
 
@@ -53,7 +53,7 @@ class LatencyFaultTolerancyImpl {
    public:
     ComparableFaultItem(const FaultItem& item)
         : name_(item.name_),
-          is_available_(item.isAvailable()),
+          is_available_(item.IsAvailable()),
           current_latency_(item.current_latency_),
           start_timestamp_(item.start_timestamp_) {}
 

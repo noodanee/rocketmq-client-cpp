@@ -28,13 +28,10 @@ typedef std::shared_ptr<TransactionMQProducerConfig> TransactionMQProducerConfig
 /**
  * TransactionMQProducerConfig - config interface for TransactionMQProducer
  */
-class ROCKETMQCLIENT_API TransactionMQProducerConfig : virtual public DefaultMQProducerConfig {
+class ROCKETMQCLIENT_API TransactionMQProducerConfig {
  public:
-  virtual ~TransactionMQProducerConfig() = default;
-
- public:  // TransactionMQProducerConfig
-  virtual TransactionListener* getTransactionListener() const = 0;
-  virtual void setTransactionListener(TransactionListener* transactionListener) = 0;
+  virtual TransactionListener* transaction_listener() const = 0;
+  virtual void set_transaction_listener(TransactionListener* transactionListener) = 0;
 };
 
 }  // namespace rocketmq

@@ -17,19 +17,19 @@
 #ifndef ROCKETMQ_COMMON_VALIDATORST_H_
 #define ROCKETMQ_COMMON_VALIDATORST_H_
 
-#include "Message.h"
 #include "MQException.h"
+#include "Message.h"
 #include "UtilAll.h"
 
 namespace rocketmq {
 
 class Validators {
  public:
-  static bool regularExpressionMatcher(const std::string& origin, const std::string& patternStr);
-  static std::string getGroupWithRegularExpression(const std::string& origin, const std::string& patternStr);
+  static bool regularExpressionMatcher(const std::string& origin, const std::string& pattern);
+  static std::string getGroupWithRegularExpression(const std::string& origin, const std::string& pattern);
   static void checkTopic(const std::string& topic);
   static void checkGroup(const std::string& group);
-  static void checkMessage(const Message& msg, int maxMessageSize);
+  static void checkMessage(const Message& message, int maxMessageSize);
 };
 
 }  // namespace rocketmq

@@ -17,92 +17,104 @@
 #ifndef ROCKETMQ_DEFAULTMQPRODUCER_H_
 #define ROCKETMQ_DEFAULTMQPRODUCER_H_
 
+#include <memory>
+
 #include "DefaultMQProducerConfigProxy.h"
-#include "MQProducer.h"
+#include "MQClientConfigProxy.h"
+#include "MQMessage.h"
+#include "MQMessageQueue.h"
+#include "MQSelector.h"
 #include "RPCHook.h"
+#include "RequestCallback.h"
+#include "SendCallback.h"
+#include "SendResult.h"
 
 namespace rocketmq {
 
-class ROCKETMQCLIENT_API DefaultMQProducer : public DefaultMQProducerConfigProxy,  // base
-                                             public MQProducer                     // interface
-{
+class DefaultMQProducerConfigImpl;
+class DefaultMQProducerImpl;
+
+class ROCKETMQCLIENT_API DefaultMQProducer : public DefaultMQProducerConfigProxy, public MQClientConfigProxy {
  public:
   DefaultMQProducer(const std::string& groupname);
-  DefaultMQProducer(const std::string& groupname, RPCHookPtr rpcHook);
-  virtual ~DefaultMQProducer();
+  DefaultMQProducer(const std::string& groupname, RPCHookPtr rpc_hook);
 
  private:
-  DefaultMQProducer(const std::string& groupname, RPCHookPtr rpcHook, DefaultMQProducerConfigPtr producerConfig);
-  friend class TransactionMQProducer;
-
- public:  // MQProducer
-  void start() override;
-  void shutdown() override;
-
-  std::vector<MQMessageQueue> fetchPublishMessageQueues(const std::string& topic) override;
-
-  // Sync: caller will be responsible for the lifecycle of messages.
-  SendResult send(MQMessage& msg) override;
-  SendResult send(MQMessage& msg, long timeout) override;
-  SendResult send(MQMessage& msg, const MQMessageQueue& mq) override;
-  SendResult send(MQMessage& msg, const MQMessageQueue& mq, long timeout) override;
-
-  // Async: don't delete msg object, until callback occur.
-  void send(MQMessage& msg, SendCallback* sendCallback) noexcept override;
-  void send(MQMessage& msg, SendCallback* sendCallback, long timeout) noexcept override;
-  void send(MQMessage& msg, const MQMessageQueue& mq, SendCallback* sendCallback) noexcept override;
-  void send(MQMessage& msg, const MQMessageQueue& mq, SendCallback* sendCallback, long timeout) noexcept override;
-
-  // Oneyway: same as sync send, but don't care its result.
-  void sendOneway(MQMessage& msg) override;
-  void sendOneway(MQMessage& msg, const MQMessageQueue& mq) override;
-
-  // Select
-  SendResult send(MQMessage& msg, MessageQueueSelector* selector, void* arg) override;
-  SendResult send(MQMessage& msg, MessageQueueSelector* selector, void* arg, long timeout) override;
-  void send(MQMessage& msg, MessageQueueSelector* selector, void* arg, SendCallback* sendCallback) noexcept override;
-  void send(MQMessage& msg,
-            MessageQueueSelector* selector,
-            void* arg,
-            SendCallback* sendCallback,
-            long timeout) noexcept override;
-  void sendOneway(MQMessage& msg, MessageQueueSelector* selector, void* arg) override;
-
-  // Transaction
-  TransactionSendResult sendMessageInTransaction(MQMessage& msg, void* arg) override;
-
-  // Batch: power by sync send, caller will be responsible for the lifecycle of messages.
-  SendResult send(std::vector<MQMessage>& msgs) override;
-  SendResult send(std::vector<MQMessage>& msgs, long timeout) override;
-  SendResult send(std::vector<MQMessage>& msgs, const MQMessageQueue& mq) override;
-  SendResult send(std::vector<MQMessage>& msgs, const MQMessageQueue& mq, long timeout) override;
-
-  void send(std::vector<MQMessage>& msgs, SendCallback* sendCallback) override;
-  void send(std::vector<MQMessage>& msgs, SendCallback* sendCallback, long timeout) override;
-  void send(std::vector<MQMessage>& msgs, const MQMessageQueue& mq, SendCallback* sendCallback) override;
-  void send(std::vector<MQMessage>& msgs, const MQMessageQueue& mq, SendCallback* sendCallback, long timeout) override;
-
-  // RPC
-  MQMessage request(MQMessage& msg, long timeout) override;
-  void request(MQMessage& msg, RequestCallback* requestCallback, long timeout) override;
-  MQMessage request(MQMessage& msg, const MQMessageQueue& mq, long timeout) override;
-  void request(MQMessage& msg, const MQMessageQueue& mq, RequestCallback* requestCallback, long timeout) override;
-  MQMessage request(MQMessage& msg, MessageQueueSelector* selector, void* arg, long timeout) override;
-  void request(MQMessage& msg,
-               MessageQueueSelector* selector,
-               void* arg,
-               RequestCallback* requestCallback,
-               long timeout) override;
-
- public:  // DefaultMQProducerConfig
-  bool send_latency_fault_enable() const override;
-  void set_send_latency_fault_enable(bool sendLatencyFaultEnable) override;
+  DefaultMQProducer(const std::string& groupname,
+                    RPCHookPtr rpc_hook,
+                    std::shared_ptr<DefaultMQProducerConfigImpl> config);
 
  public:
-  void setRPCHook(RPCHookPtr rpcHook);
+  void start();
+  void shutdown();
+
+  std::vector<MQMessageQueue> fetchPublishMessageQueues(const std::string& topic);
+
+  // Sync: caller will be responsible for the lifecycle of messages.
+  SendResult send(MQMessage& message);
+  SendResult send(MQMessage& message, long timeout);
+  SendResult send(MQMessage& message, const MQMessageQueue& message_queue);
+  SendResult send(MQMessage& message, const MQMessageQueue& message_queue, long timeout);
+
+  // Async: don't delete msg object, until callback occur.
+  void send(MQMessage& message, SendCallback* send_callback) noexcept;
+  void send(MQMessage& message, SendCallback* send_callback, long timeout) noexcept;
+  void send(MQMessage& message, const MQMessageQueue& message_queue, SendCallback* send_callback) noexcept;
+  void send(MQMessage& message,
+            const MQMessageQueue& message_queue,
+            SendCallback* send_callback,
+            long timeout) noexcept;
+
+  // Oneyway: same as sync send, but don't care its result.
+  void sendOneway(MQMessage& message);
+  void sendOneway(MQMessage& message, const MQMessageQueue& message_queue);
+
+  // Select
+  SendResult send(MQMessage& message, MessageQueueSelector* selector, void* arg);
+  SendResult send(MQMessage& message, MessageQueueSelector* selector, void* arg, long timeout);
+  void send(MQMessage& message, MessageQueueSelector* selector, void* arg, SendCallback* send_callback) noexcept;
+  void send(MQMessage& message,
+            MessageQueueSelector* selector,
+            void* arg,
+            SendCallback* send_callback,
+            long timeout) noexcept;
+  void sendOneway(MQMessage& message, MessageQueueSelector* selector, void* arg);
+
+  // Batch: power by sync send, caller will be responsible for the lifecycle of messages.
+  SendResult send(std::vector<MQMessage>& messages);
+  SendResult send(std::vector<MQMessage>& messages, long timeout);
+  SendResult send(std::vector<MQMessage>& messages, const MQMessageQueue& message_queue);
+  SendResult send(std::vector<MQMessage>& messages, const MQMessageQueue& message_queue, long timeout);
+
+  void send(std::vector<MQMessage>& messages, SendCallback* send_callback);
+  void send(std::vector<MQMessage>& messages, SendCallback* send_callback, long timeout);
+  void send(std::vector<MQMessage>& messages, const MQMessageQueue& message_queue, SendCallback* send_callback);
+  void send(std::vector<MQMessage>& messages,
+            const MQMessageQueue& message_queue,
+            SendCallback* send_callback,
+            long timeout);
+
+  // RPC
+  MQMessage request(MQMessage& message, long timeout);
+  void request(MQMessage& message, RequestCallback* request_callback, long timeout);
+  MQMessage request(MQMessage& msg, const MQMessageQueue& message_queue, long timeout);
+  void request(MQMessage& message,
+               const MQMessageQueue& message_queue,
+               RequestCallback* request_callback,
+               long timeout);
+  MQMessage request(MQMessage& message, MessageQueueSelector* selector, void* arg, long timeout);
+  void request(MQMessage& message,
+               MessageQueueSelector* selector,
+               void* arg,
+               RequestCallback* request_callback,
+               long timeout);
+
+ public:
+  void setRPCHook(RPCHookPtr rpc_hook);
 
  protected:
-  std::shared_ptr<MQProducer> producer_impl_;
+  std::shared_ptr<DefaultMQProducerConfigImpl> producer_config_impl_;
+  std::shared_ptr<DefaultMQProducerImpl> producer_impl_;
 };
 
 }  // namespace rocketmq

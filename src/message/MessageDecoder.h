@@ -46,7 +46,7 @@ class MessageDecoder {
   static std::map<std::string, std::string> string2messageProperties(const std::string& properties);
 
   static std::string encodeMessage(Message& message);
-  static std::string encodeMessages(std::vector<MQMessage>& msgs);
+  static std::string encodeMessages(std::vector<MessagePtr>& messages);
 };
 
 }  // namespace rocketmq

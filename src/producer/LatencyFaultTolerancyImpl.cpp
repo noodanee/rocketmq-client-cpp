@@ -24,9 +24,9 @@
 
 namespace rocketmq {
 
-void LatencyFaultTolerancyImpl::updateFaultItem(const std::string& name,
-                                                const long currentLatency,
-                                                const long notAvailableDuration) {
+void LatencyFaultTolerancyImpl::UpdateFaultItem(const std::string& name,
+                                                const long current_latency,
+                                                const long not_available_duration) {
   std::lock_guard<std::mutex> lock(fault_item_table_mutex_);
   auto it = fault_item_table_.find(name);
   if (it == fault_item_table_.end()) {
@@ -34,25 +34,25 @@ void LatencyFaultTolerancyImpl::updateFaultItem(const std::string& name,
     it = pair.first;
   }
   auto& faultItem = it->second;
-  faultItem.current_latency_ = currentLatency;
-  faultItem.start_timestamp_ = UtilAll::currentTimeMillis() + notAvailableDuration;
+  faultItem.current_latency_ = current_latency;
+  faultItem.start_timestamp_ = UtilAll::currentTimeMillis() + not_available_duration;
 }
 
-bool LatencyFaultTolerancyImpl::isAvailable(const std::string& name) {
+bool LatencyFaultTolerancyImpl::IsAvailable(const std::string& name) {
   std::lock_guard<std::mutex> lock(fault_item_table_mutex_);
   const auto& it = fault_item_table_.find(name);
   if (it != fault_item_table_.end()) {
-    return it->second.isAvailable();
+    return it->second.IsAvailable();
   }
   return true;
 }
 
-void LatencyFaultTolerancyImpl::remove(const std::string& name) {
+void LatencyFaultTolerancyImpl::Remove(const std::string& name) {
   std::lock_guard<std::mutex> lock(fault_item_table_mutex_);
   fault_item_table_.erase(name);
 }
 
-std::string LatencyFaultTolerancyImpl::pickOneAtLeast() {
+std::string LatencyFaultTolerancyImpl::PickOneAtLeast() {
   std::lock_guard<std::mutex> lock(fault_item_table_mutex_);
   if (fault_item_table_.empty()) {
     return null;
@@ -62,22 +62,22 @@ std::string LatencyFaultTolerancyImpl::pickOneAtLeast() {
     return fault_item_table_.begin()->second.name_;
   }
 
-  std::vector<ComparableFaultItem> tmpList;
-  tmpList.reserve(fault_item_table_.size());
+  std::vector<ComparableFaultItem> item_list;
+  item_list.reserve(fault_item_table_.size());
   for (const auto& it : fault_item_table_) {
-    tmpList.push_back(ComparableFaultItem(it.second));
+    item_list.push_back(ComparableFaultItem(it.second));
   }
 
-  std::sort(tmpList.begin(), tmpList.end());
+  std::sort(item_list.begin(), item_list.end());
 
-  auto half = tmpList.size() / 2;
+  auto half = item_list.size() / 2;
   auto i = which_item_worst_.fetch_add(1) % half;
-  return tmpList[i].name_;
+  return item_list[i].name_;
 }
 
 LatencyFaultTolerancyImpl::FaultItem::FaultItem(const std::string& name) : name_(name) {}
 
-bool LatencyFaultTolerancyImpl::FaultItem::isAvailable() const {
+bool LatencyFaultTolerancyImpl::FaultItem::IsAvailable() const {
   return UtilAll::currentTimeMillis() - start_timestamp_ >= 0;
 }
 
