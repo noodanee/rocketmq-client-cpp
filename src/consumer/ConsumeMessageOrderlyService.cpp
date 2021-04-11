@@ -155,7 +155,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
                          messageQueue.toString());
             break;
           }
-          auto message_list = MQMessageExt::from_list(msgs);
+          auto message_list = MQMessageExt::Wrap(msgs);
           status = message_listener_->consumeMessage(message_list);
         } catch (const std::exception& e) {
           LOG_WARN_NEW("encounter unexpected exception when consume messages.\n{}", e.what());

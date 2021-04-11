@@ -606,7 +606,7 @@ std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll(long timeout) {
   auto messages = message_cache_.TakeMessages(timeout, getDefaultLitePullConsumerConfig()->pull_batch_size());
   // if namespace not empty, reset Topic without namespace.
   resetTopic(messages);
-  return MQMessageExt::from_list(messages);
+  return MQMessageExt::Wrap(messages);
 }
 
 void DefaultLitePullConsumerImpl::maybeAutoCommit() {

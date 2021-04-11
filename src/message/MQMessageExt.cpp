@@ -21,11 +21,11 @@
 
 namespace rocketmq {
 
-std::vector<MQMessageExt> MQMessageExt::from_list(std::vector<MessageExtPtr>& msg_list) {
+std::vector<MQMessageExt> MQMessageExt::Wrap(std::vector<MessageExtPtr>& messages) {
   std::vector<MQMessageExt> message_list;
-  message_list.reserve(msg_list.size());
-  for (const auto& msg : msg_list) {
-    message_list.emplace_back(msg);
+  message_list.reserve(messages.size());
+  for (const auto& message : messages) {
+    message_list.emplace_back(message);
   }
   return message_list;
 }
