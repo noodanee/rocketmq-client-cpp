@@ -79,78 +79,6 @@ class DefaultLitePullConsumerImpl::MessageQueueListenerImpl : public MessageQueu
   std::weak_ptr<DefaultLitePullConsumerImpl> default_lite_pull_consumer_;
 };
 
-class DefaultLitePullConsumerImpl::AsyncPullCallback : public AutoDeletePullCallback {
- public:
-  AsyncPullCallback(DefaultLitePullConsumerImplPtr pull_consumer,
-                    PullRequestPtr request,
-                    SubscriptionData* subscription_data,
-                    bool own_subscription_data)
-      : default_lite_pull_consumer_(pull_consumer),
-        pull_request_(request),
-        subscription_data_(subscription_data),
-        own_subscription_data_(own_subscription_data) {}
-
-  ~AsyncPullCallback() {
-    if (own_subscription_data_) {
-      delete subscription_data_;
-    }
-  }
-
-  void onSuccess(std::unique_ptr<PullResult> pull_result) override {
-    auto process_queue = pull_request_->process_queue();
-    if (process_queue->dropped()) {
-      LOG_WARN_NEW("the pull request[{}] is dropped.", pull_request_->toString());
-      return;
-    }
-
-    auto consumer = default_lite_pull_consumer_.lock();
-    if (nullptr == consumer) {
-      LOG_WARN_NEW("AsyncPullCallback::onSuccess: DefaultLitePullConsumerImpl is released.");
-      return;
-    }
-
-    pull_result = consumer->pull_api_wrapper_->processPullResult(pull_request_->message_queue(), std::move(pull_result),
-                                                                 subscription_data_);
-
-    {
-      std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
-      if (process_queue->seek_offset() == -1) {
-        process_queue->set_pull_offset(pull_result->next_begin_offset());
-        if (pull_result->pull_status() == PullStatus::FOUND && !pull_result->msg_found_list().empty()) {
-          consumer->message_cache().PutMessages(process_queue, pull_result->msg_found_list());
-        }
-      }
-    }
-
-    if (pull_result->pull_status() == PullStatus::NO_LATEST_MSG) {
-      consumer->ExecutePullRequestLater(pull_request_, consumer->config().pull_time_delay_millis_when_exception());
-    } else {
-      if (pull_result->pull_status() == PullStatus::OFFSET_ILLEGAL) {
-        LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->toString());
-      }
-      consumer->ExecutePullRequestImmediately(pull_request_);
-    }
-  }
-
-  void onException(MQException& e) noexcept override {
-    auto consumer = default_lite_pull_consumer_.lock();
-    if (nullptr == consumer) {
-      LOG_WARN_NEW("AsyncPullCallback::onException: DefaultLitePullConsumerImpl is released.");
-      return;
-    }
-
-    LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());
-
-    consumer->ExecutePullRequestLater(pull_request_, consumer->config().pull_time_delay_millis_when_exception());
-  }
-
- private:
-  std::weak_ptr<DefaultLitePullConsumerImpl> default_lite_pull_consumer_;
-  PullRequestPtr pull_request_;
-  SubscriptionData* subscription_data_;
-  bool own_subscription_data_;
-};
-
 DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(
     const std::shared_ptr<DefaultLitePullConsumerConfigImpl>& config,
     RPCHookPtr rpc_hook)
@@ -574,40 +502,83 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
   //   return;
   // }
 
-  auto offset = NextPullOffset(process_queue);
-  try {
-    SubscriptionData* subscription_data = nullptr;
-    if (subscription_type_ == SubscriptionType::kSubscribe) {
-      subscription_data = rebalance_impl_->getSubscriptionData(message_queue.topic());
-    } else {
-      subscription_data = FilterAPI::buildSubscriptionData(message_queue.topic(), SUB_ALL).release();
+  bool need_delete = subscription_type_ != SubscriptionType::kSubscribe;
+  std::shared_ptr<SubscriptionData> subscription_data(
+      [this, &message_queue]() {
+        if (subscription_type_ == SubscriptionType::kSubscribe) {
+          return rebalance_impl_->getSubscriptionData(message_queue.topic());
+        }
+        return FilterAPI::buildSubscriptionData(message_queue.topic(), SUB_ALL).release();
+      }(),
+      [need_delete](SubscriptionData* subscription_data) {
+        if (need_delete) {
+          delete subscription_data;
+        }
+      });
+
+  bool is_tag_type = ExpressionType::isTagType(subscription_data->expression_type());
+
+  int system_flag = PullSysFlag::buildSysFlag(false,  // commit offset
+                                              true,   // suspend
+                                              true,   // suspend
+                                              false,  // class filter
+                                              true);
+
+  std::weak_ptr<DefaultLitePullConsumerImpl> consumer_ptr{shared_from_this()};
+  auto pull_callback = [consumer_ptr, pull_request, subscription_data](ResultState<std::unique_ptr<PullResult>> state) {
+    auto process_queue = pull_request->process_queue();
+    if (process_queue->dropped()) {
+      LOG_WARN_NEW("the pull request[{}] is dropped.", pull_request->toString());
+      return;
     }
 
-    std::unique_ptr<AsyncPullCallback> callback(new AsyncPullCallback(
-        shared_from_this(), pull_request, subscription_data, subscription_type_ != SubscriptionType::kSubscribe));
+    auto consumer = consumer_ptr.lock();
+    if (nullptr == consumer) {
+      LOG_WARN_NEW("DefaultLitePullConsumerImpl is released.");
+      return;
+    }
 
-    int sysFlag = PullSysFlag::buildSysFlag(false,  // commit offset
-                                            true,   // suspend
-                                            true,   // suspend
-                                            false,  // class filter
-                                            true);
+    try {
+      auto pull_result = consumer->pull_api_wrapper_->ProcessPullResult(
+          pull_request->message_queue(), std::move(state.GetResult()), subscription_data.get());
 
-    bool is_tag_type = ExpressionType::isTagType(subscription_data->expression_type());
+      {
+        std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
+        if (process_queue->seek_offset() == -1) {
+          process_queue->set_pull_offset(pull_result->next_begin_offset());
+          if (pull_result->pull_status() == PullStatus::FOUND && !pull_result->msg_found_list().empty()) {
+            consumer->message_cache().PutMessages(process_queue, pull_result->msg_found_list());
+          }
+        }
+      }
 
-    pull_api_wrapper_->pullKernelImpl(message_queue,                                        // mq
+      if (pull_result->pull_status() == PullStatus::NO_LATEST_MSG) {
+        consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
+      } else {
+        if (pull_result->pull_status() == PullStatus::OFFSET_ILLEGAL) {
+          LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->toString());
+        }
+        consumer->ExecutePullRequestImmediately(pull_request);
+      }
+    } catch (const std::exception& e) {
+      LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());
+      consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
+    }
+  };
+
+  try {
+    pull_api_wrapper_->PullKernelImpl(message_queue,                                        // mq
                                       subscription_data->sub_string(),                      // subExpression
                                       subscription_data->expression_type(),                 // expressionType
                                       is_tag_type ? 0L : subscription_data->sub_version(),  // subVersion
-                                      offset,                                               // offset
+                                      NextPullOffset(process_queue),                        // offset
                                       config().pull_batch_size(),                           // maxNums
-                                      sysFlag,                                              // sysFlag
+                                      system_flag,                                          // sysFlag
                                       0,                                                    // commitOffset
                                       config().broker_suspend_max_time_millis(),        // brokerSuspendMaxTimeMillis
                                       config().consumer_timeout_millis_when_suspend(),  // timeoutMillis
                                       CommunicationMode::ASYNC,                         // communicationMode
-                                      callback.get());                                  // pullCallback
-
-    (void)callback.release();
+                                      std::move(pull_callback));                        // pullCallback
   } catch (std::exception& e) {
     LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());
     ExecutePullRequestLater(pull_request, config().pull_time_delay_millis_when_exception());
@@ -731,12 +702,12 @@ void DefaultLitePullConsumerImpl::Seek(const MQMessageQueue& message_queue, int6
 }
 
 void DefaultLitePullConsumerImpl::SeekToBegin(const MQMessageQueue& message_queue) {
-  auto begin = minOffset(message_queue);
+  int64_t begin = minOffset(message_queue);
   Seek(message_queue, begin);
 }
 
 void DefaultLitePullConsumerImpl::SeekToEnd(const MQMessageQueue& message_queue) {
-  auto end = maxOffset(message_queue);
+  int64_t end = maxOffset(message_queue);
   Seek(message_queue, end);
 }
 

@@ -19,19 +19,21 @@
 
 #include "InvokeCallback.h"
 #include "MQClientAPIImpl.h"
-#include "PullCallback.h"
 #include "ResponseFuture.h"
 
 namespace rocketmq {
 
 class PullCallbackWrap : public InvokeCallback {
  public:
-  PullCallbackWrap(PullCallback* pullCallback, MQClientAPIImpl* pClientAPI);
+  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResult>>) noexcept>;
+
+ public:
+  PullCallbackWrap(PullCallback pullCallback, MQClientAPIImpl* pClientAPI);
 
   void operationComplete(ResponseFuture* responseFuture) noexcept override;
 
  private:
-  PullCallback* pull_callback_;
+  PullCallback pull_callback_;
   MQClientAPIImpl* client_api_impl_;
 };
 

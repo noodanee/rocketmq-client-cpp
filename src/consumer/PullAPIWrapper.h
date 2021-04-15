@@ -22,37 +22,40 @@
 #include "CommunicationMode.h"
 #include "MQClientInstance.h"
 #include "MQMessageQueue.h"
-#include "PullCallback.h"
+#include "PullResult.h"
+#include "common/ResultState.hpp"
 #include "protocol/heartbeat/SubscriptionData.hpp"
 
 namespace rocketmq {
 
 class PullAPIWrapper {
  public:
-  PullAPIWrapper(MQClientInstance* instance, const std::string& consumerGroup);
-  ~PullAPIWrapper();
+  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResult>>) noexcept>;
 
-  std::unique_ptr<PullResult> processPullResult(const MQMessageQueue& mq,
+ public:
+  PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group);
+
+  std::unique_ptr<PullResult> PullKernelImpl(const MQMessageQueue& message_queue,
+                                             const std::string& expression,
+                                             const std::string& expression_type,
+                                             int64_t version,
+                                             int64_t offset,
+                                             int max_nums,
+                                             int system_flag,
+                                             int64_t commit_offset,
+                                             int broker_suspend_max_time_millis,
+                                             int timeout_millis,
+                                             CommunicationMode communication_mode,
+                                             PullCallback pull_callback);
+
+  std::unique_ptr<PullResult> ProcessPullResult(const MQMessageQueue& mq,
                                                 std::unique_ptr<PullResult> pull_result,
                                                 SubscriptionData* subscriptionData);
 
-  std::unique_ptr<PullResult> pullKernelImpl(const MQMessageQueue& mq,
-                                             const std::string& subExpression,
-                                             const std::string& expressionType,
-                                             int64_t subVersion,
-                                             int64_t offset,
-                                             int maxNums,
-                                             int sysFlag,
-                                             int64_t commitOffset,
-                                             int brokerSuspendMaxTimeMillis,
-                                             int timeoutMillis,
-                                             CommunicationMode communicationMode,
-                                             PullCallback* pullCallback);
-
  private:
-  void updatePullFromWhichNode(const MQMessageQueue& mq, int brokerId);
+  int RecalculatePullFromWhichNode(const MQMessageQueue& message_queue);
 
-  int recalculatePullFromWhichNode(const MQMessageQueue& mq);
+  void UpdatePullFromWhichNode(const MQMessageQueue& message_queue, int broker_id);
 
  private:
   MQClientInstance* client_instance_;

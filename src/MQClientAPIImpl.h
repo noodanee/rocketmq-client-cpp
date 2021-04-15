@@ -17,13 +17,16 @@
 #ifndef ROCKETMQ_MQCLIENTAPIIMPL_H_
 #define ROCKETMQ_MQCLIENTAPIIMPL_H_
 
+#include <functional>
+#include <memory>
+
 #include "CommunicationMode.h"
 #include "DefaultMQProducerImpl.h"
 #include "KVTable.h"
 #include "MQClientInstance.h"
 #include "MQException.h"
 #include "MQMessageExt.h"
-#include "PullCallback.h"
+#include "PullResult.h"
 #include "RemotingCommand.h"
 #include "SendResult.h"
 #include "TopicConfig.h"
@@ -48,6 +51,7 @@ class InvokeCallback;
 class MQClientAPIImpl {
  public:
   using SendCallback = std::function<void(ResultState<std::unique_ptr<SendResult>>) /* noexcept */>;
+  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResult>>) /* noexcept */>;
 
  public:
   MQClientAPIImpl(ClientRemotingProcessor* clientRemotingProcessor,
@@ -85,10 +89,10 @@ class MQClientAPIImpl {
                                                   RemotingCommand* pResponse);
 
   std::unique_ptr<PullResult> pullMessage(const std::string& addr,
-                                          PullMessageRequestHeader* requestHeader,
+                                          std::unique_ptr<PullMessageRequestHeader> requestHeader,
                                           int timeoutMillis,
                                           CommunicationMode communicationMode,
-                                          PullCallback* pullCallback);
+                                          PullCallback pullCallback);
   std::unique_ptr<PullResult> processPullResponse(RemotingCommand* pResponse);
 
   MQMessageExt viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis);
@@ -194,7 +198,7 @@ class MQClientAPIImpl {
   void pullMessageAsync(const std::string& addr,
                         RemotingCommand& request,
                         int timeoutMillis,
-                        PullCallback* pullCallback);
+                        PullCallback pullCallback);
 
  private:
   std::unique_ptr<TcpRemotingClient> remoting_client_;

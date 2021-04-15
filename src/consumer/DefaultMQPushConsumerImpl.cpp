@@ -40,6 +40,7 @@
 #include "PullSysFlag.h"
 #include "RebalancePushImpl.h"
 #include "RemoteBrokerOffsetStore.h"
+#include "ResultState.hpp"
 #include "SocketUtil.h"
 #include "UtilAll.h"
 #include "Validators.h"
@@ -53,106 +54,6 @@ constexpr long kConsumerTimeoutMillisWhenSuspend = 1000 * 30;
 }  // namespace
 
 namespace rocketmq {
-
-class DefaultMQPushConsumerImpl::AsyncPullCallback : public AutoDeletePullCallback {
- public:
-  AsyncPullCallback(DefaultMQPushConsumerImplPtr pushConsumer,
-                    PullRequestPtr request,
-                    SubscriptionData* subscriptionData)
-      : default_mq_push_consumer_(pushConsumer), pull_request_(request), subscription_data_(subscriptionData) {}
-
-  ~AsyncPullCallback() = default;
-
-  void onSuccess(std::unique_ptr<PullResult> pull_result) override {
-    auto consumer = default_mq_push_consumer_.lock();
-    if (nullptr == consumer) {
-      LOG_WARN_NEW("AsyncPullCallback::onSuccess: DefaultMQPushConsumerImpl is released.");
-      return;
-    }
-
-    pull_result = consumer->pull_api_wrapper_->processPullResult(pull_request_->message_queue(), std::move(pull_result),
-                                                                 subscription_data_);
-    switch (pull_result->pull_status()) {
-      case FOUND: {
-        int64_t prev_request_offset = pull_request_->next_offset();
-        pull_request_->set_next_offset(pull_result->next_begin_offset());
-
-        int64_t first_msg_offset = (std::numeric_limits<int64_t>::max)();
-        if (!pull_result->msg_found_list().empty()) {
-          first_msg_offset = pull_result->msg_found_list()[0]->queue_offset();
-
-          pull_request_->process_queue()->PutMessages(pull_result->msg_found_list());
-          consumer->consume_service_->submitConsumeRequest(pull_result->msg_found_list(),
-                                                           pull_request_->process_queue(), true);
-        }
-
-        consumer->ExecutePullRequestImmediately(pull_request_);
-
-        if (pull_result->next_begin_offset() < prev_request_offset || first_msg_offset < prev_request_offset) {
-          LOG_WARN_NEW(
-              "[BUG] pull message result maybe data wrong, nextBeginOffset:{} firstMsgOffset:{} prevRequestOffset:{}",
-              pull_result->next_begin_offset(), first_msg_offset, prev_request_offset);
-        }
-      } break;
-      case NO_NEW_MSG:
-      case NO_MATCHED_MSG:
-        pull_request_->set_next_offset(pull_result->next_begin_offset());
-        consumer->CorrectTagsOffset(pull_request_);
-        consumer->ExecutePullRequestImmediately(pull_request_);
-        break;
-      case NO_LATEST_MSG:
-        pull_request_->set_next_offset(pull_result->next_begin_offset());
-        consumer->CorrectTagsOffset(pull_request_);
-        consumer->ExecutePullRequestLater(pull_request_, consumer->config().pull_time_delay_millis_when_exception());
-        break;
-      case OFFSET_ILLEGAL: {
-        LOG_WARN_NEW("the pull request offset illegal, {} {}", pull_request_->toString(), pull_result->toString());
-
-        pull_request_->set_next_offset(pull_result->next_begin_offset());
-        pull_request_->process_queue()->set_dropped(true);
-
-        // update and persist offset, then removeProcessQueue
-        auto pull_request = pull_request_;
-        consumer->ExecuteTaskLater(
-            [consumer, pull_request]() {
-              try {
-                consumer->offset_store()->updateOffset(pull_request->message_queue(), pull_request->next_offset(),
-                                                       false);
-                consumer->offset_store()->persist(pull_request->message_queue());
-                consumer->rebalance_impl()->removeProcessQueue(pull_request->message_queue());
-
-                LOG_WARN_NEW("fix the pull request offset, {}", pull_request->toString());
-              } catch (std::exception& e) {
-                LOG_ERROR_NEW("executeTaskLater Exception: {}", e.what());
-              }
-            },
-            10000);
-      } break;
-      default:
-        break;
-    }
-  }
-
-  void onException(MQException& e) noexcept override {
-    auto consumer = default_mq_push_consumer_.lock();
-    if (nullptr == consumer) {
-      LOG_WARN_NEW("AsyncPullCallback::onException: DefaultMQPushConsumerImpl is released.");
-      return;
-    }
-
-    if (!UtilAll::isRetryTopic(pull_request_->message_queue().topic())) {
-      LOG_WARN_NEW("execute the pull request exception: {}", e.what());
-    }
-
-    // TODO
-    consumer->ExecutePullRequestLater(pull_request_, consumer->config().pull_time_delay_millis_when_exception());
-  }
-
- private:
-  std::weak_ptr<DefaultMQPushConsumerImpl> default_mq_push_consumer_;
-  PullRequestPtr pull_request_;
-  SubscriptionData* subscription_data_;
-};
 
 DefaultMQPushConsumerImpl::DefaultMQPushConsumerImpl(const std::shared_ptr<DefaultMQPushConsumerConfigImpl>& config,
                                                      RPCHookPtr rpc_hook)
@@ -450,41 +351,115 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
     LOG_WARN_NEW("find the consumer's subscription failed, {}", pull_request->toString());
     return;
   }
+  const auto& expression = subscription_data->sub_string();
 
-  bool commitOffsetEnable = false;
-  int64_t commitOffsetValue = 0;
+  bool commit_offset_enable = false;
+  int64_t commit_offset_value = 0;
   if (CLUSTERING == config().message_model()) {
-    commitOffsetValue = offset_store_->readOffset(message_queue, READ_FROM_MEMORY);
-    if (commitOffsetValue > 0) {
-      commitOffsetEnable = true;
+    commit_offset_value = offset_store_->readOffset(message_queue, READ_FROM_MEMORY);
+    if (commit_offset_value > 0) {
+      commit_offset_enable = true;
     }
   }
 
-  const auto& subExpression = subscription_data->sub_string();
+  int system_flag = PullSysFlag::buildSysFlag(commit_offset_enable,  // commitOffset
+                                              true,                  // suspend
+                                              !expression.empty(),   // subscription
+                                              false);                // class filter
 
-  int sysFlag = PullSysFlag::buildSysFlag(commitOffsetEnable,      // commitOffset
-                                          true,                    // suspend
-                                          !subExpression.empty(),  // subscription
-                                          false);                  // class filter
+  std::weak_ptr<DefaultMQPushConsumerImpl> consumer_ptr{shared_from_this()};
+  auto pull_callback = [consumer_ptr, pull_request, subscription_data](ResultState<std::unique_ptr<PullResult>> state) {
+    auto consumer = consumer_ptr.lock();
+    if (nullptr == consumer) {
+      LOG_WARN_NEW("DefaultMQPushConsumerImpl is released.");
+      return;
+    }
+
+    try {
+      auto pull_result = consumer->pull_api_wrapper_->ProcessPullResult(
+          pull_request->message_queue(), std::move(state.GetResult()), subscription_data);
+      switch (pull_result->pull_status()) {
+        case FOUND: {
+          int64_t prev_request_offset = pull_request->next_offset();
+          pull_request->set_next_offset(pull_result->next_begin_offset());
+
+          int64_t first_msg_offset = (std::numeric_limits<int64_t>::max)();
+          if (!pull_result->msg_found_list().empty()) {
+            first_msg_offset = pull_result->msg_found_list()[0]->queue_offset();
+
+            pull_request->process_queue()->PutMessages(pull_result->msg_found_list());
+            consumer->consume_service_->submitConsumeRequest(pull_result->msg_found_list(),
+                                                             pull_request->process_queue(), true);
+          }
+
+          consumer->ExecutePullRequestImmediately(pull_request);
+
+          if (pull_result->next_begin_offset() < prev_request_offset || first_msg_offset < prev_request_offset) {
+            LOG_WARN_NEW(
+                "[BUG] pull message result maybe data wrong, nextBeginOffset:{} firstMsgOffset:{} "
+                "prevRequestOffset:{}",
+                pull_result->next_begin_offset(), first_msg_offset, prev_request_offset);
+          }
+        } break;
+        case NO_NEW_MSG:
+        case NO_MATCHED_MSG:
+          pull_request->set_next_offset(pull_result->next_begin_offset());
+          consumer->CorrectTagsOffset(pull_request);
+          consumer->ExecutePullRequestImmediately(pull_request);
+          break;
+        case NO_LATEST_MSG:
+          pull_request->set_next_offset(pull_result->next_begin_offset());
+          consumer->CorrectTagsOffset(pull_request);
+          consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
+          break;
+        case OFFSET_ILLEGAL: {
+          LOG_WARN_NEW("the pull request offset illegal, {} {}", pull_request->toString(), pull_result->toString());
+
+          pull_request->set_next_offset(pull_result->next_begin_offset());
+          pull_request->process_queue()->set_dropped(true);
+
+          // update and persist offset, then removeProcessQueue
+          consumer->ExecuteTaskLater(
+              [consumer, pull_request]() {
+                try {
+                  consumer->offset_store()->updateOffset(pull_request->message_queue(), pull_request->next_offset(),
+                                                         false);
+                  consumer->offset_store()->persist(pull_request->message_queue());
+                  consumer->rebalance_impl()->removeProcessQueue(pull_request->message_queue());
+
+                  LOG_WARN_NEW("fix the pull request offset, {}", pull_request->toString());
+                } catch (std::exception& e) {
+                  LOG_ERROR_NEW("executeTaskLater Exception: {}", e.what());
+                }
+              },
+              10000);
+        } break;
+        default:
+          break;
+      }
+    } catch (const std::exception& e) {
+      if (!UtilAll::isRetryTopic(pull_request->message_queue().topic())) {
+        LOG_WARN_NEW("execute the pull request exception: {}", e.what());
+      }
+
+      // TODO
+      consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
+    }
+  };
 
   try {
-    std::unique_ptr<AsyncPullCallback> callback(
-        new AsyncPullCallback(shared_from_this(), pull_request, subscription_data));
-
-    pull_api_wrapper_->pullKernelImpl(message_queue,                         // mq
-                                      subExpression,                         // subExpression
+    pull_api_wrapper_->PullKernelImpl(message_queue,                         // mq
+                                      expression,                            // subExpression
                                       subscription_data->expression_type(),  // expressionType
                                       subscription_data->sub_version(),      // subVersion
                                       pull_request->next_offset(),           // offset
                                       config().pull_batch_size(),            // maxNums
-                                      sysFlag,                               // sysFlag
-                                      commitOffsetValue,                     // commitOffset
+                                      system_flag,                           // sysFlag
+                                      commit_offset_value,                   // commitOffset
                                       kBrockerSuspendMaxTimeMillis,          // brokerSuspendMaxTimeMillis
                                       kConsumerTimeoutMillisWhenSuspend,     // timeoutMillis
                                       CommunicationMode::ASYNC,              // communicationMode
-                                      callback.get());                       // pullCallback
-
-    (void)callback.release();
+                                      pull_callback);                        // pullCallback
   } catch (MQException& e) {
     LOG_ERROR_NEW("pullKernelImpl exception: {}", e.what());
     ExecutePullRequestLater(pull_request, config().pull_time_delay_millis_when_exception());

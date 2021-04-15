@@ -232,15 +232,15 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
 }
 
 std::unique_ptr<PullResult> MQClientAPIImpl::pullMessage(const std::string& addr,
-                                                         PullMessageRequestHeader* requestHeader,
+                                                         std::unique_ptr<PullMessageRequestHeader> requestHeader,
                                                          int timeoutMillis,
                                                          CommunicationMode communicationMode,
-                                                         PullCallback* pullCallback) {
-  RemotingCommand request(PULL_MESSAGE, requestHeader);
+                                                         PullCallback pullCallback) {
+  RemotingCommand request(PULL_MESSAGE, requestHeader.release());
 
   switch (communicationMode) {
     case CommunicationMode::ASYNC:
-      pullMessageAsync(addr, request, timeoutMillis, pullCallback);
+      pullMessageAsync(addr, request, timeoutMillis, std::move(pullCallback));
       return nullptr;
     case CommunicationMode::SYNC:
       return pullMessageSync(addr, request, timeoutMillis);
@@ -253,7 +253,7 @@ std::unique_ptr<PullResult> MQClientAPIImpl::pullMessage(const std::string& addr
 void MQClientAPIImpl::pullMessageAsync(const std::string& addr,
                                        RemotingCommand& request,
                                        int timeoutMillis,
-                                       PullCallback* pullCallback) {
+                                       PullCallback pullCallback) {
   std::unique_ptr<InvokeCallback> cbw(new PullCallbackWrap(pullCallback, this));
   remoting_client_->invokeAsync(addr, request, cbw, timeoutMillis);
 }

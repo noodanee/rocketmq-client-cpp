@@ -17,6 +17,9 @@
 #include "PullCallbackWrap.h"
 
 #include <cassert>
+#include <exception>
+
+#include "PullCallback.h"
 
 namespace rocketmq {
 
@@ -44,8 +47,8 @@ void PullCallback::invokeOnException(MQException& exception) noexcept {
   }
 }
 
-PullCallbackWrap::PullCallbackWrap(PullCallback* pullCallback, MQClientAPIImpl* pClientAPI)
-    : pull_callback_(pullCallback), client_api_impl_(pClientAPI) {}
+PullCallbackWrap::PullCallbackWrap(PullCallback pullCallback, MQClientAPIImpl* pClientAPI)
+    : pull_callback_(std::move(pullCallback)), client_api_impl_(pClientAPI) {}
 
 void PullCallbackWrap::operationComplete(ResponseFuture* responseFuture) noexcept {
   std::unique_ptr<RemotingCommand> response(responseFuture->getResponseCommand());  // avoid RemotingCommand leak
@@ -56,24 +59,20 @@ void PullCallbackWrap::operationComplete(ResponseFuture* responseFuture) noexcep
   }
 
   if (response != nullptr) {
-    try {
-      std::unique_ptr<PullResult> pull_result(client_api_impl_->processPullResponse(response.get()));
-      assert(pull_result != nullptr);
-      pull_callback_->invokeOnSuccess(std::move(pull_result));
-    } catch (MQException& e) {
-      pull_callback_->invokeOnException(e);
-    }
+    std::unique_ptr<PullResult> pull_result(client_api_impl_->processPullResponse(response.get()));
+    assert(pull_result != nullptr);
+    pull_callback_({std::move(pull_result)});
   } else {
-    std::string err;
+    std::string error_message;
     if (!responseFuture->send_request_ok()) {
-      err = "send request failed";
+      error_message = "send request failed";
     } else if (responseFuture->isTimeout()) {
-      err = "wait response timeout";
+      error_message = "wait response timeout";
     } else {
-      err = "unknown reason";
+      error_message = "unknown reason";
     }
-    MQException exception(err, -1, __FILE__, __LINE__);
-    pull_callback_->invokeOnException(exception);
+    MQException exception(error_message, -1, __FILE__, __LINE__);
+    pull_callback_({std::make_exception_ptr(exception)});
   }
 }
 
