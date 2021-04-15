@@ -30,7 +30,7 @@ namespace rocketmq {
 /**
  * MQ Client Config
  */
-class MQClientConfigImpl : virtual public MQClientConfig {
+class MQClientConfigImpl : public MQClientConfig {
  public:
   MQClientConfigImpl() {
     const char* addr = std::getenv(ROCKETMQ_NAMESRV_ADDR_ENV.c_str());

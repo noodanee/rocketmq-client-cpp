@@ -170,7 +170,7 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
   OffsetStore* offset_store() const { return offset_store_.get(); }
 
   DefaultLitePullConsumerConfigImpl& config() const {
-    return dynamic_cast<DefaultLitePullConsumerConfigImpl&>(*client_config_);
+    return static_cast<DefaultLitePullConsumerConfigImpl&>(*client_config_);
   }
 
  private:

@@ -24,8 +24,7 @@ namespace rocketmq {
 /**
  * MQClientConfigProxy - proxy for MQClientConfig
  */
-class ROCKETMQCLIENT_API MQClientConfigProxy : virtual public MQClientConfig  // interface
-{
+class ROCKETMQCLIENT_API MQClientConfigProxy : public MQClientConfig {
  public:
   MQClientConfigProxy(MQClientConfigPtr config) : client_config_(config) {}
 

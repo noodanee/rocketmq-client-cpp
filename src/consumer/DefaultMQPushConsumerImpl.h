@@ -136,7 +136,7 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
   OffsetStore* offset_store() const { return offset_store_.get(); }
 
   DefaultMQPushConsumerConfigImpl& config() const {
-    return dynamic_cast<DefaultMQPushConsumerConfigImpl&>(*client_config_);
+    return static_cast<DefaultMQPushConsumerConfigImpl&>(*client_config_);
   }
 
  private:

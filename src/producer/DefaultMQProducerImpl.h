@@ -178,7 +178,7 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
   void DestroyTransactionEnv();
 
  public:
-  DefaultMQProducerConfigImpl& config() const { return dynamic_cast<DefaultMQProducerConfigImpl&>(*client_config_); }
+  DefaultMQProducerConfigImpl& config() const { return static_cast<DefaultMQProducerConfigImpl&>(*client_config_); }
 
  private:
   std::unique_ptr<MQFaultStrategy> mq_fault_strategy_;

@@ -156,7 +156,7 @@ class DefaultMQPushConsumerImpl::AsyncPullCallback : public AutoDeletePullCallba
 
 DefaultMQPushConsumerImpl::DefaultMQPushConsumerImpl(const std::shared_ptr<DefaultMQPushConsumerConfigImpl>& config,
                                                      RPCHookPtr rpc_hook)
-    : MQClientImpl(std::dynamic_pointer_cast<MQClientConfig>(config), std::move(rpc_hook)),
+    : MQClientImpl(std::static_pointer_cast<MQClientConfig>(config), std::move(rpc_hook)),
       rebalance_impl_(new RebalancePushImpl(this)) {}
 
 DefaultMQPushConsumerImpl::~DefaultMQPushConsumerImpl() = default;

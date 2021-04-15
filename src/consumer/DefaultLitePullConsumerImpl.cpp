@@ -154,7 +154,7 @@ class DefaultLitePullConsumerImpl::AsyncPullCallback : public AutoDeletePullCall
 DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(
     const std::shared_ptr<DefaultLitePullConsumerConfigImpl>& config,
     RPCHookPtr rpc_hook)
-    : MQClientImpl(std::dynamic_pointer_cast<MQClientConfig>(config), std::move(rpc_hook)),
+    : MQClientImpl(std::static_pointer_cast<MQClientConfig>(config), std::move(rpc_hook)),
       assigned_message_queue_(new AssignedMessageQueue()),
       scheduled_executor_service_("MonitorMessageQueueChangeThread", false),
       rebalance_impl_(new RebalanceLitePullImpl(this)) {}
