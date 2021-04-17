@@ -23,7 +23,9 @@ set(CMAKE_PREFIX_PATH
     "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/bin/lib64/cmake;${CMAKE_SOURCE_DIR}/bin/lib/cmake"
 )
 
-# Find dependencies find_package(GTest REQUIRED CONFIG)
+# Find dependencies
+
+#find_package(GTest REQUIRED CONFIG)
 if(NOT GTest_FOUND)
   include_directories("${CMAKE_SOURCE_DIR}/bin/include")
 
@@ -85,6 +87,11 @@ function(config_all_test dir)
   file(GLOB files "${dir}/*")
   foreach(file ${files})
     if(IS_DIRECTORY ${file})
+      # exclude c api test
+      if(${file} STREQUAL "${PROJECT_SOURCE_DIR}/src/extern")
+        continue()
+      endif()
+
       config_all_test(${file})
     elseif(${file} MATCHES "^.+\\.(c|cpp)$")
       config_test(${file})
@@ -92,4 +99,4 @@ function(config_all_test dir)
   endforeach()
 endfunction()
 
-config_all_test(${PROJECT_SOURCE_DIR}/src)
+config_all_test("${PROJECT_SOURCE_DIR}/src")
