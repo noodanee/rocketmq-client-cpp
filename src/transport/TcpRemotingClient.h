@@ -29,12 +29,16 @@
 #include "RemotingCommand.h"
 #include "RequestProcessor.h"
 #include "ResponseFuture.h"
+#include "ResultState.hpp"
 #include "TcpTransport.h"
 #include "concurrent/executor.hpp"
 
 namespace rocketmq {
 
 class TcpRemotingClient {
+ public:
+  using InvokeCallback = std::function<void(ResultState<std::unique_ptr<RemotingCommand>>) /* noexcept */>;
+
  public:
   TcpRemotingClient(int workerThreadNum, uint64_t tcpConnectTimeout, uint64_t tcpTransportTryLockTimeout);
   virtual ~TcpRemotingClient();
@@ -47,15 +51,13 @@ class TcpRemotingClient {
   void updateNameServerAddressList(const std::string& addrs);
 
   std::unique_ptr<RemotingCommand> invokeSync(const std::string& addr,
-                                              RemotingCommand& request,
+                                              RemotingCommand request,
                                               int timeoutMillis = 3000);
-
   void invokeAsync(const std::string& addr,
-                   RemotingCommand& request,
-                   std::unique_ptr<InvokeCallback>& invokeCallback,
+                   RemotingCommand request,
+                   InvokeCallback invokeCallback,
                    int64_t timeoutMillis);
-
-  void invokeOneway(const std::string& addr, RemotingCommand& request);
+  void invokeOneway(const std::string& addr, RemotingCommand request);
 
   void registerProcessor(MQRequestCode requestCode, RequestProcessor* requestProcessor);
 
@@ -88,7 +90,7 @@ class TcpRemotingClient {
   void invokeAsyncImpl(TcpTransportPtr channel,
                        RemotingCommand& request,
                        int64_t timeoutMillis,
-                       std::unique_ptr<InvokeCallback>& invokeCallback);
+                       InvokeCallback invokeCallback);
   void invokeOnewayImpl(TcpTransportPtr channel, RemotingCommand& request);
 
   // rpc hook

@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "CommunicationMode.h"
-#include "DefaultMQProducerImpl.h"
 #include "KVTable.h"
 #include "MQClientInstance.h"
 #include "MQException.h"
@@ -32,6 +31,7 @@
 #include "TopicConfig.h"
 #include "TopicList.h"
 #include "TopicPublishInfo.hpp"
+#include "common/ResultState.hpp"
 #include "protocol/body/LockBatchRequestBody.hpp"
 #include "protocol/body/TopicRouteData.hpp"
 #include "protocol/body/UnlockBatchRequestBody.hpp"
@@ -43,7 +43,6 @@ namespace rocketmq {
 class TcpRemotingClient;
 class ClientRemotingProcessor;
 class RPCHook;
-class InvokeCallback;
 
 /**
  * wrap all RPC API
@@ -72,28 +71,13 @@ class MQClientAPIImpl {
                                           std::unique_ptr<SendMessageRequestHeader> requestHeader,
                                           int timeoutMillis,
                                           CommunicationMode communicationMode,
-                                          DefaultMQProducerImplPtr producer);
-  std::unique_ptr<SendResult> sendMessage(const std::string& addr,
-                                          const std::string& brokerName,
-                                          const MessagePtr& msg,
-                                          std::unique_ptr<SendMessageRequestHeader> requestHeader,
-                                          int timeoutMillis,
-                                          CommunicationMode communicationMode,
-                                          SendCallback sendCallback,
-                                          TopicPublishInfoPtr topicPublishInfo,
-                                          MQClientInstancePtr instance,
-                                          int retryTimesWhenSendFailed,
-                                          DefaultMQProducerImplPtr producer);
-  std::unique_ptr<SendResult> processSendResponse(const std::string& brokerName,
-                                                  Message& msg,
-                                                  RemotingCommand* pResponse);
+                                          SendCallback sendCallback);
 
   std::unique_ptr<PullResult> pullMessage(const std::string& addr,
                                           std::unique_ptr<PullMessageRequestHeader> requestHeader,
                                           int timeoutMillis,
                                           CommunicationMode communicationMode,
                                           PullCallback pullCallback);
-  std::unique_ptr<PullResult> processPullResponse(RemotingCommand* pResponse);
 
   MQMessageExt viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis);
 
@@ -172,33 +156,28 @@ class MQClientAPIImpl {
   TcpRemotingClient* getRemotingClient() { return remoting_client_.get(); }
 
  private:
-  friend class SendCallbackWrap;
-
   std::unique_ptr<SendResult> sendMessageSync(const std::string& addr,
                                               const std::string& brokerName,
-                                              const MessagePtr msg,
-                                              RemotingCommand& request,
+                                              const MessagePtr& msg,
+                                              RemotingCommand request,
                                               int timeoutMillis);
 
   void sendMessageAsync(const std::string& addr,
                         const std::string& brokerName,
-                        const MessagePtr msg,
-                        RemotingCommand&& request,
+                        const MessagePtr& msg,
+                        RemotingCommand request,
                         SendCallback sendCallback,
-                        TopicPublishInfoPtr topicPublishInfo,
-                        MQClientInstancePtr instance,
-                        int64_t timeoutMilliseconds,
-                        int retryTimesWhenSendFailed,
-                        DefaultMQProducerImplPtr producer);
+                        int64_t timeoutMilliseconds);
 
-  void sendMessageAsyncImpl(std::unique_ptr<InvokeCallback>& cbw, int64_t timeoutMillis);
+  std::unique_ptr<SendResult> processSendResponse(const std::string& brokerName,
+                                                  Message& message,
+                                                  RemotingCommand& response);
 
-  std::unique_ptr<PullResult> pullMessageSync(const std::string& addr, RemotingCommand& request, int timeoutMillis);
+  std::unique_ptr<PullResult> pullMessageSync(const std::string& addr, RemotingCommand request, int timeoutMillis);
 
-  void pullMessageAsync(const std::string& addr,
-                        RemotingCommand& request,
-                        int timeoutMillis,
-                        PullCallback pullCallback);
+  void pullMessageAsync(const std::string& addr, RemotingCommand request, int timeoutMillis, PullCallback pullCallback);
+
+  std::unique_ptr<PullResult> processPullResponse(RemotingCommand& response);
 
  private:
   std::unique_ptr<TcpRemotingClient> remoting_client_;

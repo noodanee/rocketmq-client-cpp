@@ -73,8 +73,8 @@ class ResponseFutureInfo : public TcpTransportInfo {
     std::lock_guard<std::mutex> lock(future_table_mutex_);
     for (const auto& it : future_table_) {
       auto& future = it.second;
-      if (future->hasInvokeCallback()) {
-        future->executeInvokeCallback();  // callback async request
+      if (future->hasRequestCallback()) {
+        future->executeRequestCallback();  // callback async request
       } else {
         future->putResponse(nullptr);  // wake up sync request
       }
@@ -206,14 +206,14 @@ void TcpRemotingClient::scanResponseTable() {
     static_cast<ResponseFutureInfo*>(channel->getInfo())->scanResponseTable(now, rfList);
   }
   for (auto rf : rfList) {
-    if (rf->hasInvokeCallback()) {
-      handle_executor_.submit(std::bind(&ResponseFuture::executeInvokeCallback, rf));
+    if (rf->hasRequestCallback()) {
+      handle_executor_.submit(std::bind(&ResponseFuture::executeRequestCallback, rf));
     }
   }
 }
 
 std::unique_ptr<RemotingCommand> TcpRemotingClient::invokeSync(const std::string& addr,
-                                                               RemotingCommand& request,
+                                                               RemotingCommand request,
                                                                int timeoutMillis) {
   auto beginStartTime = UtilAll::currentTimeMillis();
   auto channel = GetTransport(addr);
@@ -224,7 +224,7 @@ std::unique_ptr<RemotingCommand> TcpRemotingClient::invokeSync(const std::string
       if (timeoutMillis <= 0 || timeoutMillis < costTime) {
         THROW_MQEXCEPTION(RemotingTimeoutException, "invokeSync call timeout", -1);
       }
-      std::unique_ptr<RemotingCommand> response(invokeSyncImpl(channel, request, timeoutMillis));
+      std::unique_ptr<RemotingCommand> response = invokeSyncImpl(channel, request, timeoutMillis);
       doAfterRpcHooks(addr, request, response.get(), false);
       return response;
     } catch (const RemotingSendRequestException& e) {
@@ -277,8 +277,8 @@ std::unique_ptr<RemotingCommand> TcpRemotingClient::invokeSyncImpl(TcpTransportP
 }
 
 void TcpRemotingClient::invokeAsync(const std::string& addr,
-                                    RemotingCommand& request,
-                                    std::unique_ptr<InvokeCallback>& invokeCallback,
+                                    RemotingCommand request,
+                                    InvokeCallback invokeCallback,
                                     int64_t timeoutMillis) {
   auto beginStartTime = UtilAll::currentTimeMillis();
   auto channel = GetTransport(addr);
@@ -289,7 +289,7 @@ void TcpRemotingClient::invokeAsync(const std::string& addr,
       if (timeoutMillis <= 0 || timeoutMillis < costTime) {
         THROW_MQEXCEPTION(RemotingTooMuchRequestException, "invokeAsync call timeout", -1);
       }
-      invokeAsyncImpl(channel, request, timeoutMillis, invokeCallback);
+      invokeAsyncImpl(channel, request, timeoutMillis, std::move(invokeCallback));
     } catch (const RemotingSendRequestException& e) {
       LOG_WARN_NEW("invokeAsync: send request exception, so close the channel[{}]", channel->getPeerAddrAndPort());
       CloseTransport(addr, channel);
@@ -303,12 +303,28 @@ void TcpRemotingClient::invokeAsync(const std::string& addr,
 void TcpRemotingClient::invokeAsyncImpl(TcpTransportPtr channel,
                                         RemotingCommand& request,
                                         int64_t timeoutMillis,
-                                        std::unique_ptr<InvokeCallback>& invokeCallback) {
+                                        InvokeCallback invokeCallback) {
   int code = request.code();
   int opaque = request.opaque();
 
-  // delete in callback
-  auto responseFuture = std::make_shared<ResponseFuture>(code, opaque, timeoutMillis, std::move(invokeCallback));
+  auto responseFuture =
+      std::make_shared<ResponseFuture>(code, opaque, timeoutMillis, [invokeCallback](ResponseFuture& future) {
+        std::unique_ptr<RemotingCommand> response(future.getResponseCommand());
+        if (response != nullptr) {
+          invokeCallback({std::move(response)});
+        } else {
+          std::string error_message;
+          if (!future.send_request_ok()) {
+            error_message = "send request failed";
+          } else if (future.isTimeout()) {
+            error_message = "wait response timeout";
+          } else {
+            error_message = "unknown reason";
+          }
+          MQException exception(error_message, -1, __FILE__, __LINE__);
+          invokeCallback({std::make_exception_ptr(exception)});
+        }
+      });
   putResponseFuture(channel, opaque, responseFuture);
 
   if (SendCommand(channel, request)) {
@@ -318,8 +334,8 @@ void TcpRemotingClient::invokeAsyncImpl(TcpTransportPtr channel,
     responseFuture = popResponseFuture(channel, opaque);
     if (responseFuture != nullptr) {
       responseFuture->set_send_request_ok(false);
-      if (responseFuture->hasInvokeCallback()) {
-        handle_executor_.submit(std::bind(&ResponseFuture::executeInvokeCallback, responseFuture));
+      if (responseFuture->hasRequestCallback()) {
+        handle_executor_.submit(std::bind(&ResponseFuture::executeRequestCallback, responseFuture));
       }
     }
 
@@ -327,7 +343,7 @@ void TcpRemotingClient::invokeAsyncImpl(TcpTransportPtr channel,
   }
 }
 
-void TcpRemotingClient::invokeOneway(const std::string& addr, RemotingCommand& request) {
+void TcpRemotingClient::invokeOneway(const std::string& addr, RemotingCommand request) {
   auto channel = GetTransport(addr);
   if (channel != nullptr) {
     try {
@@ -610,10 +626,10 @@ void TcpRemotingClient::processResponseCommand(std::unique_ptr<RemotingCommand> 
     LOG_DEBUG_NEW("processResponseCommand, opaque:{}, request code:{}, server:{}", opaque, code,
                   channel->getPeerAddrAndPort());
 
-    if (responseFuture->hasInvokeCallback()) {
+    if (responseFuture->hasRequestCallback()) {
       responseFuture->setResponseCommand(std::move(responseCommand));
       // bind shared_ptr can save object's life
-      handle_executor_.submit(std::bind(&ResponseFuture::executeInvokeCallback, responseFuture));
+      handle_executor_.submit(std::bind(&ResponseFuture::executeRequestCallback, responseFuture));
     } else {
       responseFuture->putResponse(std::move(responseCommand));
     }

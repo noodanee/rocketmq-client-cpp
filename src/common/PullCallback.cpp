@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "PullCallbackWrap.h"
-
-#include <cassert>
-#include <exception>
-
 #include "PullCallback.h"
+
+#include <algorithm>
+#include <exception>
+#include <memory>
+
+#include "log/Logging.h"
 
 namespace rocketmq {
 
@@ -44,35 +45,6 @@ void PullCallback::invokeOnException(MQException& exception) noexcept {
   }
   if (type == PullCallbackType::kAutoDelete) {
     delete this;
-  }
-}
-
-PullCallbackWrap::PullCallbackWrap(PullCallback pullCallback, MQClientAPIImpl* pClientAPI)
-    : pull_callback_(std::move(pullCallback)), client_api_impl_(pClientAPI) {}
-
-void PullCallbackWrap::operationComplete(ResponseFuture* responseFuture) noexcept {
-  std::unique_ptr<RemotingCommand> response(responseFuture->getResponseCommand());  // avoid RemotingCommand leak
-
-  if (pull_callback_ == nullptr) {
-    LOG_ERROR("m_pullCallback is NULL, AsyncPull could not continue");
-    return;
-  }
-
-  if (response != nullptr) {
-    std::unique_ptr<PullResult> pull_result(client_api_impl_->processPullResponse(response.get()));
-    assert(pull_result != nullptr);
-    pull_callback_({std::move(pull_result)});
-  } else {
-    std::string error_message;
-    if (!responseFuture->send_request_ok()) {
-      error_message = "send request failed";
-    } else if (responseFuture->isTimeout()) {
-      error_message = "wait response timeout";
-    } else {
-      error_message = "unknown reason";
-    }
-    MQException exception(error_message, -1, __FILE__, __LINE__);
-    pull_callback_({std::make_exception_ptr(exception)});
   }
 }
 

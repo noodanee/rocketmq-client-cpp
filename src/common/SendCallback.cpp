@@ -14,29 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKET_COMMON_PULLCALLBACKWRAP_H_
-#define ROCKET_COMMON_PULLCALLBACKWRAP_H_
+#include "SendCallback.h"
 
-#include "InvokeCallback.h"
-#include "MQClientAPIImpl.h"
-#include "ResponseFuture.h"
+#include <exception>
+#include <memory>
+
+#include "log/Logging.h"
 
 namespace rocketmq {
 
-class PullCallbackWrap : public InvokeCallback {
- public:
-  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResult>>) noexcept>;
+void SendCallback::invokeOnSuccess(SendResult& send_result) noexcept {
+  auto type = getSendCallbackType();
+  try {
+    onSuccess(send_result);
+  } catch (const std::exception& e) {
+    LOG_WARN_NEW("encounter exception when invoke SendCallback::onSuccess(), {}", e.what());
+  }
+  if (type == SendCallbackType::kAutoDelete) {
+    delete this;
+  }
+}
 
- public:
-  PullCallbackWrap(PullCallback pullCallback, MQClientAPIImpl* pClientAPI);
-
-  void operationComplete(ResponseFuture* responseFuture) noexcept override;
-
- private:
-  PullCallback pull_callback_;
-  MQClientAPIImpl* client_api_impl_;
-};
+void SendCallback::invokeOnException(MQException& exception) noexcept {
+  auto type = getSendCallbackType();
+  try {
+    onException(exception);
+  } catch (const std::exception& e) {
+    LOG_WARN_NEW("encounter exception when invoke SendCallback::onException(), {}", e.what());
+  }
+  if (type == SendCallbackType::kAutoDelete) {
+    delete this;
+  }
+}
 
 }  // namespace rocketmq
-
-#endif  // ROCKET_COMMON_PULLCALLBACKWRAP_H_

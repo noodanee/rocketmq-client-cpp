@@ -18,7 +18,7 @@
 #define ROCKETMQ_TRANSPORT_RESPONSEFUTURE_H_
 
 #include <memory>
-#include "InvokeCallback.h"
+
 #include "RemotingCommand.h"
 #include "concurrent/latch.hpp"
 
@@ -29,17 +29,17 @@ typedef std::shared_ptr<ResponseFuture> ResponseFuturePtr;
 
 class ResponseFuture {
  public:
-  ResponseFuture(int requestCode,
-                 int opaque,
-                 int64_t timeoutMillis,
-                 std::unique_ptr<InvokeCallback> invokeCallback = nullptr);
+  using RequestCallback = std::function<void(ResponseFuture&) /* noexcept */>;
+
+ public:
+  ResponseFuture(int request_code, int opaque, int64_t timeout_millis, RequestCallback request_callback = nullptr);
   virtual ~ResponseFuture();
 
   void releaseThreadCondition();
 
-  bool hasInvokeCallback();
+  bool hasRequestCallback();
 
-  void executeInvokeCallback() noexcept;
+  void executeRequestCallback() noexcept;
 
   // for sync request
   std::unique_ptr<RemotingCommand> waitResponse(int timeoutMillis);
@@ -62,13 +62,11 @@ class ResponseFuture {
   bool send_request_ok() const { return send_request_ok_; }
   void set_send_request_ok(bool sendRequestOK = true) { send_request_ok_ = sendRequestOK; };
 
-  std::unique_ptr<InvokeCallback>& invoke_callback() { return invoke_callback_; }
-
  private:
   int request_code_;
   int opaque_;
   int64_t timeout_millis_;
-  std::unique_ptr<InvokeCallback> invoke_callback_;
+  RequestCallback request_callback_;
 
   int64_t begin_timestamp_;
   bool send_request_ok_{false};

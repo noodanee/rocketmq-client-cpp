@@ -20,16 +20,13 @@
 
 namespace rocketmq {
 
-ResponseFuture::ResponseFuture(int requestCode,
-                               int opaque,
-                               int64_t timeoutMillis,
-                               std::unique_ptr<InvokeCallback> invokeCallback)
-    : request_code_(requestCode),
+ResponseFuture::ResponseFuture(int request_code, int opaque, int64_t timeout_millis, RequestCallback request_callback)
+    : request_code_(request_code),
       opaque_(opaque),
-      timeout_millis_(timeoutMillis),
-      invoke_callback_(std::move(invokeCallback)),
+      timeout_millis_(timeout_millis),
+      request_callback_(std::move(request_callback)),
       begin_timestamp_(UtilAll::currentTimeMillis()) {
-  if (nullptr == invokeCallback) {
+  if (nullptr == request_callback) {
     count_down_latch_.reset(new latch(1));
   }
 }
@@ -42,14 +39,14 @@ void ResponseFuture::releaseThreadCondition() {
   }
 }
 
-bool ResponseFuture::hasInvokeCallback() {
+bool ResponseFuture::hasRequestCallback() {
   // if invoke_callback_ is set, this is an async future.
-  return invoke_callback_ != nullptr;
+  return request_callback_ != nullptr;
 }
 
-void ResponseFuture::executeInvokeCallback() noexcept {
-  if (invoke_callback_ != nullptr) {
-    invoke_callback_->operationComplete(this);
+void ResponseFuture::executeRequestCallback() noexcept {
+  if (request_callback_ != nullptr) {
+    request_callback_(*this);
   }
 }
 

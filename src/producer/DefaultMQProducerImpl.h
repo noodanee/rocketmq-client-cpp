@@ -125,6 +125,8 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
  private:
   using AsyncSendFunction = std::function<void(const MessagePtr&, SendCallback, long) /* noexcept */>;
 
+  class UnifiedSendDefaultImpl;
+  friend UnifiedSendDefaultImpl;
   std::unique_ptr<SendResult> SendDefaultImpl(const MessagePtr& message,
                                               CommunicationMode communication_mode,
                                               SendCallback send_callback,
@@ -146,7 +148,6 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
                                              const MQMessageQueue& message_queue,
                                              CommunicationMode communication_mode,
                                              SendCallback send_callback,
-                                             const std::shared_ptr<const TopicPublishInfo>& topic_publish_info,
                                              int64_t timeout);
 
   std::unique_ptr<TransactionSendResult> SendInTransactionImpl(const MessagePtr& message, void* arg, int64_t timeout);
@@ -170,10 +171,6 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
                         const AsyncSendFunction& send_delegate) noexcept;
 
  public:
-  const MQMessageQueue& SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
-                                              const std::string& last_broker_name);
-  void UpdateFaultItem(const std::string& broker_name, long current_latency, bool isolation);
-
   void InitialTransactionEnv();
   void DestroyTransactionEnv();
 
