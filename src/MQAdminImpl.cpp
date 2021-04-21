@@ -45,10 +45,10 @@ void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vec
 }
 
 int64_t MQAdminImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
-  std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   }
 
   if (!brokerAddr.empty()) {
@@ -63,10 +63,10 @@ int64_t MQAdminImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
 }
 
 int64_t MQAdminImpl::maxOffset(const MessageQueue& mq) {
-  std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   }
 
   if (!brokerAddr.empty()) {
@@ -80,10 +80,10 @@ int64_t MQAdminImpl::maxOffset(const MessageQueue& mq) {
 }
 
 int64_t MQAdminImpl::minOffset(const MessageQueue& mq) {
-  std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   }
 
   if (!brokerAddr.empty()) {
@@ -98,10 +98,10 @@ int64_t MQAdminImpl::minOffset(const MessageQueue& mq) {
 }
 
 int64_t MQAdminImpl::earliestMsgStoreTime(const MessageQueue& mq) {
-  std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
+    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
   }
 
   if (!brokerAddr.empty()) {

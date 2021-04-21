@@ -29,14 +29,13 @@ RebalancePushImpl::RebalancePushImpl(DefaultMQPushConsumerImpl* consumerImpl)
     : RebalanceImpl(null, CLUSTERING, AllocateMQAveragely, nullptr), default_mq_push_consumer_impl_(consumerImpl) {}
 
 bool RebalancePushImpl::lock(const MessageQueue& mq) {
-  std::unique_ptr<FindBrokerResult> findBrokerResult(
-      client_instance_->findBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true));
+  auto findBrokerResult = client_instance_->FindBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true);
   if (findBrokerResult) {
     try {
       LOG_DEBUG_NEW("try to lock mq:{}", mq.ToString());
 
       std::vector<MessageQueue> lockedMq = client_instance_->getMQClientAPIImpl()->LockBatchMQ(
-          findBrokerResult->broker_addr, consumer_group_, client_instance_->getClientId(), {mq}, 1000);
+          findBrokerResult.broker_addr, consumer_group_, client_instance_->getClientId(), {mq}, 1000);
 
       bool lockOK = false;
       if (!lockedMq.empty()) {
@@ -77,14 +76,13 @@ void RebalancePushImpl::lockAll() {
       continue;
     }
 
-    std::unique_ptr<FindBrokerResult> findBrokerResult(
-        client_instance_->findBrokerAddressInSubscribe(brokerName, MASTER_ID, true));
+    auto findBrokerResult = client_instance_->FindBrokerAddressInSubscribe(brokerName, MASTER_ID, true);
     if (findBrokerResult) {
       try {
         LOG_INFO_NEW("try to lock:{} mqs of broker:{}", mqs.size(), brokerName);
 
         std::vector<MessageQueue> lockOKMQVec = client_instance_->getMQClientAPIImpl()->LockBatchMQ(
-            findBrokerResult->broker_addr, consumer_group_, client_instance_->getClientId(), mqs, 1000);
+            findBrokerResult.broker_addr, consumer_group_, client_instance_->getClientId(), mqs, 1000);
 
         std::set<MessageQueue> lockOKMQSet;
         for (const auto& mq : lockOKMQVec) {
@@ -120,11 +118,10 @@ void RebalancePushImpl::lockAll() {
 }
 
 void RebalancePushImpl::unlock(const MessageQueue& mq, const bool oneway) {
-  std::unique_ptr<FindBrokerResult> findBrokerResult(
-      client_instance_->findBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true));
+  auto findBrokerResult = client_instance_->FindBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true);
   if (findBrokerResult) {
     try {
-      client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult->broker_addr, consumer_group_,
+      client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult.broker_addr, consumer_group_,
                                                             client_instance_->getClientId(), {mq}, 1000, oneway);
 
       ProcessQueuePtr processQueue = getProcessQueue(mq);
@@ -154,11 +151,10 @@ void RebalancePushImpl::unlockAll(const bool oneway) {
       continue;
     }
 
-    std::unique_ptr<FindBrokerResult> findBrokerResult(
-        client_instance_->findBrokerAddressInSubscribe(brokerName, MASTER_ID, true));
+    auto findBrokerResult = client_instance_->FindBrokerAddressInSubscribe(brokerName, MASTER_ID, true);
     if (findBrokerResult) {
       try {
-        client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult->broker_addr, consumer_group_,
+        client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult.broker_addr, consumer_group_,
                                                               client_instance_->getClientId(), mqs, 1000, oneway);
         for (const auto& mq : mqs) {
           ProcessQueuePtr processQueue = getProcessQueue(mq);

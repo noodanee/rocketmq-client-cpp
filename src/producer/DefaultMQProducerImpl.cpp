@@ -508,10 +508,10 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
                                                                   int64_t timeout) {
   int64_t begin_time = UtilAll::currentTimeMillis();
 
-  std::string broker_addr = client_instance_->findBrokerAddressInPublish(message_queue.broker_name());
+  std::string broker_addr = client_instance_->FindBrokerAddressInPublish(message_queue.broker_name());
   if (broker_addr.empty()) {
     client_instance_->tryToFindTopicPublishInfo(message_queue.topic());
-    broker_addr = client_instance_->findBrokerAddressInPublish(message_queue.broker_name());
+    broker_addr = client_instance_->FindBrokerAddressInPublish(message_queue.broker_name());
   }
 
   if (!broker_addr.empty()) {
@@ -743,7 +743,7 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
       !send_result.offset_message_id().empty() ? send_result.offset_message_id() : send_result.message_id();
   auto id = MessageDecoder::decodeMessageId(message_id);
   const auto& transaction_id = send_result.transaction_id();
-  std::string broker_address = client_instance_->findBrokerAddressInPublish(send_result.message_queue().broker_name());
+  std::string broker_address = client_instance_->FindBrokerAddressInPublish(send_result.message_queue().broker_name());
 
   auto request_header = MakeUnique<EndTransactionRequestHeader>();
   request_header->transaction_id = transaction_id;

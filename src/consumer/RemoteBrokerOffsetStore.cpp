@@ -148,17 +148,17 @@ void RemoteBrokerOffsetStore::removeOffset(const MessageQueue& mq) {
 }
 
 void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq, int64_t offset) {
-  std::unique_ptr<FindBrokerResult> findBrokerResult(client_instance_->findBrokerAddressInAdmin(mq.broker_name()));
+  auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
 
-  if (findBrokerResult == nullptr) {
+  if (!findBrokerResult) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    findBrokerResult = client_instance_->findBrokerAddressInAdmin(mq.broker_name());
+    findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
   }
 
-  if (findBrokerResult != nullptr) {
+  if (findBrokerResult) {
     try {
       return client_instance_->getMQClientAPIImpl()->UpdateConsumerOffsetOneway(
-          findBrokerResult->broker_addr, group_name_, mq.topic(), mq.queue_id(), offset);
+          findBrokerResult.broker_addr, group_name_, mq.topic(), mq.queue_id(), offset);
     } catch (MQException& e) {
       LOG_ERROR(e.what());
     }
@@ -168,15 +168,15 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq
 }
 
 int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MessageQueue& mq) {
-  std::unique_ptr<FindBrokerResult> findBrokerResult(client_instance_->findBrokerAddressInAdmin(mq.broker_name()));
+  auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
 
-  if (findBrokerResult == nullptr) {
+  if (!findBrokerResult) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    findBrokerResult = client_instance_->findBrokerAddressInAdmin(mq.broker_name());
+    findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
   }
 
-  if (findBrokerResult != nullptr) {
-    return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult->broker_addr, group_name_,
+  if (findBrokerResult) {
+    return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult.broker_addr, group_name_,
                                                                        mq.topic(), mq.queue_id(), 1000 * 5);
   }
 

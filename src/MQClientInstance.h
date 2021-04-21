@@ -79,11 +79,9 @@ class MQClientInstance {
   MQProducerInner* selectProducer(const std::string& group);
   MQConsumerInner* selectConsumer(const std::string& group);
 
-  std::unique_ptr<FindBrokerResult> findBrokerAddressInAdmin(const std::string& brokerName);
-  std::string findBrokerAddressInPublish(const std::string& brokerName);
-  std::unique_ptr<FindBrokerResult> findBrokerAddressInSubscribe(const std::string& brokerName,
-                                                                 int brokerId,
-                                                                 bool onlyThisBroker);
+  FindBrokerResult FindBrokerAddressInAdmin(const std::string& broker_name);
+  std::string FindBrokerAddressInPublish(const std::string& broker_name);
+  FindBrokerResult FindBrokerAddressInSubscribe(const std::string& broker_name, int broker_id, bool only_this_broker);
 
   void findConsumerIds(const std::string& topic, const std::string& group, std::vector<std::string>& cids);
 
@@ -106,15 +104,8 @@ class MQClientInstance {
   PullMessageService* getPullMessageService() const { return pull_message_service_.get(); }
 
  private:
-  typedef std::map<std::string, std::map<int, std::string>> BrokerAddrMAP;
-
   void unregisterClientWithLock(const std::string& producerGroup, const std::string& consumerGroup);
   void unregisterClient(const std::string& producerGroup, const std::string& consumerGroup);
-
-  void addBrokerToAddrTable(const std::string& brokerName, const std::map<int, std::string>& brokerAddrs);
-  void resetBrokerAddrTable(BrokerAddrMAP&& table);
-  void clearBrokerAddrTable();
-  BrokerAddrMAP getBrokerAddrTable();
 
   void cleanOfflineBroker();
   bool isBrokerAddrExistInTopicRouteTable(const std::string& addr);
@@ -180,9 +171,9 @@ class MQClientInstance {
   TRDMAP topic_route_table_;
   std::mutex topic_route_table_mutex_;
 
-  // brokerName -> [ brokerid : addr ]
-  BrokerAddrMAP broker_addr_table_;
-  std::mutex broker_addr_table_mutex_;
+  // broker_name -> { broker_id : address }
+  std::map<std::string, std::map<int, std::string>> broker_address_table_;
+  std::mutex broker_address_table_mutex_;
 
   // topic -> TopicPublishInfo
   using TPMAP = std::map<std::string, TopicPublishInfoPtr>;
