@@ -16,14 +16,17 @@
  */
 #include "TcpTransport.h"
 
-#include <chrono>
-
 #ifndef WIN32
 #include <arpa/inet.h>  // for sockaddr_in and inet_ntoa...
 #include <netinet/tcp.h>
 #include <sys/socket.h>  // for socket(), bind(), and connect()...
 #endif
 
+#include <array>
+#include <chrono>
+#include <utility>
+
+#include "ByteBuffer.hpp"
 #include "ByteOrder.h"
 #include "Logging.h"
 #include "TcpRemotingClient.h"
@@ -31,133 +34,133 @@
 
 namespace rocketmq {
 
-TcpTransport::TcpTransport(ReadCallback readCallback,
-                           CloseCallback closeCallback,
-                           std::unique_ptr<TcpTransportInfo> info)
+TcpTransport::TcpTransport(ReadCallback read_callback,
+                           CloseCallback close_callback,
+                           std::unique_ptr<TcpTransportInfo> extend_information)
     : start_time_(UtilAll::currentTimeMillis()),
-      read_callback_(readCallback),
-      close_callback_(closeCallback),
-      info_(std::move(info)) {}
+      read_callback_(std::move(read_callback)),
+      close_callback_(std::move(close_callback)),
+      extend_information_(std::move(extend_information)) {}
 
 TcpTransport::~TcpTransport() {
-  closeBufferEvent(true);
+  CloseBufferEvent(true);
 }
 
-TcpConnectStatus TcpTransport::closeBufferEvent(bool isDeleted) {
-  // closeBufferEvent is idempotent.
-  if (setTcpConnectEvent(TCP_CONNECT_STATUS_CLOSED) != TCP_CONNECT_STATUS_CLOSED) {
+TcpConnectStatus TcpTransport::CloseBufferEvent(bool deleted) {
+  // CloseBufferEvent is idempotent.
+  if (ExchangeStatus(TcpConnectStatus::kClosed) != TcpConnectStatus::kClosed) {
     if (event_ != nullptr) {
-      event_->close();
+      event_->Close();
     }
-    if (!isDeleted && close_callback_ != nullptr) {
+    if (!deleted && close_callback_ != nullptr) {
       close_callback_(shared_from_this());
     }
   }
-  return TCP_CONNECT_STATUS_CLOSED;
+  return TcpConnectStatus::kClosed;
 }
 
-TcpConnectStatus TcpTransport::getTcpConnectStatus() {
-  return tcp_connect_status_;
-}
-
-TcpConnectStatus TcpTransport::waitTcpConnectEvent(int timeoutMillis) {
-  if (tcp_connect_status_ == TCP_CONNECT_STATUS_CONNECTING) {
+TcpConnectStatus TcpTransport::WaitConnecting(int64_t timeout_millis) {
+  if (status_ == TcpConnectStatus::kConnecting) {
     std::unique_lock<std::mutex> lock(status_mutex_);
-    if (!status_event_.wait_for(lock, std::chrono::milliseconds(timeoutMillis),
-                                [&] { return tcp_connect_status_ != TCP_CONNECT_STATUS_CONNECTING; })) {
+    if (!status_event_.wait_for(lock, std::chrono::milliseconds(timeout_millis),
+                                [&] { return status_ != TcpConnectStatus::kConnecting; })) {
       LOG_INFO("connect timeout");
     }
   }
-  return tcp_connect_status_;
+  return status_;
+}
+
+TcpConnectStatus TcpTransport::LoadStatus() {
+  return status_;
 }
 
 // internal method
-TcpConnectStatus TcpTransport::setTcpConnectEvent(TcpConnectStatus connectStatus) {
-  TcpConnectStatus oldStatus = tcp_connect_status_.exchange(connectStatus, std::memory_order_relaxed);
-  if (oldStatus == TCP_CONNECT_STATUS_CONNECTING) {
+TcpConnectStatus TcpTransport::ExchangeStatus(TcpConnectStatus desired) {
+  TcpConnectStatus oldStatus = status_.exchange(desired, std::memory_order_relaxed);
+  if (oldStatus == TcpConnectStatus::kConnecting) {
     // awake waiting thread
     status_event_.notify_all();
   }
   return oldStatus;
 }
 
-bool TcpTransport::setTcpConnectEventIf(TcpConnectStatus& expectedStatus, TcpConnectStatus newStatus) {
-  bool isSuccessed = tcp_connect_status_.compare_exchange_strong(expectedStatus, newStatus);
-  if (expectedStatus == TCP_CONNECT_STATUS_CONNECTING) {
+bool TcpTransport::CompareChangeStatus(TcpConnectStatus& expected, TcpConnectStatus desired) {
+  bool successed = status_.compare_exchange_strong(expected, desired);
+  if (expected == TcpConnectStatus::kConnecting) {
     // awake waiting thread
     status_event_.notify_all();
   }
-  return isSuccessed;
+  return successed;
 }
 
-void TcpTransport::disconnect(const std::string& addr) {
+void TcpTransport::Disconnect(const std::string& address) {
   // disconnect is idempotent.
-  LOG_INFO_NEW("disconnect:{} start. event:{}", addr, (void*)event_.get());
-  closeBufferEvent();
-  LOG_INFO_NEW("disconnect:{} completely", addr);
+  LOG_INFO_NEW("disconnect:{} start. event:{}", address, (void*)event_.get());
+  CloseBufferEvent();
+  LOG_INFO_NEW("disconnect:{} completely", address);
 }
 
-TcpConnectStatus TcpTransport::connect(const std::string& addr, int timeoutMillis) {
-  LOG_INFO_NEW("connect to {}.", addr);
+TcpConnectStatus TcpTransport::Connect(const std::string& address, int64_t timeout_millis) {
+  LOG_INFO_NEW("connect to {}.", address);
 
-  TcpConnectStatus curStatus = TCP_CONNECT_STATUS_CREATED;
-  if (setTcpConnectEventIf(curStatus, TCP_CONNECT_STATUS_CONNECTING)) {
+  TcpConnectStatus status = TcpConnectStatus::kCreated;
+  if (CompareChangeStatus(status, TcpConnectStatus::kConnecting)) {
     // create BufferEvent
-    event_.reset(EventLoop::GetDefaultEventLoop()->createBufferEvent(-1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE));
+    event_ = EventLoop::GetDefaultEventLoop()->CreateBufferEvent(-1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
     if (nullptr == event_) {
       LOG_ERROR_NEW("create BufferEvent failed");
-      return closeBufferEvent();
+      return CloseBufferEvent();
     }
 
     // then, configure BufferEvent
-    auto weak_this = std::weak_ptr<TcpTransport>(shared_from_this());
-    auto readCallback = [=](BufferEvent& event) {
-      auto channel = weak_this.lock();
+    auto transport_ptr = std::weak_ptr<TcpTransport>(shared_from_this());
+    auto read_callback = [=](BufferEvent& event) {
+      auto channel = transport_ptr.lock();
       if (channel != nullptr) {
-        channel->dataArrived(event);
+        channel->DataArrived(event);
       } else {
         LOG_WARN_NEW("[BUG] TcpTransport object is released.");
       }
     };
-    auto eventCallback = [=](BufferEvent& event, short what) {
-      auto channel = weak_this.lock();
+    auto event_callback = [=](BufferEvent& event, short what) {
+      auto channel = transport_ptr.lock();
       if (channel != nullptr) {
-        channel->eventOccurred(event, what);
+        channel->EventOccurred(event, what);
       } else {
         LOG_WARN_NEW("[BUG] TcpTransport object is released.");
       }
     };
-    event_->setCallback(readCallback, nullptr, eventCallback);
-    event_->setWatermark(EV_READ, 4, 0);
-    event_->enable(EV_READ | EV_WRITE);
+    event_->SetCallback(read_callback, nullptr, event_callback);
+    event_->SetWatermark(EV_READ, 4, 0);
+    event_->Enable(EV_READ | EV_WRITE);
 
-    if (event_->connect(addr) < 0) {
-      LOG_WARN_NEW("connect to fd:{} failed", event_->getfd());
-      return closeBufferEvent();
+    if (event_->Connect(address) < 0) {
+      LOG_WARN_NEW("connect to fd:{} failed", event_->GetFD());
+      return CloseBufferEvent();
     }
   } else {
-    return curStatus;
+    return status;
   }
 
-  if (timeoutMillis <= 0) {
-    LOG_INFO_NEW("try to connect to fd:{}, addr:{}", event_->getfd(), addr);
-    return TCP_CONNECT_STATUS_CONNECTING;
+  if (timeout_millis <= 0) {
+    LOG_INFO_NEW("try to connect to fd:{}, addr:{}", event_->GetFD(), address);
+    return TcpConnectStatus::kConnecting;
   }
 
-  TcpConnectStatus connectStatus = waitTcpConnectEvent(timeoutMillis);
-  if (connectStatus != TCP_CONNECT_STATUS_CONNECTED) {
-    LOG_WARN_NEW("can not connect to server:{}", addr);
-    return closeBufferEvent();
+  status = WaitConnecting(timeout_millis);
+  if (status != TcpConnectStatus::kConnected) {
+    LOG_WARN_NEW("can not connect to server:{}", address);
+    return CloseBufferEvent();
   }
 
-  return TCP_CONNECT_STATUS_CONNECTED;
+  return TcpConnectStatus::kConnected;
 }
 
-void TcpTransport::eventOccurred(BufferEvent& event, short what) {
-  socket_t fd = event.getfd();
+void TcpTransport::EventOccurred(BufferEvent& event, short what) {
+  socket_t fd = event.GetFD();
   LOG_INFO_NEW("eventcb: received event:0x{:X} on fd:{}", what, fd);
 
-  if (what & BEV_EVENT_CONNECTED) {
+  if ((what & BEV_EVENT_CONNECTED) != 0) {
     LOG_INFO_NEW("eventcb: connect to fd:{} successfully", fd);
 
     // disable Nagle
@@ -172,26 +175,17 @@ void TcpTransport::eventOccurred(BufferEvent& event, short what) {
       LOG_WARN_NEW("eventcb: disable Keep-Alive failed. fd:{}", fd);
     }
 
-    TcpConnectStatus curStatus = TCP_CONNECT_STATUS_CONNECTING;
-    setTcpConnectEventIf(curStatus, TCP_CONNECT_STATUS_CONNECTED);
-  } else if (what & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
+    TcpConnectStatus curStatus = TcpConnectStatus::kConnecting;
+    CompareChangeStatus(curStatus, TcpConnectStatus::kConnected);
+  } else if ((what & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) != 0) {
     LOG_ERROR_NEW("eventcb: received error event:0x{:X} on fd:{}", what, fd);
-    closeBufferEvent();
-    // if error, stop callback.
-    // TcpConnectStatus curStatus = getTcpConnectStatus();
-    // while (curStatus != TCP_CONNECT_STATUS_CLOSED && curStatus != TCP_CONNECT_STATUS_FAILED) {
-    //   if (setTcpConnectEventIf(curStatus, TCP_CONNECT_STATUS_FAILED)) {
-    //     event.setCallback(nullptr, nullptr, nullptr);
-    //     break;
-    //   }
-    //   curStatus = getTcpConnectStatus();
-    // }
+    CloseBufferEvent();
   } else {
     LOG_ERROR_NEW("eventcb: received error event:0x{:X} on fd:{}", what, fd);
   }
 }
 
-void TcpTransport::dataArrived(BufferEvent& event) {
+void TcpTransport::DataArrived(BufferEvent& event) {
   /* This callback is invoked when there is data to read on bev. */
 
   // protocol:  <length> <header length> <header data> <body data>
@@ -202,21 +196,19 @@ void TcpTransport::dataArrived(BufferEvent& event) {
   //     3, use json to serialization data
   //     4, application could self-defined binary data
 
-  struct evbuffer* input = event.getInput();
-  while (1) {
+  struct evbuffer* input = event.GetInput();
+  while (true) {
     // glance at first 4 byte to get package length
-    struct evbuffer_iovec v[4];
-    int n = evbuffer_peek(input, 4, NULL, v, sizeof(v) / sizeof(v[0]));
+    std::array<evbuffer_iovec, 4> iovec{};
+    std::array<char, 4> length_buffer{};
 
-    uint32_t packageLength;  // first 4 bytes, which indicates 1st part of protocol
-    char* p = (char*)&packageLength;
-    size_t needed = 4;
-
-    for (int idx = 0; idx < n && needed > 0; idx++) {
-      size_t s = needed < v[idx].iov_len ? needed : v[idx].iov_len;
-      memcpy(p, v[idx].iov_base, s);
-      p += s;
-      needed -= s;
+    std::size_t needed = 4;
+    int n = evbuffer_peek(input, 4, nullptr, iovec.data(), iovec.size());
+    for (int i = 0; i < n && needed > 0; i++) {
+      const auto& elem = iovec.at(i);
+      auto size = std::min(needed, elem.iov_len);
+      std::memcpy(&length_buffer.at(4 - needed), elem.iov_base, size);
+      needed -= size;
     }
 
     if (needed > 0) {
@@ -224,34 +216,36 @@ void TcpTransport::dataArrived(BufferEvent& event) {
       return;
     }
 
-    uint32_t msgLen = ByteOrderUtil::NorminalBigEndian(packageLength);  // same as ntohl()
-    size_t recvLen = evbuffer_get_length(input);
-    if (recvLen >= msgLen + 4) {
-      LOG_DEBUG_NEW("had received all data. msgLen:{}, from:{}, recvLen:{}", msgLen, event.getfd(), recvLen);
+    auto package_length = ByteOrderUtil::Read<uint32_t>(length_buffer.data(), true);
+    size_t received_length = evbuffer_get_length(input);
+    if (received_length >= package_length + 4) {
+      LOG_DEBUG_NEW("had received all data. package length:{}, from:{}, received length:{}", package_length,
+                    event.GetFD(), received_length);
     } else {
-      LOG_DEBUG_NEW("didn't received whole. msgLen:{}, from:{}, recvLen:{}", msgLen, event.getfd(), recvLen);
+      LOG_DEBUG_NEW("didn't received whole. package length:{}, from:{}, received length:{}", package_length,
+                    event.GetFD(), received_length);
       return;  // consider large data which was not received completely by now
     }
 
-    if (msgLen > 0) {
-      auto msg = std::make_shared<ByteArray>(msgLen);
+    if (package_length > 0) {
+      auto package = std::make_shared<ByteArray>(package_length);
 
-      event.read(&packageLength, 4);  // skip length field
-      event.read(msg->array(), msgLen);
+      event.Read(length_buffer.data(), 4);  // skip length field
+      event.Read(package->array(), package_length);
 
-      messageReceived(std::move(msg));
+      PackageReceived(package);
     }
   }
 }
 
-void TcpTransport::messageReceived(ByteArrayRef msg) {
+void TcpTransport::PackageReceived(ByteArrayRef msg) {
   if (read_callback_ != nullptr) {
     read_callback_(std::move(msg), shared_from_this());
   }
 }
 
-bool TcpTransport::sendMessage(const char* data, size_t len) {
-  if (getTcpConnectStatus() != TCP_CONNECT_STATUS_CONNECTED) {
+bool TcpTransport::SendPackage(const char* data, size_t len) {
+  if (LoadStatus() != TcpConnectStatus::kConnected) {
     return false;
   }
 
@@ -259,15 +253,11 @@ bool TcpTransport::sendMessage(const char* data, size_t len) {
       do not need to consider large data which could not send by once, as
       bufferevent could handle this case;
    */
-  return event_ != nullptr && event_->write(data, len) == 0;
+  return event_ != nullptr && event_->Write(data, len) == 0;
 }
 
-const std::string& TcpTransport::getPeerAddrAndPort() {
-  return event_ != nullptr ? event_->getPeerAddrPort() : null;
-}
-
-const uint64_t TcpTransport::getStartTime() const {
-  return start_time_;
+const std::string& TcpTransport::peer_address() {
+  return event_ != nullptr ? event_->peer_address() : null;
 }
 
 }  // namespace rocketmq

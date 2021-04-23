@@ -16,6 +16,8 @@
  */
 #include "EventLoop.h"
 
+#include <memory>
+
 #include <event2/thread.h>
 
 #include "Logging.h"
@@ -50,15 +52,15 @@ EventLoop::EventLoop(const struct event_config* config, bool run_immediately) {
 
   evthread_make_base_notifiable(event_base_);
 
-  loop_thread_.set_target(&EventLoop::runLoop, this);
+  loop_thread_.set_target(&EventLoop::RunLoop, this);
 
   if (run_immediately) {
-    start();
+    Start();
   }
 }
 
 EventLoop::~EventLoop() {
-  stop();
+  Stop();
 
   if (event_base_ != nullptr) {
     event_base_free(event_base_);
@@ -66,22 +68,22 @@ EventLoop::~EventLoop() {
   }
 }
 
-void EventLoop::start() {
-  if (!is_running_) {
-    is_running_ = true;
+void EventLoop::Start() {
+  if (!running_) {
+    running_ = true;
     loop_thread_.start();
   }
 }
 
-void EventLoop::stop() {
-  if (is_running_) {
-    is_running_ = false;
+void EventLoop::Stop() {
+  if (running_) {
+    running_ = false;
     loop_thread_.join();
   }
 }
 
-void EventLoop::runLoop() {
-  while (is_running_) {
+void EventLoop::RunLoop() {
+  while (running_) {
     int ret = event_base_dispatch(event_base_);
     if (ret == 1) {
       // no event
@@ -90,9 +92,13 @@ void EventLoop::runLoop() {
   }
 }
 
-#define OPT_UNLOCK_CALLBACKS (BEV_OPT_DEFER_CALLBACKS | BEV_OPT_UNLOCK_CALLBACKS)
+namespace {
 
-BufferEvent* EventLoop::createBufferEvent(socket_t fd, int options) {
+constexpr int kOptionUnlockCallbacks = BEV_OPT_DEFER_CALLBACKS | BEV_OPT_UNLOCK_CALLBACKS;
+
+}
+
+std::unique_ptr<BufferEvent> EventLoop::CreateBufferEvent(socket_t fd, int options) {
   struct bufferevent* event = bufferevent_socket_new(event_base_, fd, options);
   if (event == nullptr) {
     auto ev_errno = EVUTIL_SOCKET_ERROR();
@@ -100,15 +106,15 @@ BufferEvent* EventLoop::createBufferEvent(socket_t fd, int options) {
     return nullptr;
   }
 
-  bool unlock = (options & OPT_UNLOCK_CALLBACKS) == OPT_UNLOCK_CALLBACKS;
+  bool unlock = (options & kOptionUnlockCallbacks) == kOptionUnlockCallbacks;
 
-  return new BufferEvent(event, unlock, this);
+  return std::unique_ptr<BufferEvent>{new BufferEvent(event, unlock, *this)};
 }
 
-BufferEvent::BufferEvent(struct bufferevent* event, bool unlockCallbacks, EventLoop* loop)
+BufferEvent::BufferEvent(bufferevent* event, bool unlock_callbacks, EventLoop& loop)
     : event_loop_(loop),
       buffer_event_(event),
-      unlock_callbacks_(unlockCallbacks),
+      unlock_callbacks_(unlock_callbacks),
       read_callback_(nullptr),
       write_callback_(nullptr),
       event_callback_(nullptr) {
@@ -123,7 +129,7 @@ BufferEvent::~BufferEvent() {
   }
 }
 
-void BufferEvent::setCallback(DataCallback readCallback, DataCallback writeCallback, EventCallback eventCallback) {
+void BufferEvent::SetCallback(DataCallback read_callback, DataCallback write_callback, EventCallback event_callback) {
   if (buffer_event_ == nullptr) {
     return;
   }
@@ -132,27 +138,27 @@ void BufferEvent::setCallback(DataCallback readCallback, DataCallback writeCallb
   bufferevent_lock(buffer_event_);
 
   // wrap callback
-  read_callback_ = readCallback;
-  write_callback_ = writeCallback;
-  event_callback_ = eventCallback;
+  read_callback_ = std::move(read_callback);
+  write_callback_ = std::move(write_callback);
+  event_callback_ = std::move(event_callback);
 
-  bufferevent_data_cb readcb = readCallback != nullptr ? read_callback : nullptr;
-  bufferevent_data_cb writecb = writeCallback != nullptr ? write_callback : nullptr;
-  bufferevent_event_cb eventcb = eventCallback != nullptr ? event_callback : nullptr;
+  bufferevent_data_cb read_cb = read_callback != nullptr ? ReadCallbackImpl : nullptr;
+  bufferevent_data_cb write_cb = write_callback != nullptr ? WriteCallbackImpl : nullptr;
+  bufferevent_event_cb event_cb = event_callback != nullptr ? EventCallbackImpl : nullptr;
 
-  bufferevent_setcb(buffer_event_, readcb, writecb, eventcb, this);
+  bufferevent_setcb(buffer_event_, read_cb, write_cb, event_cb, this);
 
   bufferevent_unlock(buffer_event_);
 }
 
-void BufferEvent::read_callback(struct bufferevent* bev, void* ctx) {
-  auto event = static_cast<BufferEvent*>(ctx);
+void BufferEvent::ReadCallbackImpl(bufferevent* bev, void* ctx) {
+  auto* event = static_cast<BufferEvent*>(ctx);
 
   if (event->unlock_callbacks_) {
     bufferevent_lock(event->buffer_event_);
   }
 
-  auto callback = event->read_callback_;
+  auto& callback = event->read_callback_;
 
   if (event->unlock_callbacks_) {
     bufferevent_unlock(event->buffer_event_);
@@ -163,14 +169,14 @@ void BufferEvent::read_callback(struct bufferevent* bev, void* ctx) {
   }
 }
 
-void BufferEvent::write_callback(struct bufferevent* bev, void* ctx) {
-  auto event = static_cast<BufferEvent*>(ctx);
+void BufferEvent::WriteCallbackImpl(bufferevent* bev, void* ctx) {
+  auto* event = static_cast<BufferEvent*>(ctx);
 
   if (event->unlock_callbacks_) {
     bufferevent_lock(event->buffer_event_);
   }
 
-  auto callback = event->write_callback_;
+  auto& callback = event->write_callback_;
 
   if (event->unlock_callbacks_) {
     bufferevent_unlock(event->buffer_event_);
@@ -181,14 +187,14 @@ void BufferEvent::write_callback(struct bufferevent* bev, void* ctx) {
   }
 }
 
-void BufferEvent::event_callback(struct bufferevent* bev, short what, void* ctx) {
-  auto event = static_cast<BufferEvent*>(ctx);
+void BufferEvent::EventCallbackImpl(bufferevent* bev, short what, void* ctx) {
+  auto* event = static_cast<BufferEvent*>(ctx);
 
   if (event->unlock_callbacks_) {
     bufferevent_lock(event->buffer_event_);
   }
 
-  auto callback = event->event_callback_;
+  auto& callback = event->event_callback_;
 
   if (event->unlock_callbacks_) {
     bufferevent_unlock(event->buffer_event_);
@@ -199,23 +205,23 @@ void BufferEvent::event_callback(struct bufferevent* bev, short what, void* ctx)
   }
 }
 
-int BufferEvent::connect(const std::string& addr) {
+int BufferEvent::Connect(const std::string& address) {
   if (buffer_event_ == nullptr) {
-    LOG_WARN_NEW("have not bufferevent object to connect {}", addr);
+    LOG_WARN_NEW("have not bufferevent object to connect {}", address);
     return -1;
   }
 
   try {
-    auto* sa = StringToSockaddr(addr);  // resolve domain
-    peer_addr_port_ = SockaddrToString(sa);
-    return bufferevent_socket_connect(buffer_event_, sa, SockaddrSize(sa));
+    auto* sa = StringToSockaddr(address);  // resolve domain
+    peer_address_ = SockaddrToString(sa);
+    return bufferevent_socket_connect(buffer_event_, sa, static_cast<int>(SockaddrSize(sa)));
   } catch (const std::exception& e) {
-    LOG_ERROR_NEW("can not connect to {}, {}", addr, e.what());
+    LOG_ERROR_NEW("can not connect to {}, {}", address, e.what());
     return -1;
   }
 }
 
-void BufferEvent::close() {
+void BufferEvent::Close() {
   if (buffer_event_ != nullptr) {
     bufferevent_free(buffer_event_);
   }

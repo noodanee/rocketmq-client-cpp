@@ -79,7 +79,7 @@ MQClientInstance::~MQClientInstance() {
 }
 
 std::string MQClientInstance::getNamesrvAddr() const {
-  auto namesrvAddrs = mq_client_api_impl_->getRemotingClient()->getNameServerAddressList();
+  auto namesrvAddrs = mq_client_api_impl_->getRemotingClient()->GetNameServerAddressList();
   std::ostringstream oss;
   for (const auto& addr : namesrvAddrs) {
     oss << addr << ";";

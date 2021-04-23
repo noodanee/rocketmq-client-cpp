@@ -20,75 +20,92 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <utility>
 
 #include "ByteArray.h"
 #include "EventLoop.h"
 
 namespace rocketmq {
 
-typedef enum TcpConnectStatus {
-  TCP_CONNECT_STATUS_CREATED = 0,
-  TCP_CONNECT_STATUS_CONNECTING = 1,
-  TCP_CONNECT_STATUS_CONNECTED = 2,
-  TCP_CONNECT_STATUS_FAILED = 3,
-  TCP_CONNECT_STATUS_CLOSED = 4
-} TcpConnectStatus;
+enum class TcpConnectStatus { kCreated, kConnecting, kConnected, kFailed, kClosed };
 
 class TcpTransport;
-typedef std::shared_ptr<TcpTransport> TcpTransportPtr;
+using TcpTransportPtr = std::shared_ptr<TcpTransport>;
 
 class TcpTransportInfo {
  public:
+  TcpTransportInfo() = default;
   virtual ~TcpTransportInfo() = default;
+
+  // disable copy
+  TcpTransportInfo(const TcpTransportInfo&) = delete;
+  TcpTransportInfo& operator=(const TcpTransportInfo&) = delete;
+
+  // disable move
+  TcpTransportInfo(TcpTransportInfo&&) = delete;
+  TcpTransportInfo& operator=(TcpTransportInfo&&) = delete;
 };
 
-class TcpTransport : public noncopyable, public std::enable_shared_from_this<TcpTransport> {
+class TcpTransport : public std::enable_shared_from_this<TcpTransport> {
  public:
-  typedef std::function<void(ByteArrayRef, TcpTransportPtr) /* noexcept */> ReadCallback;
-  typedef std::function<void(TcpTransportPtr) /* noexcept */> CloseCallback;
+  using ReadCallback = std::function<void(ByteArrayRef, TcpTransportPtr) /* noexcept */>;
+  using CloseCallback = std::function<void(TcpTransportPtr) /* noexcept */>;
 
  public:
   static TcpTransportPtr CreateTransport(ReadCallback readCallback,
                                          CloseCallback closeCallback,
                                          std::unique_ptr<TcpTransportInfo> info) {
     // transport must be managed by smart pointer
-    return TcpTransportPtr(new TcpTransport(readCallback, closeCallback, std::move(info)));
+    return TcpTransportPtr(new TcpTransport(std::move(readCallback), std::move(closeCallback), std::move(info)));
   }
 
-  virtual ~TcpTransport();
+  ~TcpTransport();
 
-  void disconnect(const std::string& addr);
-  TcpConnectStatus connect(const std::string& strServerURL, int timeoutMillis = 3000);
-  TcpConnectStatus waitTcpConnectEvent(int timeoutMillis = 3000);
-  TcpConnectStatus getTcpConnectStatus();
+  // disable copy
+  TcpTransport(const TcpTransport&) = delete;
+  TcpTransport& operator=(const TcpTransport&) = delete;
 
-  bool sendMessage(const char* pData, size_t len);
-  const std::string& getPeerAddrAndPort();
-  const uint64_t getStartTime() const;
+  // disable move
+  TcpTransport(TcpTransport&&) = delete;
+  TcpTransport& operator=(TcpTransport&&) = delete;
 
-  TcpTransportInfo* getInfo() { return info_.get(); }
+  void Disconnect(const std::string& address);
+  TcpConnectStatus Connect(const std::string& address, int64_t timeout_millis);
+  TcpConnectStatus WaitConnecting(int64_t timeout_millis);
+  TcpConnectStatus LoadStatus();
+
+  bool SendPackage(const char* pData, size_t len);
 
  private:
   // don't instance object directly.
-  TcpTransport(ReadCallback readCallback, CloseCallback closeCallback, std::unique_ptr<TcpTransportInfo> info);
+  TcpTransport(ReadCallback read_callback,
+               CloseCallback close_callback,
+               std::unique_ptr<TcpTransportInfo> extend_information);
 
   // BufferEvent callback
-  void dataArrived(BufferEvent& event);
-  void eventOccurred(BufferEvent& event, short what);
+  void DataArrived(BufferEvent& event);
+  void EventOccurred(BufferEvent& event, short what);
 
-  void messageReceived(ByteArrayRef msg);
+  void PackageReceived(ByteArrayRef msg);
 
-  TcpConnectStatus closeBufferEvent(bool isDeleted = false);
+  TcpConnectStatus CloseBufferEvent(bool deleted = false);
 
-  TcpConnectStatus setTcpConnectEvent(TcpConnectStatus connectStatus);
-  bool setTcpConnectEventIf(TcpConnectStatus& expectStatus, TcpConnectStatus connectStatus);
+  TcpConnectStatus ExchangeStatus(TcpConnectStatus desired);
+  bool CompareChangeStatus(TcpConnectStatus& expected, TcpConnectStatus desired);
+
+ public:
+  int64_t start_time() const { return start_time_; }
+
+  const std::string& peer_address();
+
+  TcpTransportInfo* extend_information() { return extend_information_.get(); }
 
  private:
-  uint64_t start_time_;
+  int64_t start_time_;
 
   std::unique_ptr<BufferEvent> event_;  // NOTE: use event_ in callback is unsafe.
 
-  std::atomic<TcpConnectStatus> tcp_connect_status_{TCP_CONNECT_STATUS_CREATED};
+  std::atomic<TcpConnectStatus> status_{TcpConnectStatus::kCreated};
   std::mutex status_mutex_;
   std::condition_variable status_event_;
 
@@ -97,7 +114,7 @@ class TcpTransport : public noncopyable, public std::enable_shared_from_this<Tcp
   CloseCallback close_callback_;
 
   // info
-  std::unique_ptr<TcpTransportInfo> info_;
+  std::unique_ptr<TcpTransportInfo> extend_information_;
 };
 
 }  // namespace rocketmq

@@ -37,7 +37,7 @@ ClientRemotingProcessor::~ClientRemotingProcessor() = default;
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::processRequest(TcpTransportPtr channel,
                                                                          RemotingCommand* request) {
-  const auto& addr = channel->getPeerAddrAndPort();
+  const auto& addr = channel->peer_address();
   LOG_DEBUG_NEW("processRequest, code:{}, addr:{}", request->code(), addr);
   switch (request->code()) {
     case CHECK_TRANSACTION_STATE:

@@ -16,74 +16,108 @@
  */
 #include "ResponseFuture.h"
 
+#include <exception>
+#include <memory>
+#include <utility>
+
+#include "RemotingCommand.h"
 #include "UtilAll.h"
+#include "concurrent/executor.hpp"
 
 namespace rocketmq {
 
-ResponseFuture::ResponseFuture(int request_code, int opaque, int64_t timeout_millis, RequestCallback request_callback)
+ResponseFuture::ResponseFuture(int request_code,
+                               int opaque,
+                               int64_t timeout_millis,
+                               RequestCallback request_callback,
+                               Executor executor)
     : request_code_(request_code),
       opaque_(opaque),
-      timeout_millis_(timeout_millis),
+      deadline_(UtilAll::currentTimeMillis() + timeout_millis),
       request_callback_(std::move(request_callback)),
-      begin_timestamp_(UtilAll::currentTimeMillis()) {
+      executor_(std::move(executor)) {
   if (nullptr == request_callback) {
-    count_down_latch_.reset(new latch(1));
+#if __cplusplus >= 201402L
+    count_down_latch_ = std::make_unique<latch>(1);
+#else
+    count_down_latch_ = std::unique_ptr<latch>(new latch(1));
+#endif
   }
 }
 
 ResponseFuture::~ResponseFuture() = default;
 
-void ResponseFuture::releaseThreadCondition() {
-  if (count_down_latch_ != nullptr) {
-    count_down_latch_->count_down();
+void ResponseFuture::ExecuteRequestCallback() noexcept {
+  if (request_callback_ == nullptr) {
+    return;
   }
-}
 
-bool ResponseFuture::hasRequestCallback() {
-  // if invoke_callback_ is set, this is an async future.
-  return request_callback_ != nullptr;
-}
-
-void ResponseFuture::executeRequestCallback() noexcept {
-  if (request_callback_ != nullptr) {
-    request_callback_(*this);
-  }
-}
-
-std::unique_ptr<RemotingCommand> ResponseFuture::waitResponse(int timeoutMillis) {
-  if (count_down_latch_ != nullptr) {
-    if (timeoutMillis < 0) {
-      timeoutMillis = 0;
+  if (response_command_ != nullptr) {
+    if (executor_ != nullptr) {
+      auto request_callback = std::move(request_callback_);
+      auto response_command = std::make_shared<std::unique_ptr<RemotingCommand>>(std::move(response_command_));
+      executor_(
+#if __cplusplus >= 201402L
+          [request_callback = std::move(request_callback), response_command = std::move(response_command)]
+#else
+          [request_callback, response_command]
+#endif
+          () { request_callback({std::move(*response_command)}); });
+    } else {
+      request_callback_({std::move(response_command_)});
     }
-    count_down_latch_->wait(timeoutMillis, time_unit::milliseconds);
+  } else {
+    std::string error_message;
+    if (!send_request_ok()) {
+      error_message = "send request failed";
+    } else if (Timeout()) {
+      error_message = "wait response timeout";
+    } else {
+      error_message = "unknown reason";
+    }
+    MQException exception(error_message, -1, __FILE__, __LINE__);
+    auto exception_ptr = std::make_exception_ptr(exception);
+    if (executor_ != nullptr) {
+      auto request_callback = std::move(request_callback_);
+      executor_(
+#if __cplusplus >= 201402L
+          [request_callback = std::move(request_callback), exception_ptr]
+#else
+          [request_callback, exception_ptr]
+#endif
+          () { request_callback({exception_ptr}); });
+    } else {
+      request_callback_({exception_ptr});
+    }
+  }
+}
+
+std::unique_ptr<RemotingCommand> ResponseFuture::WaitResponseCommand(int64_t timeout_millis) {
+  if (count_down_latch_ != nullptr) {
+    if (timeout_millis < 0) {
+      timeout_millis = 0;
+    }
+    count_down_latch_->wait(timeout_millis, time_unit::milliseconds);
   }
   return std::move(response_command_);
 }
 
-void ResponseFuture::putResponse(std::unique_ptr<RemotingCommand> responseCommand) {
-  response_command_ = std::move(responseCommand);
-  if (count_down_latch_ != nullptr) {
+void ResponseFuture::PutResponseCommand(std::unique_ptr<RemotingCommand> response_command) {
+  response_command_ = std::move(response_command);
+  if (request_callback_ != nullptr) {
+    // async
+    ExecuteRequestCallback();
+  } else {
+    // sync
     count_down_latch_->count_down();
   }
 }
 
-std::unique_ptr<RemotingCommand> ResponseFuture::getResponseCommand() {
-  return std::move(response_command_);
-}
-
-void ResponseFuture::setResponseCommand(std::unique_ptr<RemotingCommand> responseCommand) {
-  response_command_ = std::move(responseCommand);
-}
-
-bool ResponseFuture::isTimeout() const {
-  auto diff = UtilAll::currentTimeMillis() - begin_timestamp_;
-  return diff > timeout_millis_;
-}
-
-int64_t ResponseFuture::leftTime() const {
-  auto diff = UtilAll::currentTimeMillis() - begin_timestamp_;
-  auto left = timeout_millis_ - diff;
-  return left < 0 ? 0 : left;
+bool ResponseFuture::Timeout(int64_t now) const {
+  if (now <= 0) {
+    now = UtilAll::currentTimeMillis();
+  }
+  return now > deadline_;
 }
 
 }  // namespace rocketmq

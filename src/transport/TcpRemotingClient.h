@@ -35,75 +35,59 @@
 
 namespace rocketmq {
 
-class TcpRemotingClient {
+class TcpRemotingClient final {
  public:
   using InvokeCallback = std::function<void(ResultState<std::unique_ptr<RemotingCommand>>) /* noexcept */>;
 
  public:
-  TcpRemotingClient(int workerThreadNum, uint64_t tcpConnectTimeout, uint64_t tcpTransportTryLockTimeout);
-  virtual ~TcpRemotingClient();
+  TcpRemotingClient(int worker_thread_nums, int64_t connect_timeout_millis, int64_t try_lock_transport_table_timeout);
+  ~TcpRemotingClient();
 
-  void start();
-  void shutdown();
+  // disable copy
+  TcpRemotingClient(const TcpRemotingClient&) = delete;
+  TcpRemotingClient& operator=(const TcpRemotingClient&) = delete;
 
-  void registerRPCHook(RPCHookPtr rpcHook);
+  // disable move
+  TcpRemotingClient(TcpRemotingClient&&) = delete;
+  TcpRemotingClient& operator=(TcpRemotingClient&&) = delete;
 
-  void updateNameServerAddressList(const std::string& addrs);
+ public:
+  void Start();
+  void Shutdown();
 
-  std::unique_ptr<RemotingCommand> invokeSync(const std::string& addr,
+  void RegisterRPCHook(RPCHookPtr rpc_hook);
+
+  void UpdateNameServerAddressList(const std::string& addresses);
+  std::vector<std::string> GetNameServerAddressList() const { return nameserver_address_list_; }
+
+  void RegisterProcessor(MQRequestCode request_code, RequestProcessor* request_processor);
+
+  std::unique_ptr<RemotingCommand> InvokeSync(const std::string& address,
                                               RemotingCommand request,
-                                              int timeoutMillis = 3000);
-  void invokeAsync(const std::string& addr,
+                                              int64_t timeout_millis);
+  void InvokeAsync(const std::string& address,
                    RemotingCommand request,
-                   InvokeCallback invokeCallback,
-                   int64_t timeoutMillis);
-  void invokeOneway(const std::string& addr, RemotingCommand request);
-
-  void registerProcessor(MQRequestCode requestCode, RequestProcessor* requestProcessor);
-
-  std::vector<std::string> getNameServerAddressList() const { return namesrv_addr_list_; }
+                   InvokeCallback invoke_callback,
+                   int64_t timeout_millis);
+  void InvokeOneway(const std::string& address, RemotingCommand request);
 
  private:
-  static bool SendCommand(TcpTransportPtr channel, RemotingCommand& msg) noexcept;
-
-  void channelClosed(TcpTransportPtr channel);
-
-  void messageReceived(ByteArrayRef msg, TcpTransportPtr channel);
-  void processMessageReceived(ByteArrayRef msg, TcpTransportPtr channel);
-  void processRequestCommand(std::unique_ptr<RemotingCommand> cmd, TcpTransportPtr channel);
-  void processResponseCommand(std::unique_ptr<RemotingCommand> cmd, TcpTransportPtr channel);
+  void ProcessPackageReceived(ByteArrayRef package, TcpTransportPtr channel);
 
   // timeout daemon
-  void scanResponseTablePeriodically();
-  void scanResponseTable();
+  void ScanTimeoutFuturePeriodically();
+  void ScanTimeoutFuture();
 
-  TcpTransportPtr GetTransport(const std::string& addr);
-  TcpTransportPtr CreateTransport(const std::string& addr);
+  TcpTransportPtr GetTransport(const std::string& address);
+  TcpTransportPtr CreateTransport(const std::string& address);
   TcpTransportPtr CreateNameServerTransport();
 
-  bool CloseTransport(const std::string& addr, TcpTransportPtr channel);
-  bool CloseNameServerTransport(TcpTransportPtr channel);
-
-  std::unique_ptr<RemotingCommand> invokeSyncImpl(TcpTransportPtr channel,
-                                                  RemotingCommand& request,
-                                                  int64_t timeoutMillis);
-  void invokeAsyncImpl(TcpTransportPtr channel,
-                       RemotingCommand& request,
-                       int64_t timeoutMillis,
-                       InvokeCallback invokeCallback);
-  void invokeOnewayImpl(TcpTransportPtr channel, RemotingCommand& request);
-
-  // rpc hook
-  void doBeforeRpcHooks(const std::string& addr, RemotingCommand& request, bool toSent);
-  void doAfterRpcHooks(const std::string& addr, RemotingCommand& request, RemotingCommand* response, bool toSent);
-
-  // future management
-  void putResponseFuture(TcpTransportPtr channel, int opaque, ResponseFuturePtr future);
-  ResponseFuturePtr popResponseFuture(TcpTransportPtr channel, int opaque);
+  bool CloseTransport(const std::string& address, const TcpTransportPtr& channel);
+  bool CloseNameServerTransport(const TcpTransportPtr& channel);
 
  private:
   using ProcessorMap = std::map<int, RequestProcessor*>;
-  using TransportMap = std::map<std::string, std::shared_ptr<TcpTransport>>;
+  using TransportMap = std::map<std::string, TcpTransportPtr>;
 
   ProcessorMap processor_table_;  // code -> processor
 
@@ -113,12 +97,12 @@ class TcpRemotingClient {
   // FIXME: not strict thread-safe in abnormal scence
   std::vector<RPCHookPtr> rpc_hooks_;  // for Acl / ONS
 
-  uint64_t tcp_connect_timeout_;             // ms
-  uint64_t tcp_transport_try_lock_timeout_;  // s
+  int64_t connect_timeout_millis_;            // ms
+  int64_t try_lock_transport_table_timeout_;  // s
 
   // NameServer
   std::timed_mutex namesrv_lock_;
-  std::vector<std::string> namesrv_addr_list_;
+  std::vector<std::string> nameserver_address_list_;
   std::string namesrv_addr_choosed_;
   size_t namesrv_index_{0};
 
