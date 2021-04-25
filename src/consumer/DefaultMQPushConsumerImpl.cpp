@@ -472,8 +472,8 @@ void DefaultMQPushConsumerImpl::CorrectTagsOffset(PullRequestPtr pull_request) {
   }
 }
 
-void DefaultMQPushConsumerImpl::ExecuteTaskLater(const handler_type& task, long delay) {
-  client_instance_->getPullMessageService()->executeTaskLater(task, delay);
+void DefaultMQPushConsumerImpl::ExecuteTaskLater(Task task, long delay) {
+  client_instance_->getPullMessageService()->executeTaskLater(std::move(task), delay);
 }
 
 void DefaultMQPushConsumerImpl::ResetRetryAndNamespace(const std::vector<MessageExtPtr>& messages) {

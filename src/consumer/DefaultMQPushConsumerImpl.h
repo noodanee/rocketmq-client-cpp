@@ -45,6 +45,7 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
                                         public MQConsumerInner {
  private:
   class AsyncPullCallback;
+  using Task = std::function<void()>;
 
  public:
   enum class MessageListenerType { kConcurrently, kOrderly };
@@ -123,7 +124,7 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
 
   void CorrectTagsOffset(PullRequestPtr pull_request);
 
-  void ExecuteTaskLater(const handler_type& task, long delay);
+  void ExecuteTaskLater(Task task, long delay);
 
  public:
   bool pause() const { return pause_; };

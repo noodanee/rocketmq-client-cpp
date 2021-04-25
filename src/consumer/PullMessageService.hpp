@@ -27,6 +27,8 @@ namespace rocketmq {
 
 class PullMessageService {
  public:
+  using Task = std::function<void()>;
+
   PullMessageService(MQClientInstance* instance)
       : client_instance_(instance), scheduled_executor_service_(getServiceName(), 1, false) {}
 
@@ -48,8 +50,8 @@ class PullMessageService {
     scheduled_executor_service_.submit(std::bind(&PullMessageService::pullMessage, this, pullRequest));
   }
 
-  void executeTaskLater(const handler_type& task, long timeDelay) {
-    scheduled_executor_service_.schedule(task, timeDelay, time_unit::milliseconds);
+  void executeTaskLater(Task task, long timeDelay) {
+    scheduled_executor_service_.schedule(std::move(task), timeDelay, time_unit::milliseconds);
   }
 
   std::string getServiceName() { return "PullMessageService"; }
