@@ -23,8 +23,8 @@
 
 namespace rocketmq {
 
-typedef Array<char> ByteArray;
-typedef std::shared_ptr<Array<char>> ByteArrayRef;
+using ByteArray = Array<char>;
+using ByteArrayRef = std::shared_ptr<ByteArray>;
 
 ByteArrayRef slice(ByteArrayRef ba, size_t offset);
 ByteArrayRef slice(ByteArrayRef ba, size_t offset, size_t size);
@@ -36,6 +36,6 @@ ByteArrayRef catoba(const char* str, size_t len);
 
 std::string batos(ByteArrayRef ba);
 
-}  // namepace rocketmq
+}  // namespace rocketmq
 
 #endif  // ROCKETMQ_BYTEARRAY_H_

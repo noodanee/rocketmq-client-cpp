@@ -25,7 +25,7 @@
 namespace rocketmq {
 
 class RPCHook;
-typedef std::shared_ptr<RPCHook> RPCHookPtr;
+using RPCHookPtr = std::shared_ptr<RPCHook>;
 
 class ROCKETMQCLIENT_API RPCHook {
  public:

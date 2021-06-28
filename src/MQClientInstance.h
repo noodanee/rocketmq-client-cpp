@@ -38,7 +38,7 @@
 namespace rocketmq {
 
 class RPCHook;
-typedef std::shared_ptr<RPCHook> RPCHookPtr;
+using RPCHookPtr = std::shared_ptr<RPCHook>;
 
 class MQClientAPIImpl;
 class MQAdminImpl;
@@ -47,7 +47,7 @@ class RebalanceService;
 class PullMessageService;
 
 class MQClientInstance;
-typedef std::shared_ptr<MQClientInstance> MQClientInstancePtr;
+using MQClientInstancePtr = std::shared_ptr<MQClientInstance>;
 
 class MQClientInstance {
  public:
@@ -169,17 +169,17 @@ class MQClientInstance {
   volatile ServiceState service_state_;
 
   // group -> MQProducer
-  typedef std::map<std::string, MQProducerInner*> MQPMAP;
+  using MQPMAP = std::map<std::string, MQProducerInner*>;
   MQPMAP producer_table_;
   std::mutex producer_table_mutex_;
 
   // group -> MQConsumer
-  typedef std::map<std::string, MQConsumerInner*> MQCMAP;
+  using MQCMAP = std::map<std::string, MQConsumerInner*>;
   MQCMAP consumer_table_;
   std::mutex consumer_table_mutex_;
 
   // Topic -> TopicRouteData
-  typedef std::map<std::string, TopicRouteDataPtr> TRDMAP;
+  using TRDMAP = std::map<std::string, TopicRouteDataPtr>;
   TRDMAP topic_route_table_;
   std::mutex topic_route_table_mutex_;
 
@@ -188,12 +188,12 @@ class MQClientInstance {
   std::mutex broker_addr_table_mutex_;
 
   // topic -> TopicPublishInfo
-  typedef std::map<std::string, TopicPublishInfoPtr> TPMAP;
+  using TPMAP = std::map<std::string, TopicPublishInfoPtr>;
   TPMAP topic_publish_info_table_;
   std::mutex topic_publish_info_table_mutex_;
 
   // topic -> <broker, time>
-  typedef std::map<std::string, std::pair<std::string, uint64_t>> TBAMAP;
+  using TBAMAP = std::map<std::string, std::pair<std::string, uint64_t>>;
   TBAMAP topic_broker_addr_table_;
   std::mutex topic_broker_addr_table_mutex_;
 

@@ -27,7 +27,7 @@
 namespace rocketmq {
 
 class Message;
-typedef std::shared_ptr<Message> MessagePtr;
+using MessagePtr = std::shared_ptr<Message>;
 
 /**
  * Message - interface for messgae

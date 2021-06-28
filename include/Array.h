@@ -32,12 +32,12 @@ struct array_traits {};
 
 template <typename T>
 struct array_traits<T, typename std::enable_if<std::is_arithmetic<T>::value || std::is_pointer<T>::value>::type> {
-  typedef T element_type;
+  using element_type = T;
 };  // specialization for arithmetic and pointer types
 
 template <typename T>
 struct array_traits<T, typename std::enable_if<std::is_class<T>::value>::type> {
-  typedef T* element_type;
+  using element_type = T*;
 };  // specialization for class types
 
 template <typename T>

@@ -25,7 +25,7 @@
 namespace rocketmq {
 
 class MQClientConfig;
-typedef std::shared_ptr<MQClientConfig> MQClientConfigPtr;
+using MQClientConfigPtr = std::shared_ptr<MQClientConfig>;
 
 /**
  * MQClientConfig - config interface for MQClient

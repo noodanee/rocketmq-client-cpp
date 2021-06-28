@@ -32,7 +32,7 @@ namespace rocketmq {
 struct ProcessQueueInfo;
 
 class ProcessQueue;
-typedef std::shared_ptr<ProcessQueue> ProcessQueuePtr;
+using ProcessQueuePtr = std::shared_ptr<ProcessQueue>;
 
 class ROCKETMQCLIENT_API ProcessQueue {
  public:
