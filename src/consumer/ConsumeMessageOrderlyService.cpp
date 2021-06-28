@@ -39,8 +39,8 @@ void ConsumeMessageOrderlyService::start() {
   consume_executor_.startup();
 
   scheduled_executor_service_.startup();
-  scheduled_executor_service_.schedule(std::bind(&ConsumeMessageOrderlyService::lockMQPeriodically, this),
-                                       ProcessQueue::kRebalanceLockInterval, time_unit::milliseconds);
+  scheduled_executor_service_.schedule([this]() { lockMQPeriodically(); }, ProcessQueue::kRebalanceLockInterval,
+                                       time_unit::milliseconds);
 }
 
 void ConsumeMessageOrderlyService::shutdown() {
@@ -56,8 +56,8 @@ void ConsumeMessageOrderlyService::stopThreadPool() {
 void ConsumeMessageOrderlyService::lockMQPeriodically() {
   consumer_->rebalance_impl()->lockAll();
 
-  scheduled_executor_service_.schedule(std::bind(&ConsumeMessageOrderlyService::lockMQPeriodically, this),
-                                       ProcessQueue::kRebalanceLockInterval, time_unit::milliseconds);
+  scheduled_executor_service_.schedule([this] { lockMQPeriodically(); }, ProcessQueue::kRebalanceLockInterval,
+                                       time_unit::milliseconds);
 }
 
 void ConsumeMessageOrderlyService::unlockAllMQ() {
@@ -72,7 +72,7 @@ void ConsumeMessageOrderlyService::submitConsumeRequest(std::vector<MessageExtPt
                                                         ProcessQueuePtr processQueue,
                                                         const bool dispathToConsume) {
   if (dispathToConsume) {
-    consume_executor_.submit(std::bind(&ConsumeMessageOrderlyService::ConsumeRequest, this, processQueue));
+    consume_executor_.submit([this, processQueue]() mutable { ConsumeRequest(std::move(processQueue)); });
   }
 }
 
@@ -85,9 +85,11 @@ void ConsumeMessageOrderlyService::submitConsumeRequestLater(ProcessQueuePtr pro
 
   timeMillis = std::max(10L, std::min(timeMillis, 30000L));
 
-  static std::vector<MessageExtPtr> dummy;
   scheduled_executor_service_.schedule(
-      std::bind(&ConsumeMessageOrderlyService::submitConsumeRequest, this, std::ref(dummy), processQueue, true),
+      [this, processQueue]() mutable {
+        std::vector<MessageExtPtr> dummy;
+        submitConsumeRequest(dummy, std::move(processQueue), true);
+      },
       timeMillis, time_unit::milliseconds);
 }
 

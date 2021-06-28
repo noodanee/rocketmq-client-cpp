@@ -47,13 +47,13 @@ void ConsumeMessageConcurrentlyService::shutdown() {
 void ConsumeMessageConcurrentlyService::submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
                                                              ProcessQueuePtr processQueue,
                                                              const bool dispathToConsume) {
-  consume_executor_.submit(std::bind(&ConsumeMessageConcurrentlyService::ConsumeRequest, this, msgs, processQueue));
+  consume_executor_.submit([this, msgs, processQueue]() mutable { ConsumeRequest(msgs, std::move(processQueue)); });
 }
 
 void ConsumeMessageConcurrentlyService::submitConsumeRequestLater(std::vector<MessageExtPtr>& msgs,
                                                                   ProcessQueuePtr processQueue) {
   scheduled_executor_service_.schedule(
-      std::bind(&ConsumeMessageConcurrentlyService::submitConsumeRequest, this, msgs, processQueue, true), 5000L,
+      [this, msgs, processQueue]() mutable { submitConsumeRequest(msgs, std::move(processQueue), true); }, 5000L,
       time_unit::milliseconds);
 }
 

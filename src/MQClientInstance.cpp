@@ -236,23 +236,22 @@ void MQClientInstance::startScheduledTask() {
   scheduled_executor_service_.startup();
 
   // updateTopicRouteInfoFromNameServer
-  scheduled_executor_service_.schedule(std::bind(&MQClientInstance::updateTopicRouteInfoPeriodically, this), 10,
-                                       time_unit::milliseconds);
+  scheduled_executor_service_.schedule([this]() { updateTopicRouteInfoPeriodically(); }, 10, time_unit::milliseconds);
 
   // sendHeartbeatToAllBroker
-  scheduled_executor_service_.schedule(std::bind(&MQClientInstance::sendHeartbeatToAllBrokerPeriodically, this), 1000,
+  scheduled_executor_service_.schedule([this]() { sendHeartbeatToAllBrokerPeriodically(); }, 1000,
                                        time_unit::milliseconds);
 
   // persistAllConsumerOffset
-  scheduled_executor_service_.schedule(std::bind(&MQClientInstance::persistAllConsumerOffsetPeriodically, this),
-                                       1000 * 10, time_unit::milliseconds);
+  scheduled_executor_service_.schedule([this]() { persistAllConsumerOffsetPeriodically(); }, 1000 * 10,
+                                       time_unit::milliseconds);
 }
 
 void MQClientInstance::updateTopicRouteInfoPeriodically() {
   updateTopicRouteInfoFromNameServer();
 
   // next round
-  scheduled_executor_service_.schedule(std::bind(&MQClientInstance::updateTopicRouteInfoPeriodically, this), 1000 * 30,
+  scheduled_executor_service_.schedule([this]() { updateTopicRouteInfoPeriodically(); }, 1000 * 30,
                                        time_unit::milliseconds);
 }
 
@@ -261,16 +260,16 @@ void MQClientInstance::sendHeartbeatToAllBrokerPeriodically() {
   sendHeartbeatToAllBrokerWithLock();
 
   // next round
-  scheduled_executor_service_.schedule(std::bind(&MQClientInstance::sendHeartbeatToAllBrokerPeriodically, this),
-                                       1000 * 30, time_unit::milliseconds);
+  scheduled_executor_service_.schedule([this]() { sendHeartbeatToAllBrokerPeriodically(); }, 1000 * 30,
+                                       time_unit::milliseconds);
 }
 
 void MQClientInstance::persistAllConsumerOffsetPeriodically() {
   persistAllConsumerOffset();
 
   // next round
-  scheduled_executor_service_.schedule(std::bind(&MQClientInstance::persistAllConsumerOffsetPeriodically, this),
-                                       1000 * 5, time_unit::milliseconds);
+  scheduled_executor_service_.schedule([this]() { persistAllConsumerOffsetPeriodically(); }, 1000 * 5,
+                                       time_unit::milliseconds);
 }
 
 const std::string& MQClientInstance::getClientId() const {

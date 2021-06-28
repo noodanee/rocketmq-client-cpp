@@ -36,18 +36,29 @@ class PullMessageService {
 
   void shutdown() { scheduled_executor_service_.shutdown(); }
 
-  void executePullRequestLater(PullRequestPtr pullRequest, long timeDelay) {
+  void executePullRequestLater(PullRequestPtr pull_request, long delay_millis) {
     if (client_instance_->isRunning()) {
       scheduled_executor_service_.schedule(
-          std::bind(&PullMessageService::executePullRequestImmediately, this, pullRequest), timeDelay,
-          time_unit::milliseconds);
+#if __cplusplus >= 201402L
+          [this, pull_request = std::move(pull_request)]
+#else
+          [this, pull_request]
+#endif
+          () mutable { executePullRequestImmediately(std::move(pull_request)); },
+          delay_millis, time_unit::milliseconds);
     } else {
       LOG_WARN_NEW("PullMessageServiceScheduledThread has shutdown");
     }
   }
 
-  void executePullRequestImmediately(PullRequestPtr pullRequest) {
-    scheduled_executor_service_.submit(std::bind(&PullMessageService::pullMessage, this, pullRequest));
+  void executePullRequestImmediately(PullRequestPtr pull_request) {
+    scheduled_executor_service_.submit(
+#if __cplusplus >= 201402L
+        [this, pull_request = std::move(pull_request)]
+#else
+        [this, pull_request]
+#endif
+        () mutable { pullMessage(std::move(pull_request)); });
   }
 
   void executeTaskLater(Task task, long timeDelay) {
