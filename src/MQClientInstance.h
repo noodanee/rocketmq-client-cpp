@@ -31,9 +31,9 @@
 #include "ServiceState.h"
 #include "TopicPublishInfo.hpp"
 #include "concurrent/executor.hpp"
-#include "protocol/body/ConsumerRunningInfo.h"
+#include "protocol/body/ConsumerRunningInfo.hpp"
+#include "protocol/body/HeartbeatData.hpp"
 #include "protocol/body/TopicRouteData.hpp"
-#include "protocol/heartbeat/HeartbeatData.hpp"
 
 namespace rocketmq {
 

@@ -216,24 +216,24 @@ void ProcessQueue::FillProcessQueueInfo(ProcessQueueInfo& info) {
   std::lock_guard<std::mutex> lock(message_cache_mutex_);
 
   if (!message_cache_.empty()) {
-    info.cachedMsgMinOffset = message_cache_.begin()->first;
-    info.cachedMsgMaxOffset = queue_offset_max_;
-    info.cachedMsgCount = message_cache_.size();
+    info.cached_message_min_offset = message_cache_.begin()->first;
+    info.cached_message_max_offset = queue_offset_max_;
+    info.cached_message_count = message_cache_.size();
   }
 
   if (!consuming_message_cache_.empty()) {
-    info.transactionMsgMinOffset = consuming_message_cache_.begin()->first;
-    info.transactionMsgMaxOffset = (--consuming_message_cache_.end())->first;
-    info.transactionMsgCount = consuming_message_cache_.size();
+    info.transaction_message_min_offset = consuming_message_cache_.begin()->first;
+    info.transaction_message_max_offset = (--consuming_message_cache_.end())->first;
+    info.transaction_message_count = consuming_message_cache_.size();
   }
 
-  info.setLocked(locked_);
-  info.tryUnlockTimes = try_unlock_times_.load();
-  info.lastLockTimestamp = last_lock_timestamp_;
+  info.locked = locked_.load();
+  info.try_unlock_times = try_unlock_times_.load();
+  info.last_lock_timestamp = last_lock_timestamp_;
 
-  info.setDroped(dropped_);
-  info.lastPullTimestamp = last_pull_timestamp_;
-  info.lastConsumeTimestamp = last_consume_timestamp_;
+  info.droped = dropped_.load();
+  info.last_pull_timestamp = last_pull_timestamp_;
+  info.last_consume_timestamp = last_consume_timestamp_;
 }
 
 }  // namespace rocketmq

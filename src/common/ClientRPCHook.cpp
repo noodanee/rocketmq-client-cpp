@@ -18,7 +18,6 @@
 
 #include "Logging.h"
 #include "RemotingCommand.h"
-#include "protocol/header/CommandHeader.h"
 #include "spas_client.h"
 
 static const std::string ACCESS_KEY = "AccessKey";

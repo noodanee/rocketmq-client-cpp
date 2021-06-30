@@ -14,38 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_COMMANDCUSTOMHEADER_H_
-#define ROCKETMQ_COMMANDCUSTOMHEADER_H_
+#ifndef ROCKETMQ_PROTOCOL_HEADER_GETROUTEINFOREQUESTHEADER_HPP_
+#define ROCKETMQ_PROTOCOL_HEADER_GETROUTEINFOREQUESTHEADER_HPP_
 
-#include <map>     // std::map
-#include <string>  // std::string
+#include <map>
+#include <string>
+#include <utility>  // std::move
 
-#include "RocketMQClient.h"
+#include <json/json.h>
 
-namespace Json {  // jsoncpp
-class Value;
-}
+#include "CommandCustomHeader.h"
 
 namespace rocketmq {
 
-class ROCKETMQCLIENT_API CommandCustomHeader {
- public:
-  virtual ~CommandCustomHeader() = default;
+struct GetRouteInfoRequestHeader : public CommandCustomHeader {
+  std::string topic;
 
-  CommandCustomHeader() = default;
+  GetRouteInfoRequestHeader() = default;
 
-  CommandCustomHeader(const CommandCustomHeader&) = default;
-  CommandCustomHeader& operator=(const CommandCustomHeader&) = default;
+  GetRouteInfoRequestHeader(std::string topic) : topic(std::move(topic)) {}
 
-  CommandCustomHeader(CommandCustomHeader&&) = default;
-  CommandCustomHeader& operator=(CommandCustomHeader&&) = default;
+  void Encode(Json::Value& extend_fields) override { extend_fields["topic"] = topic; }
 
-  // write CustomHeader to extFields (map<string,string>)
-  virtual void Encode(Json::Value& extend_fields) {}
-
-  virtual void SetDeclaredFieldOfCommandHeader(std::map<std::string, std::string>& request_map) {}
+  void SetDeclaredFieldOfCommandHeader(std::map<std::string, std::string>& request_map) override {
+    request_map.emplace("topic", topic);
+  }
 };
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_COMMANDCUSTOMHEADER_H_
+#endif  // ROCKETMQ_PROTOCOL_HEADER_GETROUTEINFOREQUESTHEADER_HPP_

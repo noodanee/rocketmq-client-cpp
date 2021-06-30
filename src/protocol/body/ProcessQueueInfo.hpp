@@ -17,77 +17,46 @@
 #ifndef ROCKETMQ_PROTOCOL_BODY_PROCESS_QUEUE_INFO_HPP_
 #define ROCKETMQ_PROTOCOL_BODY_PROCESS_QUEUE_INFO_HPP_
 
+#include <cstdint>  // int32_t, int64_t
+
 #include <json/json.h>
 
 #include "UtilAll.h"
 
 namespace rocketmq {
 
-class ProcessQueueInfo {
- public:
-  ProcessQueueInfo()
-      : commitOffset(0),
-        cachedMsgMinOffset(0),
-        cachedMsgMaxOffset(0),
-        cachedMsgCount(0),
-        transactionMsgMinOffset(0),
-        transactionMsgMaxOffset(0),
-        transactionMsgCount(0),
-        locked(false),
-        tryUnlockTimes(0),
-        lastLockTimestamp(0),
-        droped(false),
-        lastPullTimestamp(0),
-        lastConsumeTimestamp(0) {}
+struct ProcessQueueInfo {
+  uint64_t commit_offset{0};
+  uint64_t cached_message_min_offset{0};
+  uint64_t cached_message_max_offset{0};
+  int32_t cached_message_count{0};
+  uint64_t transaction_message_min_offset{0};
+  uint64_t transaction_message_max_offset{0};
+  int32_t transaction_message_count{0};
+  bool locked{false};
+  int32_t try_unlock_times{0};
+  uint64_t last_lock_timestamp{0};
+  bool droped{false};
+  uint64_t last_pull_timestamp{0};
+  uint64_t last_consume_timestamp{0};
 
-  virtual ~ProcessQueueInfo() = default;
-
- public:
-  const uint64_t getCommitOffset() const { return commitOffset; }
-
-  void setCommitOffset(uint64_t commitOffset) { this->commitOffset = commitOffset; }
-
-  void setLocked(bool locked) { this->locked = locked; }
-
-  const bool isLocked() const { return locked; }
-
-  void setDroped(bool droped) { this->droped = droped; }
-
-  const bool isDroped() const { return droped; }
-
-  Json::Value toJson() const {
-    Json::Value outJson;
-    outJson["commitOffset"] = UtilAll::to_string(commitOffset);
-    outJson["cachedMsgMinOffset"] = UtilAll::to_string(cachedMsgMinOffset);
-    outJson["cachedMsgMaxOffset"] = UtilAll::to_string(cachedMsgMaxOffset);
-    outJson["cachedMsgCount"] = cachedMsgCount;
-    outJson["transactionMsgMinOffset"] = UtilAll::to_string(transactionMsgMinOffset);
-    outJson["transactionMsgMaxOffset"] = UtilAll::to_string(transactionMsgMaxOffset);
-    outJson["transactionMsgCount"] = transactionMsgCount;
-    outJson["locked"] = locked;
-    outJson["tryUnlockTimes"] = tryUnlockTimes;
-    outJson["lastLockTimestamp"] = UtilAll::to_string(lastLockTimestamp);
-    outJson["droped"] = droped;
-    outJson["lastPullTimestamp"] = UtilAll::to_string(lastPullTimestamp);
-    outJson["lastConsumeTimestamp"] = UtilAll::to_string(lastConsumeTimestamp);
-    return outJson;
+  Json::Value ToJson() const {
+    Json::Value process_queue_info;
+    process_queue_info["commitOffset"] = UtilAll::to_string(commit_offset);
+    process_queue_info["cachedMsgMinOffset"] = UtilAll::to_string(cached_message_min_offset);
+    process_queue_info["cachedMsgMaxOffset"] = UtilAll::to_string(cached_message_max_offset);
+    process_queue_info["cachedMsgCount"] = cached_message_count;
+    process_queue_info["transactionMsgMinOffset"] = UtilAll::to_string(transaction_message_min_offset);
+    process_queue_info["transactionMsgMaxOffset"] = UtilAll::to_string(transaction_message_max_offset);
+    process_queue_info["transactionMsgCount"] = transaction_message_count;
+    process_queue_info["locked"] = locked;
+    process_queue_info["tryUnlockTimes"] = try_unlock_times;
+    process_queue_info["lastLockTimestamp"] = UtilAll::to_string(last_lock_timestamp);
+    process_queue_info["droped"] = droped;
+    process_queue_info["lastPullTimestamp"] = UtilAll::to_string(last_pull_timestamp);
+    process_queue_info["lastConsumeTimestamp"] = UtilAll::to_string(last_consume_timestamp);
+    return process_queue_info;
   }
-
- public:
-  uint64_t commitOffset;
-  uint64_t cachedMsgMinOffset;
-  uint64_t cachedMsgMaxOffset;
-  int32_t cachedMsgCount;
-  uint64_t transactionMsgMinOffset;
-  uint64_t transactionMsgMaxOffset;
-  int32_t transactionMsgCount;
-  bool locked;
-  int32_t tryUnlockTimes;
-  uint64_t lastLockTimestamp;
-
-  bool droped;
-  uint64_t lastPullTimestamp;
-  uint64_t lastConsumeTimestamp;
 };
 
 }  // namespace rocketmq

@@ -49,7 +49,8 @@
 #include "TransactionMQProducerConfig.h"
 #include "UtilAll.h"
 #include "Validators.h"
-#include "protocol/header/CommandHeader.h"
+#include "protocol/header/CheckTransactionStateRequestHeader.hpp"
+#include "protocol/header/EndTransactionRequestHeader.hpp"
 
 namespace rocketmq {
 
@@ -535,29 +536,29 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
 #else
       auto request_header = std::unique_ptr<SendMessageRequestHeader>(new SendMessageRequestHeader());
 #endif
-      request_header->producerGroup = config().group_name();
+      request_header->producer_group = config().group_name();
       request_header->topic = message->topic();
-      request_header->defaultTopic = AUTO_CREATE_TOPIC_KEY_TOPIC;
-      request_header->defaultTopicQueueNums = 4;
-      request_header->queueId = message_queue.queue_id();
-      request_header->sysFlag = system_flag;
-      request_header->bornTimestamp = UtilAll::currentTimeMillis();
+      request_header->default_topic = AUTO_CREATE_TOPIC_KEY_TOPIC;
+      request_header->default_topic_queue_nums = 4;
+      request_header->queue_id = message_queue.queue_id();
+      request_header->system_flag = system_flag;
+      request_header->born_timestamp = UtilAll::currentTimeMillis();
       request_header->flag = message->flag();
       request_header->properties = MessageDecoder::messageProperties2String(message->properties());
-      request_header->reconsumeTimes = 0;
-      request_header->unitMode = false;
+      request_header->reconsume_times = 0;
+      request_header->unit_mode = false;
       request_header->batch = message->isBatch();
 
       if (UtilAll::isRetryTopic(message_queue.topic())) {
         const auto& reconsume_time = MessageAccessor::getReconsumeTime(*message);
         if (!reconsume_time.empty()) {
-          request_header->reconsumeTimes = std::stoi(reconsume_time);
+          request_header->reconsume_times = std::stoi(reconsume_time);
           MessageAccessor::clearProperty(*message, MQMessageConst::PROPERTY_RECONSUME_TIME);
         }
 
         const auto& max_reconsume_times = MessageAccessor::getMaxReconsumeTimes(*message);
         if (!max_reconsume_times.empty()) {
-          request_header->maxReconsumeTimes = std::stoi(max_reconsume_times);
+          request_header->max_reconsume_times = std::stoi(max_reconsume_times);
           MessageAccessor::clearProperty(*message, MQMessageConst::PROPERTY_MAX_RECONSUME_TIMES);
         }
       }
@@ -672,11 +673,11 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
 void DefaultMQProducerImpl::checkTransactionState(const std::string& addr,
                                                   MessageExtPtr message,
                                                   CheckTransactionStateRequestHeader* check_request_header) {
-  long transaction_state_table_offset = check_request_header->tranStateTableOffset;
-  long commit_log_offset = check_request_header->commitLogOffset;
-  const auto& message_id = check_request_header->msgId;
-  const auto& transaction_id = check_request_header->transactionId;
-  const auto& offset_message_id = check_request_header->offsetMsgId;
+  long transaction_state_table_offset = check_request_header->transaction_state_table_offset;
+  long commit_log_offset = check_request_header->commit_log_offset;
+  const auto& message_id = check_request_header->message_id;
+  const auto& transaction_id = check_request_header->transaction_id;
+  const auto& offset_message_id = check_request_header->offset_message_id;
 
   check_transaction_executor_->submit([this, addr, message, transaction_state_table_offset, commit_log_offset,
                                        message_id, transaction_id, offset_message_id] {
@@ -708,28 +709,28 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
   }
 
   auto* request_header = new EndTransactionRequestHeader();
-  request_header->commitLogOffset = commit_log_offset;
-  request_header->producerGroup = config().group_name();
-  request_header->tranStateTableOffset = transaction_state_table_offset;
-  request_header->fromTransactionCheck = true;
+  request_header->commit_log_offset = commit_log_offset;
+  request_header->producer_group = config().group_name();
+  request_header->transaction_state_table_offset = transaction_state_table_offset;
+  request_header->from_transaction_check = true;
 
   std::string unique_key = message->getProperty(MQMessageConst::PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
   if (unique_key.empty()) {
     unique_key = message->msg_id();
   }
 
-  request_header->msgId = unique_key;
-  request_header->transactionId = transaction_id;
+  request_header->message_id = unique_key;
+  request_header->transaction_id = transaction_id;
   switch (local_transaction_state) {
     case LocalTransactionState::COMMIT_MESSAGE:
-      request_header->commitOrRollback = MessageSysFlag::TRANSACTION_COMMIT_TYPE;
+      request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_COMMIT_TYPE;
       break;
     case LocalTransactionState::ROLLBACK_MESSAGE:
-      request_header->commitOrRollback = MessageSysFlag::TRANSACTION_ROLLBACK_TYPE;
+      request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_ROLLBACK_TYPE;
       LOG_WARN_NEW("when broker check, client rollback this transaction, {}", request_header->toString());
       break;
     case LocalTransactionState::UNKNOWN:
-      request_header->commitOrRollback = MessageSysFlag::TRANSACTION_NOT_TYPE;
+      request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_NOT_TYPE;
       LOG_WARN_NEW("when broker check, client does not know this transaction state, {}", request_header->toString());
       break;
     default:
@@ -757,24 +758,24 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   std::string broker_address = client_instance_->findBrokerAddressInPublish(send_result.message_queue().broker_name());
 
   auto* request_header = new EndTransactionRequestHeader();
-  request_header->transactionId = transaction_id;
-  request_header->commitLogOffset = id.getOffset();
+  request_header->transaction_id = transaction_id;
+  request_header->commit_log_offset = id.getOffset();
   switch (local_transaction_state) {
     case LocalTransactionState::COMMIT_MESSAGE:
-      request_header->commitOrRollback = MessageSysFlag::TRANSACTION_COMMIT_TYPE;
+      request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_COMMIT_TYPE;
       break;
     case LocalTransactionState::ROLLBACK_MESSAGE:
-      request_header->commitOrRollback = MessageSysFlag::TRANSACTION_ROLLBACK_TYPE;
+      request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_ROLLBACK_TYPE;
       break;
     case LocalTransactionState::UNKNOWN:
-      request_header->commitOrRollback = MessageSysFlag::TRANSACTION_NOT_TYPE;
+      request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_NOT_TYPE;
       break;
     default:
       break;
   }
-  request_header->producerGroup = config().group_name();
-  request_header->tranStateTableOffset = send_result.queue_offset();
-  request_header->msgId = send_result.msg_id();
+  request_header->producer_group = config().group_name();
+  request_header->transaction_state_table_offset = send_result.queue_offset();
+  request_header->message_id = send_result.msg_id();
 
   std::string remark =
       local_exception ? ("executeLocalTransactionBranch exception: " + UtilAll::to_string(local_exception)) : null;

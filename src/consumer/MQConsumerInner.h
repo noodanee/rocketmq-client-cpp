@@ -23,11 +23,11 @@
 #include "ConsumeType.h"
 #include "MQMessageQueue.h"
 #include "PullRequest.h"
-#include "protocol/heartbeat/SubscriptionData.hpp"
+#include "protocol/body/SubscriptionData.hpp"
 
 namespace rocketmq {
 
-class ConsumerRunningInfo;
+struct ConsumerRunningInfo;
 
 class MQConsumerInner {
  public:  // MQConsumerInner in Java Client

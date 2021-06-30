@@ -20,8 +20,8 @@
 
 #include "Logging.h"
 #include "MQClientInstance.h"
-#include "MessageQueue.hpp"
 #include "UtilAll.h"
+#include "protocol/Serializer.hpp"
 
 namespace rocketmq {
 
@@ -121,7 +121,7 @@ void LocalFileOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
   for (const auto& mq : mqs) {
     const auto& it = offsetTable.find(mq);
     if (it != offsetTable.end()) {
-      std::string strMQ = JsonSerializer::ToJson(toJson(mq));
+      std::string strMQ = JsonSerializer::ToJson(ToJson(mq));
       jOffsetTable[strMQ] = Json::Value((Json::Int64)it->second);
     }
   }

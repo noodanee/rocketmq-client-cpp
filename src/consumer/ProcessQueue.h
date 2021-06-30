@@ -29,7 +29,7 @@
 
 namespace rocketmq {
 
-class ProcessQueueInfo;
+struct ProcessQueueInfo;
 
 class ProcessQueue;
 typedef std::shared_ptr<ProcessQueue> ProcessQueuePtr;

@@ -28,7 +28,7 @@
 #include "MQMessageQueue.h"
 #include "OffsetStore.h"
 #include "ProcessQueue.h"
-#include "protocol/heartbeat/SubscriptionData.hpp"
+#include "protocol/body/SubscriptionData.hpp"
 
 namespace rocketmq {
 

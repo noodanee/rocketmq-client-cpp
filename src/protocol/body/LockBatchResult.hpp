@@ -14,32 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PROTOCOL_BODY_RESETOFFSETBODY_HPP_
-#define ROCKETMQ_PROTOCOL_BODY_RESETOFFSETBODY_HPP_
+#ifndef ROCKETMQ_PROTOCOL_BODY_LOCKBATCHRESULT_HPP_
+#define ROCKETMQ_PROTOCOL_BODY_LOCKBATCHRESULT_HPP_
 
-#include <cstdint>  // int64_t
+#include <utility>  // std::move
+#include <vector>   // std::vector
 
-#include <map>  // std::map
-
+#include "Logging.h"
 #include "MQMessageQueue.h"
 #include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
-struct ResetOffsetBody {
-  std::map<MQMessageQueue, int64_t> offset_table;
+struct LockBatchResult {
+  std::vector<MQMessageQueue> lock_ok_message_queue_set;
 
-  static std::unique_ptr<ResetOffsetBody> Decode(const ByteArray& body_data) {
-    std::unique_ptr<ResetOffsetBody> body(new ResetOffsetBody());
+  static std::unique_ptr<LockBatchResult> Decode(const ByteArray& body_data) {
+    std::unique_ptr<LockBatchResult> body(new LockBatchResult());
     Json::Value body_object = JsonSerializer::FromJson(body_data);
-    const auto& offset_table = body_object["offsetTable"];
-    // FIXME: object as key
-    for (const auto& mq_data : offset_table.getMemberNames()) {
-      Json::Value mq_object = JsonSerializer::FromJson(mq_data);
-      MQMessageQueue mq(mq_object["topic"].asString(), mq_object["brokerName"].asString(),
-                        mq_object["queueId"].asInt());
-      int64_t offset = offset_table[mq_data].asInt64();
-      body->offset_table.emplace(std::move(mq), offset);
+    const auto& message_queues = body_object["lockOKMQSet"];
+    for (const auto& message_queue_object : message_queues) {
+      MQMessageQueue message_queue(message_queue_object["topic"].asString(),
+                                   message_queue_object["brokerName"].asString(),
+                                   message_queue_object["queueId"].asInt());
+      LOG_INFO_NEW("LockBatchResult MQ:{}", message_queue.toString());
+      body->lock_ok_message_queue_set.push_back(std::move(message_queue));
     }
     return body;
   }
@@ -47,4 +46,4 @@ struct ResetOffsetBody {
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_PROTOCOL_BODY_RESETOFFSETBODY_HPP_
+#endif  // ROCKETMQ_PROTOCOL_BODY_LOCKBATCHRESULT_HPP_

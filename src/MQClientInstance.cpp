@@ -32,7 +32,7 @@
 #include "TcpRemotingClient.h"
 #include "TopicPublishInfo.hpp"
 #include "UtilAll.h"
-#include "protocol/body/ConsumerRunningInfo.h"
+#include "protocol/body/ConsumerRunningInfo.hpp"
 
 namespace rocketmq {
 
@@ -94,7 +94,7 @@ TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std:
 
   auto& mqList = const_cast<TopicPublishInfo::QueuesVec&>(info->getMessageQueueList());
 
-  std::string orderTopicConf = route->order_topic_conf();
+  std::string orderTopicConf = route->order_topic_conf;
   if (!orderTopicConf.empty()) {  // order msg
     // "broker-a:8";"broker-b:8"
     std::vector<std::string> brokers;
@@ -109,29 +109,29 @@ TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std:
     }
     info->setOrderTopic(true);
   } else {  // no order msg
-    const auto& qds = route->queue_datas();
+    const auto& qds = route->queue_datas;
     for (const auto& qd : qds) {
-      if (PermName::isWriteable(qd.perm())) {
+      if (PermName::isWriteable(qd.perm)) {
         const BrokerData* brokerData = nullptr;
-        for (const auto& bd : route->broker_datas()) {
-          if (bd.broker_name() == qd.broker_name()) {
+        for (const auto& bd : route->broker_datas) {
+          if (bd.broker_name == qd.broker_name) {
             brokerData = &bd;
             break;
           }
         }
 
         if (nullptr == brokerData) {
-          LOG_WARN_NEW("MQClientInstance: broker:{} of topic:{} have not data", qd.broker_name(), topic);
+          LOG_WARN_NEW("MQClientInstance: broker:{} of topic:{} have not data", qd.broker_name, topic);
           continue;
         }
 
-        if (brokerData->broker_addrs().find(MASTER_ID) == brokerData->broker_addrs().end()) {
-          LOG_WARN_NEW("MQClientInstance: broker:{} of topic:{} have not master node", qd.broker_name(), topic);
+        if (brokerData->broker_addrs.find(MASTER_ID) == brokerData->broker_addrs.end()) {
+          LOG_WARN_NEW("MQClientInstance: broker:{} of topic:{} have not master node", qd.broker_name, topic);
           continue;
         }
 
-        for (int i = 0; i < qd.write_queue_nums(); i++) {
-          mqList.emplace_back(topic, qd.broker_name(), i);
+        for (int i = 0; i < qd.write_queue_nums; i++) {
+          mqList.emplace_back(topic, qd.broker_name, i);
         }
       }
     }
@@ -154,11 +154,11 @@ TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std:
 std::vector<MQMessageQueue> MQClientInstance::topicRouteData2TopicSubscribeInfo(const std::string& topic,
                                                                                 TopicRouteDataPtr route) {
   std::vector<MQMessageQueue> mqList;
-  const auto& queueDatas = route->queue_datas();
+  const auto& queueDatas = route->queue_datas;
   for (const auto& qd : queueDatas) {
-    if (PermName::isReadable(qd.perm())) {
-      for (int i = 0; i < qd.read_queue_nums(); i++) {
-        MQMessageQueue mq(topic, qd.broker_name(), i);
+    if (PermName::isReadable(qd.perm)) {
+      for (int i = 0; i < qd.read_queue_nums; i++) {
+        MQMessageQueue mq(topic, qd.broker_name, i);
         mqList.push_back(mq);
       }
     }
@@ -344,9 +344,9 @@ bool MQClientInstance::isBrokerAddrExistInTopicRouteTable(const std::string& add
   std::lock_guard<std::mutex> lock(topic_route_table_mutex_);
   for (const auto& it : topic_route_table_) {
     const auto topicRouteData = it.second;
-    const auto& bds = topicRouteData->broker_datas();
+    const auto& bds = topicRouteData->broker_datas;
     for (const auto& bd : bds) {
-      for (const auto& itAddr : bd.broker_addrs()) {
+      for (const auto& itAddr : bd.broker_addrs) {
         if (itAddr.second == addr) {
           return true;
         }
@@ -375,8 +375,8 @@ void MQClientInstance::persistAllConsumerOffset() {
 
 void MQClientInstance::sendHeartbeatToAllBroker() {
   std::unique_ptr<HeartbeatData> heartbeatData(prepareHeartbeatData());
-  bool producerEmpty = heartbeatData->producer_data_set().empty();
-  bool consumerEmpty = heartbeatData->consumer_data_set().empty();
+  bool producerEmpty = heartbeatData->producer_data_set.empty();
+  bool consumerEmpty = heartbeatData->consumer_data_set.empty();
   if (producerEmpty && consumerEmpty) {
     LOG_WARN_NEW("sending heartbeat, but no consumer and no producer");
     return;
@@ -417,11 +417,11 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
       if (isDefault) {
         topicRouteData = mq_client_api_impl_->getTopicRouteInfoFromNameServer(AUTO_CREATE_TOPIC_KEY_TOPIC, 1000 * 3);
         if (topicRouteData != nullptr) {
-          auto& queueDatas = topicRouteData->queue_datas();
+          auto& queueDatas = topicRouteData->queue_datas;
           for (auto& qd : queueDatas) {
-            int queueNums = std::min(4, qd.read_queue_nums());
-            qd.set_read_queue_nums(queueNums);
-            qd.set_write_queue_nums(queueNums);
+            int queueNums = std::min(4, qd.read_queue_nums);
+            qd.read_queue_nums = queueNums;
+            qd.write_queue_nums = queueNums;
           }
         }
         LOG_DEBUG_NEW("getTopicRouteInfoFromNameServer is null for topic: {}", topic);
@@ -437,16 +437,16 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
           LOG_INFO_NEW("updateTopicRouteInfoFromNameServer changed:{}", topic);
 
           // update broker addr
-          const auto& brokerDatas = topicRouteData->broker_datas();
+          const auto& brokerDatas = topicRouteData->broker_datas;
           for (const auto& bd : brokerDatas) {
-            LOG_INFO_NEW("updateTopicRouteInfoFromNameServer changed with broker name:{}", bd.broker_name());
-            addBrokerToAddrTable(bd.broker_name(), bd.broker_addrs());
+            LOG_INFO_NEW("updateTopicRouteInfoFromNameServer changed with broker name:{}", bd.broker_name);
+            addBrokerToAddrTable(bd.broker_name, bd.broker_addrs);
           }
 
           // update publish info
           {
-            TopicPublishInfoPtr publishInfo(topicRouteData2TopicPublishInfo(topic, topicRouteData));
-            updateProducerTopicPublishInfo(topic, publishInfo);
+            auto publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
+            updateProducerTopicPublishInfo(topic, std::move(publishInfo));
           }
 
           // update subscribe info
@@ -480,7 +480,7 @@ std::unique_ptr<HeartbeatData> MQClientInstance::prepareHeartbeatData() {
   std::unique_ptr<HeartbeatData> heartbeat_data(new HeartbeatData());
 
   // clientID
-  heartbeat_data->set_client_id(client_id_);
+  heartbeat_data->client_id = client_id_;
 
   // Consumer
   insertConsumerInfoToHeartBeatData(heartbeat_data.get());
@@ -496,16 +496,16 @@ void MQClientInstance::insertConsumerInfoToHeartBeatData(HeartbeatData* heartbea
   for (const auto& it : consumer_table_) {
     const auto* consumer = it.second;
     // TODO: unitMode
-    heartbeatData->consumer_data_set().emplace_back(consumer->groupName(), consumer->consumeType(),
-                                                    consumer->messageModel(), consumer->consumeFromWhere(),
-                                                    consumer->subscriptions());
+    heartbeatData->consumer_data_set.emplace_back(consumer->groupName(), consumer->consumeType(),
+                                                  consumer->messageModel(), consumer->consumeFromWhere(),
+                                                  consumer->subscriptions());
   }
 }
 
 void MQClientInstance::insertProducerInfoToHeartBeatData(HeartbeatData* heartbeatData) {
   std::lock_guard<std::mutex> lock(producer_table_mutex_);
   for (const auto& it : producer_table_) {
-    heartbeatData->producer_data_set().emplace_back(it.first);
+    heartbeatData->producer_data_set.emplace_back(it.first);
   }
 }
 
@@ -712,7 +712,7 @@ void MQClientInstance::getTopicListFromConsumerSubscription(std::set<std::string
   for (const auto& it : consumer_table_) {
     std::vector<SubscriptionData> result = it.second->subscriptions();
     for (const auto& sd : result) {
-      topicList.insert(sd.topic());
+      topicList.insert(sd.topic);
     }
   }
 }
@@ -897,7 +897,7 @@ void MQClientInstance::findConsumerIds(const std::string& topic,
 std::string MQClientInstance::findBrokerAddrByTopic(const std::string& topic) {
   auto topicRouteData = getTopicRouteData(topic);
   if (topicRouteData != nullptr) {
-    return topicRouteData->selectBrokerAddr();
+    return topicRouteData->SelectBrokerAddr();
   }
   return "";
 }
@@ -955,16 +955,16 @@ std::unique_ptr<ConsumerRunningInfo> MQClientInstance::consumerRunningInfo(const
     std::unique_ptr<ConsumerRunningInfo> runningInfo(consumer->consumerRunningInfo());
     if (runningInfo != nullptr) {
       std::string nsAddr = getNamesrvAddr();
-      runningInfo->setProperty(ConsumerRunningInfo::PROP_NAMESERVER_ADDR, nsAddr);
+      runningInfo->properties.emplace(ConsumerRunningInfo::PROP_NAMESERVER_ADDR, nsAddr);
 
       if (consumer->consumeType() == CONSUME_PASSIVELY) {
-        runningInfo->setProperty(ConsumerRunningInfo::PROP_CONSUME_TYPE, "CONSUME_PASSIVELY");
+        runningInfo->properties.emplace(ConsumerRunningInfo::PROP_CONSUME_TYPE, "CONSUME_PASSIVELY");
       } else {
-        runningInfo->setProperty(ConsumerRunningInfo::PROP_CONSUME_TYPE, "CONSUME_ACTIVELY");
+        runningInfo->properties.emplace(ConsumerRunningInfo::PROP_CONSUME_TYPE, "CONSUME_ACTIVELY");
       }
 
-      runningInfo->setProperty(ConsumerRunningInfo::PROP_CLIENT_VERSION,
-                               MQVersion::GetVersionDesc(MQVersion::CURRENT_VERSION));
+      runningInfo->properties.emplace(ConsumerRunningInfo::PROP_CLIENT_VERSION,
+                                      MQVersion::GetVersionDesc(MQVersion::CURRENT_VERSION));
 
       return runningInfo;
     }

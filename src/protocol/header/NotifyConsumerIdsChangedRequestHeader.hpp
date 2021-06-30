@@ -14,35 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PROTOCOL_HEARTBEAT_PRODUCERDATA_H_
-#define ROCKETMQ_PROTOCOL_HEARTBEAT_PRODUCERDATA_H_
+#ifndef ROCKETMQ_PROTOCOL_HEADER_NOTIFYCONSUMERIDSCHANGEDREQUESTHEADER_HPP_
+#define ROCKETMQ_PROTOCOL_HEADER_NOTIFYCONSUMERIDSCHANGEDREQUESTHEADER_HPP_
 
-#include <string>  // std::string
+#include <map>
+#include <memory>
+#include <string>
 
 #include <json/json.h>
 
+#include "CommandCustomHeader.h"
+
 namespace rocketmq {
 
-class ProducerData {
- public:
-  ProducerData(const std::string& group_name) : group_name_(group_name) {}
+struct NotifyConsumerIdsChangedRequestHeader : public CommandCustomHeader {
+  std::string consumer_group;
 
-  bool operator<(const ProducerData& other) const { return group_name_ < other.group_name_; }
-
-  Json::Value toJson() const {
-    Json::Value root;
-    root["groupName"] = group_name_;
-    return root;
+  static std::unique_ptr<NotifyConsumerIdsChangedRequestHeader> Decode(
+      std::map<std::string, std::string>& extend_fields) {
+    std::unique_ptr<NotifyConsumerIdsChangedRequestHeader> header(new NotifyConsumerIdsChangedRequestHeader());
+    header->consumer_group = extend_fields.at("consumerGroup");
+    return header;
   }
-
- public:
-  const std::string& group_name() const { return group_name_; }
-  void group_name(const std::string& group_name) { group_name_ = group_name; }
-
- private:
-  std::string group_name_;
 };
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_PROTOCOL_HEARTBEAT_PRODUCERDATA_H_
+#endif  // ROCKETMQ_PROTOCOL_HEADER_NOTIFYCONSUMERIDSCHANGEDREQUESTHEADER_HPP_

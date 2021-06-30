@@ -21,7 +21,7 @@
 
 #include "MQException.h"
 #include "UtilAll.h"
-#include "protocol/heartbeat/SubscriptionData.hpp"
+#include "protocol/body/SubscriptionData.hpp"
 
 namespace rocketmq {
 
@@ -33,7 +33,7 @@ class FilterAPI {
     std::unique_ptr<SubscriptionData> subscription_data(new SubscriptionData(topic, sub_string));
 
     if (sub_string.empty() || SUB_ALL == sub_string) {
-      subscription_data->set_sub_string(SUB_ALL);
+      subscription_data->expression = SUB_ALL;
     } else {
       std::vector<std::string> tags;
       UtilAll::Split(tags, sub_string, "||");
@@ -43,8 +43,8 @@ class FilterAPI {
           if (!tag.empty()) {
             UtilAll::Trim(tag);
             if (!tag.empty()) {
-              subscription_data->code_set().push_back(UtilAll::hash_code(tag));
-              subscription_data->tags_set().push_back(std::move(tag));
+              subscription_data->code_set.insert(UtilAll::hash_code(tag));
+              subscription_data->tag_set.insert(std::move(tag));
             }
           }
         }

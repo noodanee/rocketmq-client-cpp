@@ -30,7 +30,28 @@
 #include "PullResultExt.hpp"
 #include "ResultState.hpp"
 #include "TcpRemotingClient.h"
-#include "protocol/body/LockBatchResponseBody.hpp"
+#include "protocol/body/ConsumeQueueSet.hpp"
+#include "protocol/body/ConsumerList.hpp"
+#include "protocol/body/LockBatchResult.hpp"
+#include "protocol/header/ConsumerSendMsgBackRequestHeader.hpp"
+#include "protocol/header/CreateTopicRequestHeader.hpp"
+#include "protocol/header/GetConsumerListByGroupRequestHeader.hpp"
+#include "protocol/header/GetEarliestMsgStoretimeRequestHeader.hpp"
+#include "protocol/header/GetEarliestMsgStoretimeResponseHeader.hpp"
+#include "protocol/header/GetMaxOffsetRequestHeader.hpp"
+#include "protocol/header/GetMaxOffsetResponseHeader.hpp"
+#include "protocol/header/GetMinOffsetRequestHeader.hpp"
+#include "protocol/header/GetMinOffsetResponseHeader.hpp"
+#include "protocol/header/GetRouteInfoRequestHeader.hpp"
+#include "protocol/header/PullMessageResponseHeader.hpp"
+#include "protocol/header/QueryConsumerOffsetResponseHeader.hpp"
+#include "protocol/header/SearchOffsetRequestHeader.hpp"
+#include "protocol/header/SearchOffsetResponseHeader.hpp"
+#include "protocol/header/SendMessageRequestHeaderV2.hpp"
+#include "protocol/header/SendMessageResponseHeader.hpp"
+#include "protocol/header/UnregisterClientRequestHeader.hpp"
+#include "protocol/header/UpdateConsumerOffsetRequestHeader.hpp"
+#include "protocol/header/ViewMessageRequestHeader.hpp"
 
 namespace {
 
@@ -74,11 +95,11 @@ void MQClientAPIImpl::updateNameServerAddressList(const std::string& addrs) {
 void MQClientAPIImpl::createTopic(const std::string& addr, const std::string& defaultTopic, TopicConfig topicConfig) {
   auto* requestHeader = new CreateTopicRequestHeader();
   requestHeader->topic = topicConfig.topic_name();
-  requestHeader->defaultTopic = defaultTopic;
-  requestHeader->readQueueNums = topicConfig.read_queue_nums();
-  requestHeader->writeQueueNums = topicConfig.write_queue_nums();
+  requestHeader->default_topic = defaultTopic;
+  requestHeader->read_queue_nums = topicConfig.read_queue_nums();
+  requestHeader->write_queue_nums = topicConfig.write_queue_nums();
   requestHeader->perm = topicConfig.perm();
-  requestHeader->topicFilterType = topicConfig.topic_filter_type();
+  requestHeader->topic_filter_type = topicConfig.topic_filter_type();
 
   RemotingCommand request(UPDATE_AND_CREATE_TOPIC, requestHeader);
 
@@ -113,7 +134,7 @@ std::unique_ptr<SendResult> MQClientAPIImpl::sendMessage(const std::string& addr
 
   std::unique_ptr<CommandCustomHeader> header;
   if (code != SEND_MESSAGE && code != SEND_REPLY_MESSAGE) {
-    header = SendMessageRequestHeaderV2::createSendMessageRequestHeaderV2(requestHeader.get());
+    header = SendMessageRequestHeaderV2::CreateSendMessageRequestHeaderV2(std::move(requestHeader));
   } else {
     header = std::move(requestHeader);
   }
@@ -200,7 +221,7 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
   auto* responseHeader = response.decodeCommandCustomHeader<SendMessageResponseHeader>();
   assert(responseHeader != nullptr);
 
-  MQMessageQueue messageQueue(msg.topic(), brokerName, responseHeader->queueId);
+  MQMessageQueue messageQueue(msg.topic(), brokerName, responseHeader->queue_id);
 
   std::string uniqMsgId = MessageClientIDSetter::getUniqID(msg);
 
@@ -219,8 +240,8 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
   }
 
   std::unique_ptr<SendResult> sendResult(
-      new SendResult(sendStatus, uniqMsgId, responseHeader->msgId, messageQueue, responseHeader->queueOffset));
-  sendResult->set_transaction_id(responseHeader->transactionId);
+      new SendResult(sendStatus, uniqMsgId, responseHeader->message_id, messageQueue, responseHeader->queue_offset));
+  sendResult->set_transaction_id(responseHeader->transaction_id);
 
   return sendResult;
 }
@@ -303,9 +324,9 @@ std::unique_ptr<PullResult> MQClientAPIImpl::processPullResponse(RemotingCommand
   auto* responseHeader = response.decodeCommandCustomHeader<PullMessageResponseHeader>();
   assert(responseHeader != nullptr);
 
-  return std::unique_ptr<PullResult>(new PullResultExt(pullStatus, responseHeader->nextBeginOffset,
-                                                       responseHeader->minOffset, responseHeader->maxOffset,
-                                                       (int)responseHeader->suggestWhichBrokerId, response.body()));
+  return std::unique_ptr<PullResult>(new PullResultExt(pullStatus, responseHeader->next_begin_offset,
+                                                       responseHeader->min_offset, responseHeader->max_offset,
+                                                       (int)responseHeader->suggest_which_broker_id, response.body()));
 }
 
 MQMessageExt MQClientAPIImpl::viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis) {
@@ -334,7 +355,7 @@ int64_t MQClientAPIImpl::searchOffset(const std::string& addr,
                                       int timeoutMillis) {
   auto* requestHeader = new SearchOffsetRequestHeader();
   requestHeader->topic = topic;
-  requestHeader->queueId = queueId;
+  requestHeader->queue_id = queueId;
   requestHeader->timestamp = timestamp;
 
   RemotingCommand request(SEARCH_OFFSET_BY_TIMESTAMP, requestHeader);
@@ -360,7 +381,7 @@ int64_t MQClientAPIImpl::getMaxOffset(const std::string& addr,
                                       int timeoutMillis) {
   auto* requestHeader = new GetMaxOffsetRequestHeader();
   requestHeader->topic = topic;
-  requestHeader->queueId = queueId;
+  requestHeader->queue_id = queueId;
 
   RemotingCommand request(GET_MAX_OFFSET, requestHeader);
 
@@ -384,7 +405,7 @@ int64_t MQClientAPIImpl::getMinOffset(const std::string& addr,
                                       int timeoutMillis) {
   auto* requestHeader = new GetMinOffsetRequestHeader();
   requestHeader->topic = topic;
-  requestHeader->queueId = queueId;
+  requestHeader->queue_id = queueId;
 
   RemotingCommand request(GET_MIN_OFFSET, requestHeader);
 
@@ -409,7 +430,7 @@ int64_t MQClientAPIImpl::getEarliestMsgStoretime(const std::string& addr,
                                                  int timeoutMillis) {
   auto* requestHeader = new GetEarliestMsgStoretimeRequestHeader();
   requestHeader->topic = topic;
-  requestHeader->queueId = queueId;
+  requestHeader->queue_id = queueId;
 
   RemotingCommand request(GET_EARLIEST_MSG_STORETIME, requestHeader);
 
@@ -433,7 +454,7 @@ void MQClientAPIImpl::getConsumerIdListByGroup(const std::string& addr,
                                                std::vector<std::string>& cids,
                                                int timeoutMillis) {
   auto* requestHeader = new GetConsumerListByGroupRequestHeader();
-  requestHeader->consumerGroup = consumerGroup;
+  requestHeader->consumer_group = consumerGroup;
 
   RemotingCommand request(GET_CONSUMER_LIST_BY_GROUP, requestHeader);
 
@@ -443,9 +464,8 @@ void MQClientAPIImpl::getConsumerIdListByGroup(const std::string& addr,
     case SUCCESS: {
       auto responseBody = response->body();
       if (responseBody != nullptr && responseBody->size() > 0) {
-        std::unique_ptr<GetConsumerListByGroupResponseBody> body(
-            GetConsumerListByGroupResponseBody::Decode(*responseBody));
-        cids = std::move(body->consumerIdList);
+        std::unique_ptr<ConsumerList> body(ConsumerList::Decode(*responseBody));
+        cids = std::move(body->consumer_id_list);
         return;
       }
     }
@@ -506,7 +526,7 @@ void MQClientAPIImpl::updateConsumerOffsetOneway(const std::string& addr,
 
 void MQClientAPIImpl::sendHearbeat(const std::string& addr, HeartbeatData* heartbeatData, long timeoutMillis) {
   RemotingCommand request(HEART_BEAT, nullptr);
-  request.set_body(heartbeatData->encode());
+  request.set_body(heartbeatData->Encode());
 
   auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
   assert(response != nullptr);
@@ -560,11 +580,11 @@ void MQClientAPIImpl::consumerSendMessageBack(const std::string& addr,
                                               int maxConsumeRetryTimes) {
   auto* requestHeader = new ConsumerSendMsgBackRequestHeader();
   requestHeader->group = consumerGroup;
-  requestHeader->originTopic = msg->topic();
+  requestHeader->origin_topic = msg->topic();
   requestHeader->offset = msg->commit_log_offset();
-  requestHeader->delayLevel = delayLevel;
-  requestHeader->originMsgId = msg->msg_id();
-  requestHeader->maxReconsumeTimes = maxConsumeRetryTimes;
+  requestHeader->delay_level = delayLevel;
+  requestHeader->origin_message_id = msg->msg_id();
+  requestHeader->max_reconsume_times = maxConsumeRetryTimes;
 
   RemotingCommand request(CONSUMER_SEND_MSG_BACK, requestHeader);
 
@@ -582,11 +602,11 @@ void MQClientAPIImpl::consumerSendMessageBack(const std::string& addr,
 }
 
 void MQClientAPIImpl::lockBatchMQ(const std::string& addr,
-                                  LockBatchRequestBody* requestBody,
+                                  ConsumeQueueSet* requestBody,
                                   std::vector<MQMessageQueue>& mqs,
                                   int timeoutMillis) {
   RemotingCommand request(LOCK_BATCH_MQ, nullptr);
-  request.set_body(requestBody->encode());
+  request.set_body(requestBody->Encode());
 
   auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
   assert(response != nullptr);
@@ -594,8 +614,8 @@ void MQClientAPIImpl::lockBatchMQ(const std::string& addr,
     case SUCCESS: {
       auto requestBody = response->body();
       if (requestBody != nullptr && requestBody->size() > 0) {
-        std::unique_ptr<LockBatchResponseBody> body(LockBatchResponseBody::Decode(*requestBody));
-        mqs = std::move(body->lock_ok_mq_set());
+        std::unique_ptr<LockBatchResult> body(LockBatchResult::Decode(*requestBody));
+        mqs = std::move(body->lock_ok_message_queue_set);
       } else {
         mqs.clear();
       }
@@ -609,11 +629,11 @@ void MQClientAPIImpl::lockBatchMQ(const std::string& addr,
 }
 
 void MQClientAPIImpl::unlockBatchMQ(const std::string& addr,
-                                    UnlockBatchRequestBody* requestBody,
+                                    ConsumeQueueSet* requestBody,
                                     int timeoutMillis,
                                     bool oneway) {
   RemotingCommand request(UNLOCK_BATCH_MQ, nullptr);
-  request.set_body(requestBody->encode());
+  request.set_body(requestBody->Encode());
 
   if (oneway) {
     remoting_client_->InvokeOneway(addr, std::move(request));

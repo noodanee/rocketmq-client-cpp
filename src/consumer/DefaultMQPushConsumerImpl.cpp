@@ -44,7 +44,7 @@
 #include "SocketUtil.h"
 #include "UtilAll.h"
 #include "Validators.h"
-#include "protocol/body/ConsumerRunningInfo.h"
+#include "protocol/body/ConsumerRunningInfo.hpp"
 
 namespace {
 
@@ -351,7 +351,7 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
     LOG_WARN_NEW("find the consumer's subscription failed, {}", pull_request->toString());
     return;
   }
-  const auto& expression = subscription_data->sub_string();
+  const auto& expression = subscription_data->expression;
 
   bool commit_offset_enable = false;
   int64_t commit_offset_value = 0;
@@ -448,18 +448,18 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
   };
 
   try {
-    pull_api_wrapper_->PullKernelImpl(message_queue,                         // mq
-                                      expression,                            // subExpression
-                                      subscription_data->expression_type(),  // expressionType
-                                      subscription_data->sub_version(),      // subVersion
-                                      pull_request->next_offset(),           // offset
-                                      config().pull_batch_size(),            // maxNums
-                                      system_flag,                           // sysFlag
-                                      commit_offset_value,                   // commitOffset
-                                      kBrockerSuspendMaxTimeMillis,          // brokerSuspendMaxTimeMillis
-                                      kConsumerTimeoutMillisWhenSuspend,     // timeoutMillis
-                                      CommunicationMode::ASYNC,              // communicationMode
-                                      pull_callback);                        // pullCallback
+    pull_api_wrapper_->PullKernelImpl(message_queue,                      // mq
+                                      expression,                         // subExpression
+                                      subscription_data->type,            // expressionType
+                                      subscription_data->version,         // subVersion
+                                      pull_request->next_offset(),        // offset
+                                      config().pull_batch_size(),         // maxNums
+                                      system_flag,                        // sysFlag
+                                      commit_offset_value,                // commitOffset
+                                      kBrockerSuspendMaxTimeMillis,       // brokerSuspendMaxTimeMillis
+                                      kConsumerTimeoutMillisWhenSuspend,  // timeoutMillis
+                                      CommunicationMode::ASYNC,           // communicationMode
+                                      pull_callback);                     // pullCallback
   } catch (MQException& e) {
     LOG_ERROR_NEW("pullKernelImpl exception: {}", e.what());
     ExecutePullRequestLater(pull_request, config().pull_time_delay_millis_when_exception());
@@ -534,12 +534,11 @@ void DefaultMQPushConsumerImpl::UpdateConsumeOffset(const MQMessageQueue& messag
 std::unique_ptr<ConsumerRunningInfo> DefaultMQPushConsumerImpl::consumerRunningInfo() {
   std::unique_ptr<ConsumerRunningInfo> info(new ConsumerRunningInfo());
 
-  info->setProperty(ConsumerRunningInfo::PROP_CONSUME_ORDERLY, UtilAll::to_string(consume_orderly_));
-  info->setProperty(ConsumerRunningInfo::PROP_THREADPOOL_CORE_SIZE, UtilAll::to_string(config().consume_thread_nums()));
-  info->setProperty(ConsumerRunningInfo::PROP_CONSUMER_START_TIMESTAMP, UtilAll::to_string(start_time_));
-
-  auto subscription_set = subscriptions();
-  info->setSubscriptionSet(subscription_set);
+  info->properties.emplace(ConsumerRunningInfo::PROP_CONSUME_ORDERLY, UtilAll::to_string(consume_orderly_));
+  info->properties.emplace(ConsumerRunningInfo::PROP_THREADPOOL_CORE_SIZE,
+                           UtilAll::to_string(config().consume_thread_nums()));
+  info->properties.emplace(ConsumerRunningInfo::PROP_CONSUMER_START_TIMESTAMP, UtilAll::to_string(start_time_));
+  info->subscription_set = subscriptions();
 
   auto processQueueTable = rebalance_impl_->getProcessQueueTable();
   for (const auto& it : processQueueTable) {
@@ -547,9 +546,9 @@ std::unique_ptr<ConsumerRunningInfo> DefaultMQPushConsumerImpl::consumerRunningI
     const auto& process_queue = it.second;
 
     ProcessQueueInfo process_queue_info;
-    process_queue_info.setCommitOffset(offset_store_->readOffset(message_queue, MEMORY_FIRST_THEN_STORE));
+    process_queue_info.commit_offset = offset_store_->readOffset(message_queue, MEMORY_FIRST_THEN_STORE);
     process_queue->FillProcessQueueInfo(process_queue_info);
-    info->setMqTable(message_queue, process_queue_info);
+    info->message_queue_table.emplace(message_queue, process_queue_info);
   }
 
   // TODO: ConsumeStatus

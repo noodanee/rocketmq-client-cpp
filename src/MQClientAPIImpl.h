@@ -32,11 +32,14 @@
 #include "TopicList.h"
 #include "TopicPublishInfo.hpp"
 #include "common/ResultState.hpp"
-#include "protocol/body/LockBatchRequestBody.hpp"
+#include "protocol/body/ConsumeQueueSet.hpp"
+#include "protocol/body/HeartbeatData.hpp"
 #include "protocol/body/TopicRouteData.hpp"
-#include "protocol/body/UnlockBatchRequestBody.hpp"
-#include "protocol/header/CommandHeader.h"
-#include "protocol/heartbeat/HeartbeatData.hpp"
+#include "protocol/header/EndTransactionRequestHeader.hpp"
+#include "protocol/header/PullMessageRequestHeader.hpp"
+#include "protocol/header/QueryConsumerOffsetRequestHeader.hpp"
+#include "protocol/header/SendMessageRequestHeader.hpp"
+#include "protocol/header/UpdateConsumerOffsetRequestHeader.hpp"
 
 namespace rocketmq {
 
@@ -126,13 +129,10 @@ class MQClientAPIImpl {
                                int maxConsumeRetryTimes);
 
   void lockBatchMQ(const std::string& addr,
-                   LockBatchRequestBody* requestBody,
+                   ConsumeQueueSet* requestBody,
                    std::vector<MQMessageQueue>& mqs,
                    int timeoutMillis);
-  void unlockBatchMQ(const std::string& addr,
-                     UnlockBatchRequestBody* requestBody,
-                     int timeoutMillis,
-                     bool oneway = false);
+  void unlockBatchMQ(const std::string& addr, ConsumeQueueSet* requestBody, int timeoutMillis, bool oneway = false);
 
   std::unique_ptr<TopicRouteData> getTopicRouteInfoFromNameServer(const std::string& topic, int timeoutMillis);
 

@@ -35,7 +35,7 @@ class ConsumeMsgService;
 class OffsetStore;
 class PullAPIWrapper;
 class RebalancePushImpl;
-class SubscriptionData;
+struct SubscriptionData;
 
 class DefaultMQPushConsumerImpl;
 using DefaultMQPushConsumerImplPtr = std::shared_ptr<DefaultMQPushConsumerImpl>;

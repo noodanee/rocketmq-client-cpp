@@ -19,8 +19,9 @@
 #include "Logging.h"
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
-#include "MessageQueue.hpp"
 #include "UtilAll.h"
+#include "protocol/header/QueryConsumerOffsetRequestHeader.hpp"
+#include "protocol/header/UpdateConsumerOffsetRequestHeader.hpp"
 
 namespace rocketmq {
 
@@ -157,9 +158,9 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MQMessageQueue& 
   if (findBrokerResult != nullptr) {
     UpdateConsumerOffsetRequestHeader* requestHeader = new UpdateConsumerOffsetRequestHeader();
     requestHeader->topic = mq.topic();
-    requestHeader->consumerGroup = group_name_;
-    requestHeader->queueId = mq.queue_id();
-    requestHeader->commitOffset = offset;
+    requestHeader->consumer_group = group_name_;
+    requestHeader->queue_id = mq.queue_id();
+    requestHeader->commit_offset = offset;
 
     try {
       return client_instance_->getMQClientAPIImpl()->updateConsumerOffsetOneway(findBrokerResult->broker_addr(),
@@ -183,8 +184,8 @@ int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MQMessageQue
   if (findBrokerResult != nullptr) {
     QueryConsumerOffsetRequestHeader* requestHeader = new QueryConsumerOffsetRequestHeader();
     requestHeader->topic = mq.topic();
-    requestHeader->consumerGroup = group_name_;
-    requestHeader->queueId = mq.queue_id();
+    requestHeader->consumer_group = group_name_;
+    requestHeader->queue_id = mq.queue_id();
 
     return client_instance_->getMQClientAPIImpl()->queryConsumerOffset(findBrokerResult->broker_addr(), requestHeader,
                                                                        1000 * 5);

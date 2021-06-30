@@ -57,16 +57,16 @@ std::unique_ptr<PullResult> PullAPIWrapper::PullKernelImpl(const MQMessageQueue&
     }
 
     std::unique_ptr<PullMessageRequestHeader> request_header{new PullMessageRequestHeader()};
-    request_header->consumerGroup = consumer_group_;
+    request_header->consumer_group = consumer_group_;
     request_header->topic = message_queue.topic();
-    request_header->queueId = message_queue.queue_id();
-    request_header->queueOffset = offset;
-    request_header->maxMsgNums = max_nums;
-    request_header->sysFlag = system_flag;
-    request_header->commitOffset = commit_offset;
-    request_header->suspendTimeoutMillis = broker_suspend_max_time_millis;
+    request_header->queue_id = message_queue.queue_id();
+    request_header->queue_offset = offset;
+    request_header->max_message_nums = max_nums;
+    request_header->system_flag = system_flag;
+    request_header->commit_offset = commit_offset;
+    request_header->suspend_timeout_millis = broker_suspend_max_time_millis;
     request_header->subscription = expression;
-    request_header->subVersion = version;
+    request_header->subscription_version = version;
 
     return client_instance_->getMQClientAPIImpl()->pullMessage(find_broker_result->broker_addr(),
                                                                std::move(request_header), timeout_millis,
@@ -103,11 +103,11 @@ std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MQMessageQue
     auto message_list = MessageDecoder::decodes(*byte_buffer);
 
     // filter msg list again
-    if (subscription_data != nullptr && !subscription_data->tags_set().empty()) {
+    if (subscription_data != nullptr && !subscription_data->tag_set.empty()) {
       filtered_message_list.reserve(message_list.size());
       for (const auto& msg : message_list) {
         const auto& msgTag = msg->tags();
-        if (subscription_data->containsTag(msgTag)) {
+        if (subscription_data->ContainsTag(msgTag)) {
           filtered_message_list.push_back(msg);
         }
       }

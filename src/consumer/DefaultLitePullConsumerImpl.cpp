@@ -516,7 +516,7 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
         }
       });
 
-  bool is_tag_type = ExpressionType::isTagType(subscription_data->expression_type());
+  bool is_tag_type = ExpressionType::isTagType(subscription_data->type);
 
   int system_flag = PullSysFlag::buildSysFlag(false,  // commit offset
                                               true,   // suspend
@@ -567,14 +567,14 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
   };
 
   try {
-    pull_api_wrapper_->PullKernelImpl(message_queue,                                        // mq
-                                      subscription_data->sub_string(),                      // subExpression
-                                      subscription_data->expression_type(),                 // expressionType
-                                      is_tag_type ? 0L : subscription_data->sub_version(),  // subVersion
-                                      NextPullOffset(process_queue),                        // offset
-                                      config().pull_batch_size(),                           // maxNums
-                                      system_flag,                                          // sysFlag
-                                      0,                                                    // commitOffset
+    pull_api_wrapper_->PullKernelImpl(message_queue,                                    // mq
+                                      subscription_data->expression,                    // subExpression
+                                      subscription_data->type,                          // expressionType
+                                      is_tag_type ? 0L : subscription_data->version,    // subVersion
+                                      NextPullOffset(process_queue),                    // offset
+                                      config().pull_batch_size(),                       // maxNums
+                                      system_flag,                                      // sysFlag
+                                      0,                                                // commitOffset
                                       config().broker_suspend_max_time_millis(),        // brokerSuspendMaxTimeMillis
                                       config().consumer_timeout_millis_when_suspend(),  // timeoutMillis
                                       CommunicationMode::ASYNC,                         // communicationMode
@@ -757,18 +757,17 @@ void DefaultLitePullConsumerImpl::RegisterTopicMessageQueuesChangedListener(
 std::unique_ptr<ConsumerRunningInfo> DefaultLitePullConsumerImpl::consumerRunningInfo() {
   std::unique_ptr<ConsumerRunningInfo> info(new ConsumerRunningInfo());
 
-  info->setProperty(ConsumerRunningInfo::PROP_CONSUMER_START_TIMESTAMP, UtilAll::to_string(start_time_));
-
-  info->setSubscriptionSet(subscriptions());
+  info->properties.emplace(ConsumerRunningInfo::PROP_CONSUMER_START_TIMESTAMP, UtilAll::to_string(start_time_));
+  info->subscription_set = subscriptions();
 
   auto mqs = assigned_message_queue_->GetMessageQueues();
   for (const auto& mq : mqs) {
     auto pq = assigned_message_queue_->GetProcessQueue(mq);
     if (pq != nullptr && !pq->dropped()) {
       ProcessQueueInfo pq_info;
-      pq_info.setCommitOffset(offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE));
+      pq_info.commit_offset = offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE);
       pq->FillProcessQueueInfo(pq_info);
-      info->setMqTable(mq, pq_info);
+      info->message_queue_table.emplace(mq, pq_info);
     }
   }
 

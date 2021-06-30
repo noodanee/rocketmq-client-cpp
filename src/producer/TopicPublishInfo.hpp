@@ -81,9 +81,9 @@ class TopicPublishInfo {
   }
 
   int getQueueIdByBroker(const std::string& brokerName) const {
-    for (const auto& queueData : topic_route_data_->queue_datas()) {
-      if (queueData.broker_name() == brokerName) {
-        return queueData.write_queue_nums();
+    for (const auto& queueData : topic_route_data_->queue_datas) {
+      if (queueData.broker_name == brokerName) {
+        return queueData.write_queue_nums;
       }
     }
 

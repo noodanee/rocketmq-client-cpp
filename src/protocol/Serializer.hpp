@@ -14,25 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PRODUCER_MQPRODUCERINNER_H_
-#define ROCKETMQ_PRODUCER_MQPRODUCERINNER_H_
+#ifndef ROCKETMQ_PROTOCOL_SERIALIZER_HPP_
+#define ROCKETMQ_PROTOCOL_SERIALIZER_HPP_
 
-#include "TransactionListener.h"
+#include <json/json.h>
+
+#include "MQMessageQueue.h"
 
 namespace rocketmq {
 
-struct CheckTransactionStateRequestHeader;
-
-class MQProducerInner {
- public:
-  virtual void checkTransactionState(const std::string& addr,
-                                     MessageExtPtr msg,
-                                     CheckTransactionStateRequestHeader* checkRequestHeader) = 0;
-
-  //  virtual std::vector<std::string> getPublishTopicList() = 0;
-  //  virtual void updateTopicPublishInfo(const std::string& topic, TopicPublishInfoPtr info) = 0;
-};
+inline Json::Value ToJson(const MQMessageQueue& mq) {
+  Json::Value message_queue_object;
+  message_queue_object["topic"] = mq.topic();
+  message_queue_object["brokerName"] = mq.broker_name();
+  message_queue_object["queueId"] = mq.queue_id();
+  return message_queue_object;
+}
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_PRODUCER_MQPRODUCERINNER_H_
+#endif  // ROCKETMQ_PROTOCOL_SERIALIZER_HPP_

@@ -14,23 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PROTOCOL_MESSAGEQUEUE_H_
-#define ROCKETMQ_PROTOCOL_MESSAGEQUEUE_H_
+#ifndef ROCKETMQ_PROTOCOL_BODY_CONSUMERLIST_HPP_
+#define ROCKETMQ_PROTOCOL_BODY_CONSUMERLIST_HPP_
+
+#include <map>
+#include <string>
 
 #include <json/json.h>
 
-#include "MQMessageQueue.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
-inline Json::Value toJson(const MQMessageQueue& mq) {
-  Json::Value root;
-  root["topic"] = mq.topic();
-  root["brokerName"] = mq.broker_name();
-  root["queueId"] = mq.queue_id();
-  return root;
-}
+struct ConsumerList {
+  std::vector<std::string> consumer_id_list;
+
+  static std::unique_ptr<ConsumerList> Decode(const ByteArray& body_data) {
+    Json::Value body_object = JsonSerializer::FromJson(body_data);
+    const auto& consumer_id_list = body_object["consumerIdList"];
+    std::unique_ptr<ConsumerList> body(new ConsumerList());
+    for (const auto& consumer_id : consumer_id_list) {
+      body->consumer_id_list.push_back(consumer_id.asString());
+    }
+    return body;
+  }
+};
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_PROTOCOL_MESSAGEQUEUE_H_
+#endif  // ROCKETMQ_PROTOCOL_BODY_CONSUMERLIST_HPP_
