@@ -28,31 +28,31 @@ RebalanceLitePullImpl::RebalanceLitePullImpl(DefaultLitePullConsumerImpl* pull_c
 void RebalanceLitePullImpl::shutdown() {}
 
 bool RebalanceLitePullImpl::updateMessageQueueInRebalance(const std::string& topic,
-                                                          std::vector<MQMessageQueue>& allocated_message_queues,
+                                                          std::vector<MessageQueue>& allocated_message_queues,
                                                           bool orderly) {
   return true;
 }
 
-bool RebalanceLitePullImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& message_queue,
+bool RebalanceLitePullImpl::removeUnnecessaryMessageQueue(const MessageQueue& message_queue,
                                                           ProcessQueuePtr process_queue) {
   lite_pull_consumer_impl_->offset_store()->persist(message_queue);
   lite_pull_consumer_impl_->offset_store()->removeOffset(message_queue);
   return true;
 }
 
-void RebalanceLitePullImpl::removeDirtyOffset(const MQMessageQueue& message_queue) {
+void RebalanceLitePullImpl::removeDirtyOffset(const MessageQueue& message_queue) {
   lite_pull_consumer_impl_->offset_store()->removeOffset(message_queue);
 }
 
-int64_t RebalanceLitePullImpl::computePullFromWhere(const MQMessageQueue& message_queue) {
+int64_t RebalanceLitePullImpl::computePullFromWhere(const MessageQueue& message_queue) {
   return RebalanceImpl::computePullFromWhereImpl(message_queue, lite_pull_consumer_impl_->config().consume_from_where(),
                                                  lite_pull_consumer_impl_->config().consume_timestamp(),
                                                  *lite_pull_consumer_impl_->offset_store(), *lite_pull_consumer_impl_);
 }
 
 void RebalanceLitePullImpl::messageQueueChanged(const std::string& topic,
-                                                std::vector<MQMessageQueue>& all_message_queues,
-                                                std::vector<MQMessageQueue>& divided_message_queues) {
+                                                std::vector<MessageQueue>& all_message_queues,
+                                                std::vector<MessageQueue>& divided_message_queues) {
   auto* message_queue_listener = lite_pull_consumer_impl_->message_queue_listener();
   if (message_queue_listener != nullptr) {
     try {

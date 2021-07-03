@@ -21,18 +21,18 @@
 #include <string>  // std::string
 #include <vector>  // std::vector
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
 /**
  * AllocateMQStrategy - Interface for allocate MessageQueue
  *
- * std::vector<MQMessageQueue> *AllocateMQStrategy(
- *   const std::string& current_cid, std::vector<MQMessageQueue>& all_mqs, std::vector<std::string>& all_cids);
+ * std::vector<MessageQueue> *AllocateMQStrategy(
+ *   const std::string& current_cid, std::vector<MessageQueue>& all_mqs, std::vector<std::string>& all_cids);
  */
-using AllocateMQStrategy = std::function<
-    std::vector<MQMessageQueue>(const std::string&, std::vector<MQMessageQueue>&, std::vector<std::string>&)>;
+using AllocateMQStrategy =
+    std::function<std::vector<MessageQueue>(const std::string&, std::vector<MessageQueue>&, std::vector<std::string>&)>;
 
 }  // namespace rocketmq
 

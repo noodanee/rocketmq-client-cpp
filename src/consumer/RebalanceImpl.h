@@ -25,16 +25,16 @@
 #include "MQAdmin.h"
 #include "MQClientInstance.h"
 #include "MQException.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "OffsetStore.h"
 #include "ProcessQueue.h"
 #include "protocol/body/SubscriptionData.hpp"
 
 namespace rocketmq {
 
-typedef std::map<std::string, std::vector<MQMessageQueue>> TOPIC2MQS;
+typedef std::map<std::string, std::vector<MessageQueue>> TOPIC2MQS;
 typedef std::map<std::string, std::unique_ptr<SubscriptionData>> TOPIC2SD;
-typedef std::map<std::string, std::vector<MQMessageQueue>> BROKER2MQS;
+typedef std::map<std::string, std::vector<MessageQueue>> BROKER2MQS;
 
 class RebalanceImpl {
  public:
@@ -56,15 +56,15 @@ class RebalanceImpl {
 
  protected:
   virtual bool updateMessageQueueInRebalance(const std::string& topic,
-                                             std::vector<MQMessageQueue>& allocated_mqs,
+                                             std::vector<MessageQueue>& allocated_mqs,
                                              bool orderly) = 0;
   virtual void messageQueueChanged(const std::string& topic,
-                                   std::vector<MQMessageQueue>& all_mqs,
-                                   std::vector<MQMessageQueue>& allocated_mqs) = 0;
+                                   std::vector<MessageQueue>& all_mqs,
+                                   std::vector<MessageQueue>& allocated_mqs) = 0;
   virtual void truncateMessageQueueNotMyTopic() = 0;
 
  protected:
-  int64_t computePullFromWhereImpl(const MQMessageQueue& mq,
+  int64_t computePullFromWhereImpl(const MessageQueue& mq,
                                    ConsumeFromWhere consume_from_where,
                                    const std::string& consume_timestamp,
                                    OffsetStore& offset_store,
@@ -75,8 +75,8 @@ class RebalanceImpl {
   SubscriptionData* getSubscriptionData(const std::string& topic);
   void setSubscriptionData(const std::string& topic, std::unique_ptr<SubscriptionData> sd) noexcept;
 
-  bool getTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& mqs);
-  void setTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& mqs);
+  bool getTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs);
+  void setTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs);
 
  public:
   const std::string& consumer_group() const { return consumer_group_; }

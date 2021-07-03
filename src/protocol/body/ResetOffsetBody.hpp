@@ -21,13 +21,13 @@
 
 #include <map>  // std::map
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
 struct ResetOffsetBody {
-  std::map<MQMessageQueue, int64_t> offset_table;
+  std::map<MessageQueue, int64_t> offset_table;
 
   static std::unique_ptr<ResetOffsetBody> Decode(const ByteArray& body_data) {
     std::unique_ptr<ResetOffsetBody> body(new ResetOffsetBody());
@@ -36,8 +36,7 @@ struct ResetOffsetBody {
     // FIXME: object as key
     for (const auto& mq_data : offset_table.getMemberNames()) {
       Json::Value mq_object = JsonSerializer::FromJson(mq_data);
-      MQMessageQueue mq(mq_object["topic"].asString(), mq_object["brokerName"].asString(),
-                        mq_object["queueId"].asInt());
+      MessageQueue mq(mq_object["topic"].asString(), mq_object["brokerName"].asString(), mq_object["queueId"].asInt());
       int64_t offset = offset_table[mq_data].asInt64();
       body->offset_table.emplace(std::move(mq), offset);
     }

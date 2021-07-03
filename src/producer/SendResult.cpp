@@ -28,7 +28,7 @@ std::string SendResult::toString() const {
   ss << ", offsetMsgId:" << offset_msg_id_;
   ss << ", queueOffset:" << queue_offset_;
   ss << ", transactionId:" << transaction_id_;
-  ss << ", messageQueue:" << message_queue_.toString();
+  ss << ", messageQueue:" << message_queue_.ToString();
   return ss.str();
 }
 

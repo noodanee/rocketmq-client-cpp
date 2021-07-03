@@ -31,21 +31,21 @@ class RemoteBrokerOffsetStore : public OffsetStore {
   virtual ~RemoteBrokerOffsetStore();
 
   void load() override;
-  void updateOffset(const MQMessageQueue& mq, int64_t offset, bool increaseOnly) override;
-  int64_t readOffset(const MQMessageQueue& mq, ReadOffsetType type) override;
-  void persist(const MQMessageQueue& mq) override;
-  void persistAll(std::vector<MQMessageQueue>& mqs) override;
-  void removeOffset(const MQMessageQueue& mq) override;
+  void updateOffset(const MessageQueue& mq, int64_t offset, bool increaseOnly) override;
+  int64_t readOffset(const MessageQueue& mq, ReadOffsetType type) override;
+  void persist(const MessageQueue& mq) override;
+  void persistAll(std::vector<MessageQueue>& mqs) override;
+  void removeOffset(const MessageQueue& mq) override;
 
  private:
-  void updateConsumeOffsetToBroker(const MQMessageQueue& mq, int64_t offset);
-  int64_t fetchConsumeOffsetFromBroker(const MQMessageQueue& mq);
+  void updateConsumeOffsetToBroker(const MessageQueue& mq, int64_t offset);
+  int64_t fetchConsumeOffsetFromBroker(const MessageQueue& mq);
 
  private:
   MQClientInstance* client_instance_;
   std::string group_name_;
 
-  std::map<MQMessageQueue, int64_t> offset_table_;
+  std::map<MessageQueue, int64_t> offset_table_;
   std::mutex lock_;
 };
 

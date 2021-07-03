@@ -64,7 +64,7 @@ void ConsumeMessageOrderlyService::unlockAllMQ() {
   consumer_->rebalance_impl()->unlockAll(false);
 }
 
-bool ConsumeMessageOrderlyService::lockOneMQ(const MQMessageQueue& mq) {
+bool ConsumeMessageOrderlyService::lockOneMQ(const MessageQueue& mq) {
   return consumer_->rebalance_impl()->lock(mq);
 }
 
@@ -108,7 +108,7 @@ void ConsumeMessageOrderlyService::tryLockLaterAndReconsume(ProcessQueuePtr proc
 void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) {
   const auto& messageQueue = processQueue->message_queue();
   if (processQueue->dropped()) {
-    LOG_WARN_NEW("run, the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
+    LOG_WARN_NEW("run, the message queue not be able to consume, because it's dropped. {}", messageQueue.ToString());
     return;
   }
 
@@ -120,18 +120,18 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
     auto beginTime = UtilAll::currentTimeMillis();
     for (bool continueConsume = true; continueConsume;) {
       if (processQueue->dropped()) {
-        LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
+        LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.ToString());
         break;
       }
 
       if (CLUSTERING == consumer_->messageModel() && !processQueue->locked()) {
-        LOG_WARN_NEW("the message queue not locked, so consume later, {}", messageQueue.toString());
+        LOG_WARN_NEW("the message queue not locked, so consume later, {}", messageQueue.ToString());
         tryLockLaterAndReconsume(processQueue, 10);
         break;
       }
 
       if (CLUSTERING == consumer_->messageModel() && processQueue->IsLockExpired()) {
-        LOG_WARN_NEW("the message queue lock expired, so consume later, {}", messageQueue.toString());
+        LOG_WARN_NEW("the message queue lock expired, so consume later, {}", messageQueue.ToString());
         tryLockLaterAndReconsume(processQueue, 10);
         break;
       }
@@ -152,7 +152,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
           std::lock_guard<std::timed_mutex> lock(processQueue->consume_mutex());
           if (processQueue->dropped()) {
             LOG_WARN_NEW("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
-                         messageQueue.toString());
+                         messageQueue.ToString());
             break;
           }
           status = message_listener_(msgs);
@@ -184,7 +184,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
     }
   } else {
     if (processQueue->dropped()) {
-      LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
+      LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.ToString());
       return;
     }
 

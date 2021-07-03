@@ -17,6 +17,7 @@
 #ifndef ROCKETMQ_PROTOCOL_CONSUMERRUNNINGINFO_HPP_
 #define ROCKETMQ_PROTOCOL_CONSUMERRUNNINGINFO_HPP_
 
+#include "MessageQueue.hpp"
 #include "ProcessQueueInfo.hpp"
 #include "protocol/Serializer.hpp"
 #include "protocol/body/SubscriptionData.hpp"
@@ -27,7 +28,7 @@ namespace rocketmq {
 struct ConsumerRunningInfo {
   std::map<std::string, std::string> properties;
   std::vector<SubscriptionData> subscription_set;
-  std::map<MQMessageQueue, ProcessQueueInfo> message_queue_table;
+  std::map<MessageQueue, ProcessQueueInfo> message_queue_table;
   // std::map<std::string, ConsumeStatus> statusTable;
   std::string jstack;
 

@@ -90,7 +90,7 @@ class LocalTransactionListenerInner : public TransactionListener {
 
 class SelectMessageQueueInner : public MessageQueueSelector {
  public:
-  MQMessageQueue select(const std::vector<MQMessageQueue>& mqs, const MQMessage& msg, void* arg) override {
+  MessageQueue select(const std::vector<MessageQueue>& mqs, const MQMessage& msg, void* arg) override {
     std::string shardingKey = UtilAll::to_string((char*)arg);
     auto index = std::hash<std::string>{}(shardingKey) % mqs.size();
     return mqs[index % mqs.size()];
@@ -101,9 +101,9 @@ class SelectMessageQueue : public MessageQueueSelector {
  public:
   SelectMessageQueue(QueueSelectorCallback callback) { callback_ = callback; }
 
-  MQMessageQueue select(const std::vector<MQMessageQueue>& mqs, const MQMessage& msg, void* arg) override {
+  MessageQueue select(const std::vector<MessageQueue>& mqs, const MQMessage& msg, void* arg) override {
     auto* message = reinterpret_cast<CMessage*>(const_cast<MQMessage*>(&msg));
-    // Get the index of sending MQMessageQueue through callback function.
+    // Get the index of sending MessageQueue through callback function.
     auto index = callback_(mqs.size(), message, arg);
     return mqs[index];
   }

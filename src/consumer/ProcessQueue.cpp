@@ -17,7 +17,7 @@
 #include "ProcessQueue.h"
 
 #include "Logging.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "UtilAll.h"
 #include "protocol/body/ProcessQueueInfo.hpp"
 
@@ -30,7 +30,7 @@ const uint64_t kPullMaxIdleTime = 120000;          // ms
 
 namespace rocketmq {
 
-ProcessQueue::ProcessQueue(const MQMessageQueue& message_queue)
+ProcessQueue::ProcessQueue(const MessageQueue& message_queue)
     : message_queue_(message_queue),
       last_pull_timestamp_(UtilAll::currentTimeMillis()),
       last_consume_timestamp_(UtilAll::currentTimeMillis()),

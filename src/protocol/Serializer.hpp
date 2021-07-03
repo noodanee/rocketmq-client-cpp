@@ -19,15 +19,15 @@
 
 #include <json/json.h>
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
-inline Json::Value ToJson(const MQMessageQueue& mq) {
+inline Json::Value ToJson(const MessageQueue& message_queue) {
   Json::Value message_queue_object;
-  message_queue_object["topic"] = mq.topic();
-  message_queue_object["brokerName"] = mq.broker_name();
-  message_queue_object["queueId"] = mq.queue_id();
+  message_queue_object["topic"] = message_queue.topic();
+  message_queue_object["brokerName"] = message_queue.broker_name();
+  message_queue_object["queueId"] = message_queue.queue_id();
   return message_queue_object;
 }
 

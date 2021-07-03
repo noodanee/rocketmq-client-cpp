@@ -18,7 +18,7 @@
 #define ROCKETMQ_MQADMIN_H_
 
 #include "MQMessageExt.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "QueryResult.h"
 
 namespace rocketmq {
@@ -45,7 +45,7 @@ class ROCKETMQCLIENT_API MQAdmin {
    * @param timestamp from when in milliseconds.
    * @return offset
    */
-  virtual int64_t searchOffset(const MQMessageQueue& mq, int64_t timestamp) = 0;
+  virtual int64_t searchOffset(const MessageQueue& mq, int64_t timestamp) = 0;
 
   /**
    * Gets the max offset
@@ -53,7 +53,7 @@ class ROCKETMQCLIENT_API MQAdmin {
    * @param mq Instance of MessageQueue
    * @return the max offset
    */
-  virtual int64_t maxOffset(const MQMessageQueue& mq) = 0;
+  virtual int64_t maxOffset(const MessageQueue& mq) = 0;
 
   /**
    * Gets the minimum offset
@@ -61,7 +61,7 @@ class ROCKETMQCLIENT_API MQAdmin {
    * @param mq Instance of MessageQueue
    * @return the minimum offset
    */
-  virtual int64_t minOffset(const MQMessageQueue& mq) = 0;
+  virtual int64_t minOffset(const MessageQueue& mq) = 0;
 
   /**
    * Gets the earliest stored message time
@@ -69,7 +69,7 @@ class ROCKETMQCLIENT_API MQAdmin {
    * @param mq Instance of MessageQueue
    * @return the time in microseconds
    */
-  virtual int64_t earliestMsgStoreTime(const MQMessageQueue& mq) = 0;
+  virtual int64_t earliestMsgStoreTime(const MessageQueue& mq) = 0;
 
   /**
    * Query message according to message id

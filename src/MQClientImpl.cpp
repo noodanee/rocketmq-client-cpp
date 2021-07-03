@@ -55,19 +55,19 @@ void MQClientImpl::createTopic(const std::string& key, const std::string& newTop
   }
 }
 
-int64_t MQClientImpl::searchOffset(const MQMessageQueue& mq, int64_t timestamp) {
+int64_t MQClientImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
   return client_instance_->getMQAdminImpl()->searchOffset(mq, timestamp);
 }
 
-int64_t MQClientImpl::maxOffset(const MQMessageQueue& mq) {
+int64_t MQClientImpl::maxOffset(const MessageQueue& mq) {
   return client_instance_->getMQAdminImpl()->maxOffset(mq);
 }
 
-int64_t MQClientImpl::minOffset(const MQMessageQueue& mq) {
+int64_t MQClientImpl::minOffset(const MessageQueue& mq) {
   return client_instance_->getMQAdminImpl()->minOffset(mq);
 }
 
-int64_t MQClientImpl::earliestMsgStoreTime(const MQMessageQueue& mq) {
+int64_t MQClientImpl::earliestMsgStoreTime(const MessageQueue& mq) {
   return client_instance_->getMQAdminImpl()->earliestMsgStoreTime(mq);
 }
 

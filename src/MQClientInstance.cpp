@@ -137,7 +137,7 @@ TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std:
     }
 
     // sort, make brokerName is staggered.
-    std::sort(mqList.begin(), mqList.end(), [](const MQMessageQueue& a, const MQMessageQueue& b) {
+    std::sort(mqList.begin(), mqList.end(), [](const MessageQueue& a, const MessageQueue& b) {
       auto result = a.queue_id() - b.queue_id();
       if (result == 0) {
         result = a.broker_name().compare(b.broker_name());
@@ -151,14 +151,14 @@ TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std:
   return info;
 }
 
-std::vector<MQMessageQueue> MQClientInstance::topicRouteData2TopicSubscribeInfo(const std::string& topic,
-                                                                                TopicRouteDataPtr route) {
-  std::vector<MQMessageQueue> mqList;
+std::vector<MessageQueue> MQClientInstance::topicRouteData2TopicSubscribeInfo(const std::string& topic,
+                                                                              TopicRouteDataPtr route) {
+  std::vector<MessageQueue> mqList;
   const auto& queueDatas = route->queue_datas;
   for (const auto& qd : queueDatas) {
     if (PermName::isReadable(qd.perm)) {
       for (int i = 0; i < qd.read_queue_nums; i++) {
-        MQMessageQueue mq(topic, qd.broker_name, i);
+        MessageQueue mq(topic, qd.broker_name, i);
         mqList.push_back(mq);
       }
     }
@@ -451,7 +451,7 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
 
           // update subscribe info
           if (getConsumerTableSize() > 0) {
-            std::vector<MQMessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
+            std::vector<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
             updateConsumerTopicSubscribeInfo(topic, subscribeInfo);
           }
 
@@ -718,7 +718,7 @@ void MQClientInstance::getTopicListFromConsumerSubscription(std::set<std::string
 }
 
 void MQClientInstance::updateConsumerTopicSubscribeInfo(const std::string& topic,
-                                                        std::vector<MQMessageQueue> subscribeInfo) {
+                                                        std::vector<MessageQueue> subscribeInfo) {
   std::lock_guard<std::mutex> lock(consumer_table_mutex_);
   for (auto& it : consumer_table_) {
     it.second->updateTopicSubscribeInfo(topic, subscribeInfo);
@@ -904,7 +904,7 @@ std::string MQClientInstance::findBrokerAddrByTopic(const std::string& topic) {
 
 void MQClientInstance::resetOffset(const std::string& group,
                                    const std::string& topic,
-                                   const std::map<MQMessageQueue, int64_t>& offsetTable) {
+                                   const std::map<MessageQueue, int64_t>& offsetTable) {
   DefaultMQPushConsumerImpl* consumer = nullptr;
   try {
     auto* impl = selectConsumer(group);

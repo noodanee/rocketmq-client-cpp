@@ -56,21 +56,21 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumer : public DefaultLitePullConsume
   void subscribe(const std::string& topic, const MessageSelector& selector);
   void unsubscribe(const std::string& topic);
 
-  std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic);
-  void assign(std::vector<MQMessageQueue>& message_queues);
+  std::vector<MessageQueue> fetchMessageQueues(const std::string& topic);
+  void assign(std::vector<MessageQueue>& message_queues);
 
-  void seek(const MQMessageQueue& message_queue, int64_t offset);
-  void seekToBegin(const MQMessageQueue& message_queue);
-  void seekToEnd(const MQMessageQueue& message_queue);
+  void seek(const MessageQueue& message_queue, int64_t offset);
+  void seekToBegin(const MessageQueue& message_queue);
+  void seekToEnd(const MessageQueue& message_queue);
 
-  int64_t offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp);
+  int64_t offsetForTimestamp(const MessageQueue& message_queue, int64_t timestamp);
 
-  void pause(const std::vector<MQMessageQueue>& message_queues);
-  void resume(const std::vector<MQMessageQueue>& message_queues);
+  void pause(const std::vector<MessageQueue>& message_queues);
+  void resume(const std::vector<MessageQueue>& message_queues);
 
   void commitSync();
 
-  int64_t committed(const MQMessageQueue& message_queue);
+  int64_t committed(const MessageQueue& message_queue);
 
   void registerTopicMessageQueueChangeListener(const std::string& topic,
                                                TopicMessageQueueChangeListener* topic_message_queue_change_listener);

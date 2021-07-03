@@ -21,7 +21,7 @@
 
 #include "CommunicationMode.h"
 #include "MQClientInstance.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "PullResult.h"
 #include "common/ResultState.hpp"
 #include "protocol/body/SubscriptionData.hpp"
@@ -35,7 +35,7 @@ class PullAPIWrapper {
  public:
   PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group);
 
-  std::unique_ptr<PullResult> PullKernelImpl(const MQMessageQueue& message_queue,
+  std::unique_ptr<PullResult> PullKernelImpl(const MessageQueue& message_queue,
                                              const std::string& expression,
                                              const std::string& expression_type,
                                              int64_t version,
@@ -48,20 +48,20 @@ class PullAPIWrapper {
                                              CommunicationMode communication_mode,
                                              PullCallback pull_callback);
 
-  std::unique_ptr<PullResult> ProcessPullResult(const MQMessageQueue& mq,
+  std::unique_ptr<PullResult> ProcessPullResult(const MessageQueue& mq,
                                                 std::unique_ptr<PullResult> pull_result,
                                                 SubscriptionData* subscriptionData);
 
  private:
-  int RecalculatePullFromWhichNode(const MQMessageQueue& message_queue);
+  int RecalculatePullFromWhichNode(const MessageQueue& message_queue);
 
-  void UpdatePullFromWhichNode(const MQMessageQueue& message_queue, int broker_id);
+  void UpdatePullFromWhichNode(const MessageQueue& message_queue, int broker_id);
 
  private:
   MQClientInstance* client_instance_;
   std::string consumer_group_;
   std::mutex lock_;
-  std::map<MQMessageQueue, int /* brokerId */> pull_from_which_node_table_;
+  std::map<MessageQueue, int /* brokerId */> pull_from_which_node_table_;
 };
 
 }  // namespace rocketmq

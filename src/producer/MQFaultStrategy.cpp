@@ -18,8 +18,8 @@
 
 namespace rocketmq {
 
-const MQMessageQueue& MQFaultStrategy::SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
-                                                             const std::string& last_broker_name) {
+const MessageQueue& MQFaultStrategy::SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
+                                                           const std::string& last_broker_name) {
   if (enable_) {
     {
       auto index = topic_publish_info->getSendWhichQueue().fetch_add(1);
@@ -37,10 +37,10 @@ const MQMessageQueue& MQFaultStrategy::SelectOneMessageQueue(const TopicPublishI
     int write_queue_nums = topic_publish_info->getQueueIdByBroker(not_best_broker);
     if (write_queue_nums > 0) {
       // FIXME: why modify origin mq object, not return a new one?
-      static thread_local MQMessageQueue message_queue;
+      static thread_local MessageQueue message_queue;
       message_queue = topic_publish_info->selectOneMessageQueue();
       if (!not_best_broker.empty()) {
-        message_queue.set_broker_name(not_best_broker);
+        message_queue.set_broker_name(std::move(not_best_broker));
         message_queue.set_queue_id(topic_publish_info->getSendWhichQueue().fetch_add(1) % write_queue_nums);
       }
       return message_queue;

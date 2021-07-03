@@ -63,17 +63,17 @@ void LocalFileOffsetStore::load() {
     for (const auto& it : offsetTable) {
       const auto& mq = it.first;
       const auto offset = it.second;
-      LOG_INFO_NEW("load consumer's offset, {} {} {}", group_name_, mq.toString(), offset);
+      LOG_INFO_NEW("load consumer's offset, {} {} {}", group_name_, mq.ToString(), offset);
     }
   }
 }
 
-void LocalFileOffsetStore::updateOffset(const MQMessageQueue& mq, int64_t offset, bool increaseOnly) {
+void LocalFileOffsetStore::updateOffset(const MessageQueue& mq, int64_t offset, bool increaseOnly) {
   std::lock_guard<std::mutex> lock(lock_);
   offset_table_[mq] = offset;
 }
 
-int64_t LocalFileOffsetStore::readOffset(const MQMessageQueue& mq, ReadOffsetType type) {
+int64_t LocalFileOffsetStore::readOffset(const MessageQueue& mq, ReadOffsetType type) {
   switch (type) {
     case MEMORY_FIRST_THEN_STORE:
     case READ_FROM_MEMORY: {
@@ -103,14 +103,14 @@ int64_t LocalFileOffsetStore::readOffset(const MQMessageQueue& mq, ReadOffsetTyp
   return -1;
 }
 
-void LocalFileOffsetStore::persist(const MQMessageQueue& mq) {}
+void LocalFileOffsetStore::persist(const MessageQueue& mq) {}
 
-void LocalFileOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
+void LocalFileOffsetStore::persistAll(std::vector<MessageQueue>& mqs) {
   if (mqs.empty()) {
     return;
   }
 
-  std::map<MQMessageQueue, int64_t> offsetTable;
+  std::map<MessageQueue, int64_t> offsetTable;
   {
     std::lock_guard<std::mutex> lock(lock_);
     offsetTable = offset_table_;
@@ -143,20 +143,20 @@ void LocalFileOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
   }
 }
 
-void LocalFileOffsetStore::removeOffset(const MQMessageQueue& mq) {}
+void LocalFileOffsetStore::removeOffset(const MessageQueue& mq) {}
 
-std::map<MQMessageQueue, int64_t> LocalFileOffsetStore::readLocalOffset() {
+std::map<MessageQueue, int64_t> LocalFileOffsetStore::readLocalOffset() {
   std::lock_guard<std::mutex> lock(file_mutex_);
   std::ifstream ifstrm(store_path_, std::ios::binary | std::ios::in);
   if (ifstrm.is_open() && !ifstrm.eof()) {
     try {
       Json::Value root = JsonSerializer::FromJson(ifstrm);
-      std::map<MQMessageQueue, int64_t> offsetTable;
+      std::map<MessageQueue, int64_t> offsetTable;
       auto& jOffsetTable = root["offsetTable"];
       for (auto& strMQ : jOffsetTable.getMemberNames()) {
         auto& offset = jOffsetTable[strMQ];
         Json::Value jMQ = JsonSerializer::FromJson(strMQ);
-        MQMessageQueue mq(jMQ["topic"].asString(), jMQ["brokerName"].asString(), jMQ["queueId"].asInt());
+        MessageQueue mq(jMQ["topic"].asString(), jMQ["brokerName"].asString(), jMQ["queueId"].asInt());
         offsetTable.emplace(std::move(mq), offset.asInt64());
       }
       return offsetTable;
@@ -167,8 +167,8 @@ std::map<MQMessageQueue, int64_t> LocalFileOffsetStore::readLocalOffset() {
   return readLocalOffsetBak();
 }
 
-std::map<MQMessageQueue, int64_t> LocalFileOffsetStore::readLocalOffsetBak() {
-  std::map<MQMessageQueue, int64_t> offsetTable;
+std::map<MessageQueue, int64_t> LocalFileOffsetStore::readLocalOffsetBak() {
+  std::map<MessageQueue, int64_t> offsetTable;
   std::ifstream ifstrm(store_path_ + ".bak", std::ios::binary | std::ios::in);
   if (ifstrm.is_open()) {
     if (!ifstrm.eof()) {
@@ -178,7 +178,7 @@ std::map<MQMessageQueue, int64_t> LocalFileOffsetStore::readLocalOffsetBak() {
         for (auto& strMQ : jOffsetTable.getMemberNames()) {
           auto& offset = jOffsetTable[strMQ];
           Json::Value jMQ = JsonSerializer::FromJson(strMQ);
-          MQMessageQueue mq(jMQ["topic"].asString(), jMQ["brokerName"].asString(), jMQ["queueId"].asInt());
+          MessageQueue mq(jMQ["topic"].asString(), jMQ["brokerName"].asString(), jMQ["queueId"].asInt());
           offsetTable.emplace(std::move(mq), offset.asInt64());
         }
       } catch (const std::exception& e) {

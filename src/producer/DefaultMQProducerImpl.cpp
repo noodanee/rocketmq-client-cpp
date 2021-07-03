@@ -35,12 +35,12 @@
 #include "MQClientManager.h"
 #include "MQException.h"
 #include "MQFaultStrategy.h"
-#include "MQMessageQueue.h"
 #include "MQProtos.h"
 #include "Message.h"
 #include "MessageBatch.h"
 #include "MessageClientIDSetter.h"
 #include "MessageDecoder.h"
+#include "MessageQueue.hpp"
 #include "MessageSysFlag.h"
 #include "RequestFutureTable.h"
 #include "ResultState.hpp"
@@ -140,12 +140,12 @@ void DefaultMQProducerImpl::shutdown() {
   }
 }
 
-std::vector<MQMessageQueue> DefaultMQProducerImpl::FetchPublishMessageQueues(const std::string& topic) {
+std::vector<MessageQueue> DefaultMQProducerImpl::FetchPublishMessageQueues(const std::string& topic) {
   auto topicPublishInfo = client_instance_->tryToFindTopicPublishInfo(topic);
   if (topicPublishInfo != nullptr) {
     return topicPublishInfo->getMessageQueueList();
   }
-  return std::vector<MQMessageQueue>{};
+  return std::vector<MessageQueue>{};
 }
 
 SendResult DefaultMQProducerImpl::Send(const MessagePtr& message, int64_t timeout) {
@@ -157,9 +157,7 @@ SendResult DefaultMQProducerImpl::Send(const MessagePtr& message, int64_t timeou
   }
 }
 
-SendResult DefaultMQProducerImpl::Send(const MessagePtr& message,
-                                       const MQMessageQueue& message_queue,
-                                       int64_t timeout) {
+SendResult DefaultMQProducerImpl::Send(const MessagePtr& message, const MessageQueue& message_queue, int64_t timeout) {
   try {
     return *SendToQueueImpl(message, message_queue, CommunicationMode::kSync, nullptr, timeout);
   } catch (MQException& e) {
@@ -185,7 +183,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message, SendCallback send_ca
 }
 
 void DefaultMQProducerImpl::Send(const MessagePtr& message,
-                                 const MQMessageQueue& message_queue,
+                                 const MessageQueue& message_queue,
                                  SendCallback send_callback,
                                  int64_t timeout) noexcept {
   async_send_executor_->submit(
@@ -217,7 +215,7 @@ void DefaultMQProducerImpl::SendOneway(const MessagePtr& message) {
   }
 }
 
-void DefaultMQProducerImpl::SendOneway(const MessagePtr& message, const MQMessageQueue& message_queue) {
+void DefaultMQProducerImpl::SendOneway(const MessagePtr& message, const MessageQueue& message_queue) {
   try {
     (void)SendToQueueImpl(message, message_queue, CommunicationMode::kAsync, nullptr, config().send_msg_timeout());
   } catch (MQBrokerException& e) {
@@ -473,7 +471,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendDefaultImpl(const Message
 }
 
 std::unique_ptr<SendResult> DefaultMQProducerImpl::SendToQueueImpl(const MessagePtr& message,
-                                                                   const MQMessageQueue& message_queue,
+                                                                   const MessageQueue& message_queue,
                                                                    CommunicationMode communication_mode,
                                                                    SendCallback send_callback,
                                                                    int64_t timeout) {
@@ -507,7 +505,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendSelectQueueImpl(const Mes
 }
 
 std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessagePtr& message,
-                                                                  const MQMessageQueue& message_queue,
+                                                                  const MessageQueue& message_queue,
                                                                   CommunicationMode communication_mode,
                                                                   SendCallback send_callback,
                                                                   int64_t timeout) {
@@ -568,7 +566,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
         THROW_MQEXCEPTION(RemotingTooMuchRequestException, "sendKernelImpl call timeout", -1);
       }
 
-      LOG_DEBUG_NEW("send to mq: {}", message_queue.toString());
+      LOG_DEBUG_NEW("send to mq: {}", message_queue.ToString());
       return client_instance_->getMQClientAPIImpl()->sendMessage(broker_addr, message_queue.broker_name(), message,
                                                                  std::move(request_header), timeout, communication_mode,
                                                                  std::move(send_callback));
@@ -803,7 +801,7 @@ void DefaultMQProducerImpl::Request(const MessagePtr& message,
 }
 
 MessagePtr DefaultMQProducerImpl::Request(const MessagePtr& message,
-                                          const MQMessageQueue& message_queue,
+                                          const MessageQueue& message_queue,
                                           int64_t timeout) {
   return SyncRequestImpl(
       message, timeout,
@@ -813,7 +811,7 @@ MessagePtr DefaultMQProducerImpl::Request(const MessagePtr& message,
 }
 
 void DefaultMQProducerImpl::Request(const MessagePtr& message,
-                                    const MQMessageQueue& message_queue,
+                                    const MessageQueue& message_queue,
                                     RequestCallback request_callback,
                                     int64_t timeout) noexcept {
   AsyncRequestImpl(

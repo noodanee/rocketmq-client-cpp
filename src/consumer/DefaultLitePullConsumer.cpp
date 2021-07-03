@@ -31,7 +31,7 @@ class TopicMessageQueuesChangedListenerImpl {
  public:
   TopicMessageQueuesChangedListenerImpl(TopicMessageQueueChangeListener* listener) : listener_(listener) {}
 
-  void operator()(const std::string& topic, const std::vector<MQMessageQueue>& message_queues) noexcept {
+  void operator()(const std::string& topic, const std::vector<MessageQueue>& message_queues) noexcept {
     listener_->onChanged(topic, message_queues);
   }
 
@@ -98,35 +98,35 @@ void DefaultLitePullConsumer::unsubscribe(const std::string& topic) {
   pull_consumer_impl_->Unsubscribe(topic);
 }
 
-std::vector<MQMessageQueue> DefaultLitePullConsumer::fetchMessageQueues(const std::string& topic) {
+std::vector<MessageQueue> DefaultLitePullConsumer::fetchMessageQueues(const std::string& topic) {
   return pull_consumer_impl_->FetchMessageQueues(topic);
 }
 
-void DefaultLitePullConsumer::assign(std::vector<MQMessageQueue>& message_queues) {
+void DefaultLitePullConsumer::assign(std::vector<MessageQueue>& message_queues) {
   pull_consumer_impl_->Assign(message_queues);
 }
 
-void DefaultLitePullConsumer::seek(const MQMessageQueue& message_queue, int64_t offset) {
+void DefaultLitePullConsumer::seek(const MessageQueue& message_queue, int64_t offset) {
   pull_consumer_impl_->Seek(message_queue, offset);
 }
 
-void DefaultLitePullConsumer::seekToBegin(const MQMessageQueue& message_queue) {
+void DefaultLitePullConsumer::seekToBegin(const MessageQueue& message_queue) {
   pull_consumer_impl_->SeekToBegin(message_queue);
 }
 
-void DefaultLitePullConsumer::seekToEnd(const MQMessageQueue& message_queue) {
+void DefaultLitePullConsumer::seekToEnd(const MessageQueue& message_queue) {
   pull_consumer_impl_->SeekToEnd(message_queue);
 }
 
-int64_t DefaultLitePullConsumer::offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) {
+int64_t DefaultLitePullConsumer::offsetForTimestamp(const MessageQueue& message_queue, int64_t timestamp) {
   return pull_consumer_impl_->OffsetForTimestamp(message_queue, timestamp);
 }
 
-void DefaultLitePullConsumer::pause(const std::vector<MQMessageQueue>& message_queues) {
+void DefaultLitePullConsumer::pause(const std::vector<MessageQueue>& message_queues) {
   pull_consumer_impl_->Pause(message_queues);
 }
 
-void DefaultLitePullConsumer::resume(const std::vector<MQMessageQueue>& message_queues) {
+void DefaultLitePullConsumer::resume(const std::vector<MessageQueue>& message_queues) {
   pull_consumer_impl_->Resume(message_queues);
 }
 
@@ -134,7 +134,7 @@ void DefaultLitePullConsumer::commitSync() {
   pull_consumer_impl_->CommitSync();
 }
 
-int64_t DefaultLitePullConsumer::committed(const MQMessageQueue& message_queue) {
+int64_t DefaultLitePullConsumer::committed(const MessageQueue& message_queue) {
   return pull_consumer_impl_->Committed(message_queue);
 }
 

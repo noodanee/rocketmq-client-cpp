@@ -18,7 +18,7 @@
 #define ROCKETMQ_CLIENTREMOTINGPROCESSOR_H_
 
 #include "MQClientInstance.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "RequestProcessor.h"
 
 namespace rocketmq {

@@ -221,7 +221,7 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
   auto* responseHeader = response.decodeCommandCustomHeader<SendMessageResponseHeader>();
   assert(responseHeader != nullptr);
 
-  MQMessageQueue messageQueue(msg.topic(), brokerName, responseHeader->queue_id);
+  MessageQueue messageQueue(msg.topic(), brokerName, responseHeader->queue_id);
 
   std::string uniqMsgId = MessageClientIDSetter::getUniqID(msg);
 
@@ -603,7 +603,7 @@ void MQClientAPIImpl::consumerSendMessageBack(const std::string& addr,
 
 void MQClientAPIImpl::lockBatchMQ(const std::string& addr,
                                   ConsumeQueueSet* requestBody,
-                                  std::vector<MQMessageQueue>& mqs,
+                                  std::vector<MessageQueue>& mqs,
                                   int timeoutMillis) {
   RemotingCommand request(LOCK_BATCH_MQ, nullptr);
   request.set_body(requestBody->Encode());

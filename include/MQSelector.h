@@ -18,7 +18,7 @@
 #define ROCKETMQ_MQSELECTOR_H_
 
 #include "MQMessage.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -29,7 +29,7 @@ class ROCKETMQCLIENT_API MessageQueueSelector {
  public:
   virtual ~MessageQueueSelector() = default;
 
-  virtual MQMessageQueue select(const std::vector<MQMessageQueue>& mqs, const MQMessage& msg, void* arg) = 0;
+  virtual MessageQueue select(const std::vector<MessageQueue>& mqs, const MQMessage& msg, void* arg) = 0;
 };
 
 }  // namespace rocketmq

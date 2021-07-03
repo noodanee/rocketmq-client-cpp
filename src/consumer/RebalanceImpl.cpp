@@ -52,7 +52,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
   // msg model
   switch (message_model_) {
     case BROADCASTING: {
-      std::vector<MQMessageQueue> mqSet;
+      std::vector<MessageQueue> mqSet;
       if (!getTopicSubscribeInfo(topic, mqSet)) {
         LOG_WARN_NEW("doRebalance, {}, but the topic[{}] not exist.", consumer_group_, topic);
         return;
@@ -63,7 +63,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
       }
     } break;
     case CLUSTERING: {
-      std::vector<MQMessageQueue> mqAll;
+      std::vector<MessageQueue> mqAll;
       if (!getTopicSubscribeInfo(topic, mqAll)) {
         if (!UtilAll::isRetryTopic(topic)) {
           LOG_WARN_NEW("doRebalance, {}, but the topic[{}] not exist.", consumer_group_, topic);
@@ -85,7 +85,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
       }
 
       // allocate mqs
-      std::vector<MQMessageQueue> allocateResult;
+      std::vector<MessageQueue> allocateResult;
       try {
         allocateResult = allocate_mq_strategy_(client_instance_->getClientId(), mqAll, cidAll);
       } catch (MQException& e) {
@@ -102,7 +102,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
             consumer_group_, topic, client_instance_->getClientId(), mqAll.size(), cidAll.size(),
             allocateResult.size());
         for (auto& mq : allocateResult) {
-          LOG_INFO_NEW("allocate mq:{}", mq.toString());
+          LOG_INFO_NEW("allocate mq:{}", mq.ToString());
         }
         messageQueueChanged(topic, mqAll, allocateResult);
       }
@@ -112,7 +112,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
   }
 }
 
-int64_t RebalanceImpl::computePullFromWhereImpl(const MQMessageQueue& mq,
+int64_t RebalanceImpl::computePullFromWhereImpl(const MessageQueue& mq,
                                                 ConsumeFromWhere consume_from_where,
                                                 const std::string& consume_timestamp,
                                                 OffsetStore& offset_store,
@@ -195,7 +195,7 @@ void RebalanceImpl::setSubscriptionData(const std::string& topic,
   }
 }
 
-bool RebalanceImpl::getTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& mqs) {
+bool RebalanceImpl::getTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs) {
   std::lock_guard<std::mutex> lock(topic_subscribe_info_table_mutex_);
   const auto& it = topic_subscribe_info_table_.find(topic);
   if (it != topic_subscribe_info_table_.end()) {
@@ -205,7 +205,7 @@ bool RebalanceImpl::getTopicSubscribeInfo(const std::string& topic, std::vector<
   return false;
 }
 
-void RebalanceImpl::setTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& mqs) {
+void RebalanceImpl::setTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs) {
   if (subscription_inner_.find(topic) == subscription_inner_.end()) {
     return;
   }
@@ -217,7 +217,7 @@ void RebalanceImpl::setTopicSubscribeInfo(const std::string& topic, std::vector<
 
   // log
   for (const auto& mq : mqs) {
-    LOG_DEBUG_NEW("topic [{}] has :{}", topic, mq.toString());
+    LOG_DEBUG_NEW("topic [{}] has :{}", topic, mq.ToString());
   }
 }
 

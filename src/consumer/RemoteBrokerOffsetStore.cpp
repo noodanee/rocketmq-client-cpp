@@ -35,7 +35,7 @@ RemoteBrokerOffsetStore::~RemoteBrokerOffsetStore() {
 
 void RemoteBrokerOffsetStore::load() {}
 
-void RemoteBrokerOffsetStore::updateOffset(const MQMessageQueue& mq, int64_t offset, bool increaseOnly) {
+void RemoteBrokerOffsetStore::updateOffset(const MessageQueue& mq, int64_t offset, bool increaseOnly) {
   std::lock_guard<std::mutex> lock(lock_);
   const auto& it = offset_table_.find(mq);
   if (it == offset_table_.end() || !increaseOnly || offset > it->second) {
@@ -43,7 +43,7 @@ void RemoteBrokerOffsetStore::updateOffset(const MQMessageQueue& mq, int64_t off
   }
 }
 
-int64_t RemoteBrokerOffsetStore::readOffset(const MQMessageQueue& mq, ReadOffsetType type) {
+int64_t RemoteBrokerOffsetStore::readOffset(const MessageQueue& mq, ReadOffsetType type) {
   switch (type) {
     case MEMORY_FIRST_THEN_STORE:
     case READ_FROM_MEMORY: {
@@ -76,7 +76,7 @@ int64_t RemoteBrokerOffsetStore::readOffset(const MQMessageQueue& mq, ReadOffset
   return -1;
 }
 
-void RemoteBrokerOffsetStore::persist(const MQMessageQueue& mq) {
+void RemoteBrokerOffsetStore::persist(const MessageQueue& mq) {
   int64_t offset = -1;
   {
     std::lock_guard<std::mutex> lock(lock_);
@@ -90,23 +90,23 @@ void RemoteBrokerOffsetStore::persist(const MQMessageQueue& mq) {
     try {
       updateConsumeOffsetToBroker(mq, offset);
       LOG_INFO_NEW("[persist] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", group_name_,
-                   client_instance_->getClientId(), mq.toString(), offset);
+                   client_instance_->getClientId(), mq.ToString(), offset);
     } catch (MQException& e) {
       LOG_ERROR("updateConsumeOffsetToBroker error");
     }
   }
 }
 
-void RemoteBrokerOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
+void RemoteBrokerOffsetStore::persistAll(std::vector<MessageQueue>& mqs) {
   if (mqs.empty()) {
     return;
   }
 
   std::sort(mqs.begin(), mqs.end());
 
-  std::vector<MQMessageQueue> unused_mqs;
+  std::vector<MessageQueue> unused_mqs;
 
-  std::map<MQMessageQueue, int64_t> offset_table;
+  std::map<MessageQueue, int64_t> offset_table;
   {
     std::lock_guard<std::mutex> lock(lock_);
     offset_table = offset_table_;
@@ -120,9 +120,9 @@ void RemoteBrokerOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
         try {
           updateConsumeOffsetToBroker(mq, offset);
           LOG_INFO_NEW("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", group_name_,
-                       client_instance_->getClientId(), mq.toString(), offset);
+                       client_instance_->getClientId(), mq.ToString(), offset);
         } catch (std::exception& e) {
-          LOG_ERROR_NEW("updateConsumeOffsetToBroker exception, {} {}", mq.toString(), e.what());
+          LOG_ERROR_NEW("updateConsumeOffsetToBroker exception, {} {}", mq.ToString(), e.what());
         }
       } else {
         unused_mqs.push_back(mq);
@@ -134,12 +134,12 @@ void RemoteBrokerOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
     std::lock_guard<std::mutex> lock(lock_);
     for (const auto& mq : unused_mqs) {
       offset_table_.erase(mq);
-      LOG_INFO_NEW("remove unused mq, {}, {}", mq.toString(), group_name_);
+      LOG_INFO_NEW("remove unused mq, {}, {}", mq.ToString(), group_name_);
     }
   }
 }
 
-void RemoteBrokerOffsetStore::removeOffset(const MQMessageQueue& mq) {
+void RemoteBrokerOffsetStore::removeOffset(const MessageQueue& mq) {
   std::lock_guard<std::mutex> lock(lock_);
   const auto& it = offset_table_.find(mq);
   if (it != offset_table_.end()) {
@@ -147,7 +147,7 @@ void RemoteBrokerOffsetStore::removeOffset(const MQMessageQueue& mq) {
   }
 }
 
-void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MQMessageQueue& mq, int64_t offset) {
+void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq, int64_t offset) {
   std::unique_ptr<FindBrokerResult> findBrokerResult(client_instance_->findBrokerAddressInAdmin(mq.broker_name()));
 
   if (findBrokerResult == nullptr) {
@@ -173,7 +173,7 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MQMessageQueue& 
   }
 }
 
-int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MQMessageQueue& mq) {
+int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MessageQueue& mq) {
   std::unique_ptr<FindBrokerResult> findBrokerResult(client_instance_->findBrokerAddressInAdmin(mq.broker_name()));
 
   if (findBrokerResult == nullptr) {

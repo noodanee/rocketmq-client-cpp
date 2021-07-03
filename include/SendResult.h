@@ -17,7 +17,7 @@
 #ifndef ROCKETMQ_SENDRESULT_H_
 #define ROCKETMQ_SENDRESULT_H_
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -31,7 +31,7 @@ class ROCKETMQCLIENT_API SendResult {
   SendResult(const SendStatus& sendStatus,
              const std::string& msgId,
              const std::string& offsetMsgId,
-             const MQMessageQueue& messageQueue,
+             const MessageQueue& messageQueue,
              int64_t queueOffset)
       : send_status_(sendStatus),
         msg_id_(msgId),
@@ -69,8 +69,8 @@ class ROCKETMQCLIENT_API SendResult {
   const std::string& offset_msg_id() const { return offset_msg_id_; }
   void offset_msg_id(std::string& offset_msg_id) { offset_msg_id_ = offset_msg_id; }
 
-  const MQMessageQueue& message_queue() const { return message_queue_; }
-  void message_queue(const MQMessageQueue& message_queue) { message_queue_ = message_queue; }
+  const MessageQueue& message_queue() const { return message_queue_; }
+  void message_queue(const MessageQueue& message_queue) { message_queue_ = message_queue; }
 
   int64_t queue_offset() const { return queue_offset_; }
   void set_queue_offset(int64_t queue_offset) { queue_offset_ = queue_offset; }
@@ -84,7 +84,7 @@ class ROCKETMQCLIENT_API SendResult {
   SendStatus send_status_;
   std::string msg_id_;
   std::string offset_msg_id_;
-  MQMessageQueue message_queue_;
+  MessageQueue message_queue_;
   int64_t queue_offset_;
   std::string transaction_id_;
 };

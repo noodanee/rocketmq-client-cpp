@@ -19,7 +19,7 @@
 
 #include <vector>  // std::vector
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -37,11 +37,11 @@ class ROCKETMQCLIENT_API OffsetStore {
   virtual ~OffsetStore() = default;
 
   virtual void load() = 0;
-  virtual void updateOffset(const MQMessageQueue& mq, int64_t offset, bool increaseOnly) = 0;
-  virtual int64_t readOffset(const MQMessageQueue& mq, ReadOffsetType type) = 0;
-  virtual void persist(const MQMessageQueue& mq) = 0;
-  virtual void persistAll(std::vector<MQMessageQueue>& mqs) = 0;
-  virtual void removeOffset(const MQMessageQueue& mq) = 0;
+  virtual void updateOffset(const MessageQueue& mq, int64_t offset, bool increaseOnly) = 0;
+  virtual int64_t readOffset(const MessageQueue& mq, ReadOffsetType type) = 0;
+  virtual void persist(const MessageQueue& mq) = 0;
+  virtual void persistAll(std::vector<MessageQueue>& mqs) = 0;
+  virtual void removeOffset(const MessageQueue& mq) = 0;
 };
 
 }  // namespace rocketmq

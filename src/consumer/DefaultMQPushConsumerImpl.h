@@ -97,7 +97,7 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
   std::vector<SubscriptionData> subscriptions() const override;
 
   // service discovery
-  void updateTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& info) override;
+  void updateTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& info) override;
 
   // load balancing
   void doRebalance() override;
@@ -115,7 +115,7 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
 
   void ResetRetryAndNamespace(const std::vector<MessageExtPtr>& messages);
 
-  void UpdateConsumeOffset(const MQMessageQueue& message_queue, int64_t offset);
+  void UpdateConsumeOffset(const MessageQueue& message_queue, int64_t offset);
 
  private:
   void CheckConfig();

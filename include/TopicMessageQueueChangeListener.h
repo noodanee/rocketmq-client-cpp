@@ -19,7 +19,7 @@
 
 #include <vector>  // std::vector
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -27,7 +27,7 @@ class ROCKETMQCLIENT_API TopicMessageQueueChangeListener {
  public:
   virtual ~TopicMessageQueueChangeListener() = default;
 
-  virtual void onChanged(const std::string& topic, const std::vector<MQMessageQueue>& messageQueues) = 0;
+  virtual void onChanged(const std::string& topic, const std::vector<MessageQueue>& messageQueues) = 0;
 };
 
 }  // namespace rocketmq

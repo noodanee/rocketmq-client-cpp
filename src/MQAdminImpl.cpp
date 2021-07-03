@@ -24,7 +24,7 @@ namespace rocketmq {
 
 void MQAdminImpl::createTopic(const std::string& key, const std::string& newTopic, int queueNum) {}
 
-void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vector<MQMessageQueue>& mqs) {
+void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vector<MessageQueue>& mqs) {
   try {
     TopicRouteDataPtr topicRouteData(
         client_instance_->getMQClientAPIImpl()->getTopicRouteInfoFromNameServer(topic, 1000 * 3));
@@ -44,7 +44,7 @@ void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vec
   THROW_MQEXCEPTION(MQClientException, "Unknown why, Can not find Message Queue for this topic, " + topic, -1);
 }
 
-int64_t MQAdminImpl::searchOffset(const MQMessageQueue& mq, int64_t timestamp) {
+int64_t MQAdminImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
   std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
@@ -62,7 +62,7 @@ int64_t MQAdminImpl::searchOffset(const MQMessageQueue& mq, int64_t timestamp) {
   THROW_MQEXCEPTION(MQClientException, "The broker is not exist", -1);
 }
 
-int64_t MQAdminImpl::maxOffset(const MQMessageQueue& mq) {
+int64_t MQAdminImpl::maxOffset(const MessageQueue& mq) {
   std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
@@ -79,7 +79,7 @@ int64_t MQAdminImpl::maxOffset(const MQMessageQueue& mq) {
   THROW_MQEXCEPTION(MQClientException, "The broker is not exist", -1);
 }
 
-int64_t MQAdminImpl::minOffset(const MQMessageQueue& mq) {
+int64_t MQAdminImpl::minOffset(const MessageQueue& mq) {
   std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
@@ -97,7 +97,7 @@ int64_t MQAdminImpl::minOffset(const MQMessageQueue& mq) {
   THROW_MQEXCEPTION(MQClientException, "The broker[" + mq.broker_name() + "] not exist", -1);
 }
 
-int64_t MQAdminImpl::earliestMsgStoreTime(const MQMessageQueue& mq) {
+int64_t MQAdminImpl::earliestMsgStoreTime(const MessageQueue& mq) {
   std::string brokerAddr = client_instance_->findBrokerAddressInPublish(mq.broker_name());
   if (brokerAddr.empty()) {
     client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());

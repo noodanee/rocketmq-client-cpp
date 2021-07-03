@@ -31,7 +31,7 @@ namespace rocketmq {
 PullAPIWrapper::PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group)
     : client_instance_(client_instance), consumer_group_(consumer_group) {}
 
-std::unique_ptr<PullResult> PullAPIWrapper::PullKernelImpl(const MQMessageQueue& message_queue,
+std::unique_ptr<PullResult> PullAPIWrapper::PullKernelImpl(const MessageQueue& message_queue,
                                                            const std::string& expression,
                                                            const std::string& expression_type,
                                                            int64_t version,
@@ -76,7 +76,7 @@ std::unique_ptr<PullResult> PullAPIWrapper::PullKernelImpl(const MQMessageQueue&
   THROW_MQEXCEPTION(MQClientException, "The broker [" + message_queue.broker_name() + "] not exist", -1);
 }
 
-int PullAPIWrapper::RecalculatePullFromWhichNode(const MQMessageQueue& message_queue) {
+int PullAPIWrapper::RecalculatePullFromWhichNode(const MessageQueue& message_queue) {
   std::lock_guard<std::mutex> lock(lock_);
   const auto& it = pull_from_which_node_table_.find(message_queue);
   if (it != pull_from_which_node_table_.end()) {
@@ -85,7 +85,7 @@ int PullAPIWrapper::RecalculatePullFromWhichNode(const MQMessageQueue& message_q
   return MASTER_ID;
 }
 
-std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MQMessageQueue& message_queue,
+std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MessageQueue& message_queue,
                                                               std::unique_ptr<PullResult> pull_result,
                                                               SubscriptionData* subscription_data) {
   auto* pull_result_ext = dynamic_cast<PullResultExt*>(pull_result.get());
@@ -134,7 +134,7 @@ std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MQMessageQue
                                                     pull_result_ext->max_offset(), std::move(filtered_message_list)));
 }
 
-void PullAPIWrapper::UpdatePullFromWhichNode(const MQMessageQueue& message_queue, int broker_id) {
+void PullAPIWrapper::UpdatePullFromWhichNode(const MessageQueue& message_queue, int broker_id) {
   std::lock_guard<std::mutex> lock(lock_);
   pull_from_which_node_table_[message_queue] = broker_id;
 }

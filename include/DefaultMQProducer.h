@@ -22,8 +22,8 @@
 #include "DefaultMQProducerConfigProxy.h"
 #include "MQClientConfigProxy.h"
 #include "MQMessage.h"
-#include "MQMessageQueue.h"
 #include "MQSelector.h"
+#include "MessageQueue.hpp"
 #include "RPCHook.h"
 #include "RequestCallback.h"
 #include "SendCallback.h"
@@ -48,26 +48,23 @@ class ROCKETMQCLIENT_API DefaultMQProducer : public DefaultMQProducerConfigProxy
   void start();
   void shutdown();
 
-  std::vector<MQMessageQueue> fetchPublishMessageQueues(const std::string& topic);
+  std::vector<MessageQueue> fetchPublishMessageQueues(const std::string& topic);
 
   // Sync: caller will be responsible for the lifecycle of messages.
   SendResult send(MQMessage& message);
   SendResult send(MQMessage& message, long timeout);
-  SendResult send(MQMessage& message, const MQMessageQueue& message_queue);
-  SendResult send(MQMessage& message, const MQMessageQueue& message_queue, long timeout);
+  SendResult send(MQMessage& message, const MessageQueue& message_queue);
+  SendResult send(MQMessage& message, const MessageQueue& message_queue, long timeout);
 
   // Async: don't delete msg object, until callback occur.
   void send(MQMessage& message, SendCallback* send_callback) noexcept;
   void send(MQMessage& message, SendCallback* send_callback, long timeout) noexcept;
-  void send(MQMessage& message, const MQMessageQueue& message_queue, SendCallback* send_callback) noexcept;
-  void send(MQMessage& message,
-            const MQMessageQueue& message_queue,
-            SendCallback* send_callback,
-            long timeout) noexcept;
+  void send(MQMessage& message, const MessageQueue& message_queue, SendCallback* send_callback) noexcept;
+  void send(MQMessage& message, const MessageQueue& message_queue, SendCallback* send_callback, long timeout) noexcept;
 
   // Oneyway: same as sync send, but don't care its result.
   void sendOneway(MQMessage& message);
-  void sendOneway(MQMessage& message, const MQMessageQueue& message_queue);
+  void sendOneway(MQMessage& message, const MessageQueue& message_queue);
 
   // Select
   SendResult send(MQMessage& message, MessageQueueSelector* selector, void* arg);
@@ -83,25 +80,22 @@ class ROCKETMQCLIENT_API DefaultMQProducer : public DefaultMQProducerConfigProxy
   // Batch: power by sync send, caller will be responsible for the lifecycle of messages.
   SendResult send(std::vector<MQMessage>& messages);
   SendResult send(std::vector<MQMessage>& messages, long timeout);
-  SendResult send(std::vector<MQMessage>& messages, const MQMessageQueue& message_queue);
-  SendResult send(std::vector<MQMessage>& messages, const MQMessageQueue& message_queue, long timeout);
+  SendResult send(std::vector<MQMessage>& messages, const MessageQueue& message_queue);
+  SendResult send(std::vector<MQMessage>& messages, const MessageQueue& message_queue, long timeout);
 
   void send(std::vector<MQMessage>& messages, SendCallback* send_callback);
   void send(std::vector<MQMessage>& messages, SendCallback* send_callback, long timeout);
-  void send(std::vector<MQMessage>& messages, const MQMessageQueue& message_queue, SendCallback* send_callback);
+  void send(std::vector<MQMessage>& messages, const MessageQueue& message_queue, SendCallback* send_callback);
   void send(std::vector<MQMessage>& messages,
-            const MQMessageQueue& message_queue,
+            const MessageQueue& message_queue,
             SendCallback* send_callback,
             long timeout);
 
   // RPC
   MQMessage request(MQMessage& message, long timeout);
   void request(MQMessage& message, RequestCallback* request_callback, long timeout);
-  MQMessage request(MQMessage& msg, const MQMessageQueue& message_queue, long timeout);
-  void request(MQMessage& message,
-               const MQMessageQueue& message_queue,
-               RequestCallback* request_callback,
-               long timeout);
+  MQMessage request(MQMessage& msg, const MessageQueue& message_queue, long timeout);
+  void request(MQMessage& message, const MessageQueue& message_queue, RequestCallback* request_callback, long timeout);
   MQMessage request(MQMessage& message, MessageQueueSelector* selector, void* arg, long timeout);
   void request(MQMessage& message,
                MessageQueueSelector* selector,

@@ -23,10 +23,10 @@
 
 namespace rocketmq {
 
-std::vector<MQMessageQueue> AllocateMQAveragely(const std::string& current_cid,
-                                                std::vector<MQMessageQueue>& all_mqs,
-                                                std::vector<std::string>& all_cids) {
-  std::vector<MQMessageQueue> result;
+std::vector<MessageQueue> AllocateMQAveragely(const std::string& current_cid,
+                                              std::vector<MessageQueue>& all_mqs,
+                                              std::vector<std::string>& all_cids) {
+  std::vector<MessageQueue> result;
 
   if (current_cid.empty()) {
     THROW_MQEXCEPTION(MQClientException, "current_cid is empty", -1);

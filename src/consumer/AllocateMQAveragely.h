@@ -20,13 +20,13 @@
 #include <string>  // std::string
 #include <vector>  // std::vector
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
-std::vector<MQMessageQueue> AllocateMQAveragely(const std::string& current_cid,
-                                                std::vector<MQMessageQueue>& all_mqs,
-                                                std::vector<std::string>& all_cids);
+std::vector<MessageQueue> AllocateMQAveragely(const std::string& current_cid,
+                                              std::vector<MessageQueue>& all_mqs,
+                                              std::vector<std::string>& all_cids);
 
 }  // namespace rocketmq
 

@@ -23,17 +23,17 @@
 
 namespace rocketmq {
 
-typedef std::map<MQMessageQueue, ProcessQueuePtr> MQ2PQ;
+typedef std::map<MessageQueue, ProcessQueuePtr> MQ2PQ;
 
 class RebalancePushImpl : public RebalanceImpl {
  public:
   RebalancePushImpl(DefaultMQPushConsumerImpl* consumerImpl);
 
  public:
-  bool lock(const MQMessageQueue& mq);
+  bool lock(const MessageQueue& mq);
   void lockAll();
 
-  void unlock(const MQMessageQueue& mq, const bool oneway = false);
+  void unlock(const MessageQueue& mq, const bool oneway = false);
   void unlockAll(const bool oneway = false);
 
  private:
@@ -45,34 +45,34 @@ class RebalancePushImpl : public RebalanceImpl {
 
  protected:
   bool updateMessageQueueInRebalance(const std::string& topic,
-                                     std::vector<MQMessageQueue>& allocated_mqs,
+                                     std::vector<MessageQueue>& allocated_mqs,
                                      const bool orderly) override;
 
  private:
   bool updateProcessQueueTableInRebalance(const std::string& topic,
-                                          std::vector<MQMessageQueue>& mqSet,
+                                          std::vector<MessageQueue>& mqSet,
                                           const bool isOrder);
 
  public:
-  bool removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq);
-  void removeDirtyOffset(const MQMessageQueue& mq);
-  int64_t computePullFromWhere(const MQMessageQueue& mq);
-  std::vector<MQMessageQueue> getAllocatedMQ();
+  bool removeUnnecessaryMessageQueue(const MessageQueue& mq, ProcessQueuePtr pq);
+  void removeDirtyOffset(const MessageQueue& mq);
+  int64_t computePullFromWhere(const MessageQueue& mq);
+  std::vector<MessageQueue> getAllocatedMQ();
 
  private:
   void dispatchPullRequest(const std::vector<PullRequestPtr>& pullRequestList);
 
  protected:
   void messageQueueChanged(const std::string& topic,
-                           std::vector<MQMessageQueue>& all_mqs,
-                           std::vector<MQMessageQueue>& allocated_mqs) override;
+                           std::vector<MessageQueue>& all_mqs,
+                           std::vector<MessageQueue>& allocated_mqs) override;
   void truncateMessageQueueNotMyTopic() override;
 
  public:
-  void removeProcessQueue(const MQMessageQueue& mq);
-  ProcessQueuePtr removeProcessQueueDirectly(const MQMessageQueue& mq);
-  ProcessQueuePtr putProcessQueueIfAbsent(const MQMessageQueue& mq, ProcessQueuePtr pq);
-  ProcessQueuePtr getProcessQueue(const MQMessageQueue& mq);
+  void removeProcessQueue(const MessageQueue& mq);
+  ProcessQueuePtr removeProcessQueueDirectly(const MessageQueue& mq);
+  ProcessQueuePtr putProcessQueueIfAbsent(const MessageQueue& mq, ProcessQueuePtr pq);
+  ProcessQueuePtr getProcessQueue(const MessageQueue& mq);
   MQ2PQ getProcessQueueTable();
 
  private:

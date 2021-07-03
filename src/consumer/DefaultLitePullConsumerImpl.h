@@ -53,7 +53,7 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
 
  public:
   using TopicMessageQueuesChangedListener =
-      std::function<void(const std::string&, const std::vector<MQMessageQueue>&) /* noexcept */>;
+      std::function<void(const std::string&, const std::vector<MessageQueue>&) /* noexcept */>;
 
  public:
   /**
@@ -91,21 +91,21 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
   void Subscribe(const std::string& topic, const MessageSelector& selector);
   void Unsubscribe(const std::string& topic);
 
-  std::vector<MQMessageQueue> FetchMessageQueues(const std::string& topic);
-  void Assign(std::vector<MQMessageQueue>& message_queues);
+  std::vector<MessageQueue> FetchMessageQueues(const std::string& topic);
+  void Assign(std::vector<MessageQueue>& message_queues);
 
-  void Seek(const MQMessageQueue& message_queue, int64_t offset);
-  void SeekToBegin(const MQMessageQueue& message_queue);
-  void SeekToEnd(const MQMessageQueue& message_queue);
+  void Seek(const MessageQueue& message_queue, int64_t offset);
+  void SeekToBegin(const MessageQueue& message_queue);
+  void SeekToEnd(const MessageQueue& message_queue);
 
-  int64_t OffsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp);
+  int64_t OffsetForTimestamp(const MessageQueue& message_queue, int64_t timestamp);
 
-  void Pause(const std::vector<MQMessageQueue>& message_queues);
-  void Resume(const std::vector<MQMessageQueue>& message_queues);
+  void Pause(const std::vector<MessageQueue>& message_queues);
+  void Resume(const std::vector<MessageQueue>& message_queues);
 
   void CommitSync();
 
-  int64_t Committed(const MQMessageQueue& message_queue);
+  int64_t Committed(const MessageQueue& message_queue);
 
   void RegisterTopicMessageQueuesChangedListener(
       const std::string& topic,
@@ -120,7 +120,7 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
   std::vector<SubscriptionData> subscriptions() const override;
 
   // service discovery
-  void updateTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& info) override;
+  void updateTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& info) override;
 
   // load balancing
   void doRebalance() override;
@@ -148,19 +148,19 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
 
   void ResetTopic(std::vector<MessageExtPtr>& messages);
 
-  void UpdateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assigned_message_queues);
-  void UpdateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues);
+  void UpdateAssignedMessageQueue(const std::string& topic, std::vector<MessageQueue>& assigned_message_queues);
+  void UpdateAssignedMessageQueue(std::vector<MessageQueue>& assigned_message_queues);
   void DispatchAssigndPullRequest(std::vector<PullRequestPtr>& pull_request_list);
 
   int64_t NextPullOffset(const ProcessQueuePtr& process_queue);
-  int64_t FetchConsumeOffset(const MQMessageQueue& message_queue);
+  int64_t FetchConsumeOffset(const MessageQueue& message_queue);
 
   void MaybeAutoCommit();
   void CommitAll();
 
-  void UpdateConsumeOffset(const MQMessageQueue& mq, int64_t offset);
+  void UpdateConsumeOffset(const MessageQueue& mq, int64_t offset);
 
-  void ParseMessageQueues(std::vector<MQMessageQueue>& queueSet);
+  void ParseMessageQueues(std::vector<MessageQueue>& queueSet);
 
  public:
   PollingMessageCache& message_cache() { return message_cache_; }
@@ -193,7 +193,7 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
   std::unique_ptr<MessageQueueListener> message_queue_listener_;
 
   std::map<std::string, TopicMessageQueuesChangedListener> topic_message_queues_changed_listener_map_;
-  std::map<std::string, std::vector<MQMessageQueue>> message_queues_for_topic_;
+  std::map<std::string, std::vector<MessageQueue>> message_queues_for_topic_;
 
   std::unique_ptr<AssignedMessageQueue> assigned_message_queue_;
 

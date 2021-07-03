@@ -29,7 +29,7 @@ namespace rocketmq {
 RebalancePushImpl::RebalancePushImpl(DefaultMQPushConsumerImpl* consumerImpl)
     : RebalanceImpl(null, CLUSTERING, AllocateMQAveragely, nullptr), default_mq_push_consumer_impl_(consumerImpl) {}
 
-bool RebalancePushImpl::lock(const MQMessageQueue& mq) {
+bool RebalancePushImpl::lock(const MessageQueue& mq) {
   std::unique_ptr<FindBrokerResult> findBrokerResult(
       client_instance_->findBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true));
   if (findBrokerResult) {
@@ -39,9 +39,9 @@ bool RebalancePushImpl::lock(const MQMessageQueue& mq) {
     lockBatchRequest->message_queue_set.push_back(mq);
 
     try {
-      LOG_DEBUG_NEW("try to lock mq:{}", mq.toString());
+      LOG_DEBUG_NEW("try to lock mq:{}", mq.ToString());
 
-      std::vector<MQMessageQueue> lockedMq;
+      std::vector<MessageQueue> lockedMq;
       client_instance_->getMQClientAPIImpl()->lockBatchMQ(findBrokerResult->broker_addr(), lockBatchRequest.get(),
                                                           lockedMq, 1000);
 
@@ -60,10 +60,10 @@ bool RebalancePushImpl::lock(const MQMessageQueue& mq) {
         }
       }
 
-      LOG_INFO_NEW("the message queue lock {}, {} {}", lockOK ? "OK" : "Failed", consumer_group_, mq.toString());
+      LOG_INFO_NEW("the message queue lock {}, {} {}", lockOK ? "OK" : "Failed", consumer_group_, mq.ToString());
       return lockOK;
     } catch (MQException& e) {
-      LOG_ERROR_NEW("lockBatchMQ exception, mq:{}", mq.toString());
+      LOG_ERROR_NEW("lockBatchMQ exception, mq:{}", mq.ToString());
     }
   } else {
     LOG_ERROR_NEW("lock: findBrokerAddressInSubscribe() returen null for broker:{}", mq.broker_name());
@@ -78,7 +78,7 @@ void RebalancePushImpl::lockAll() {
 
   for (const auto& it : *brokerMqs) {
     const std::string& brokerName = it.first;
-    const std::vector<MQMessageQueue>& mqs = it.second;
+    const std::vector<MessageQueue>& mqs = it.second;
 
     if (mqs.size() == 0) {
       continue;
@@ -94,18 +94,18 @@ void RebalancePushImpl::lockAll() {
 
       LOG_INFO_NEW("try to lock:{} mqs of broker:{}", mqs.size(), brokerName);
       try {
-        std::vector<MQMessageQueue> lockOKMQVec;
+        std::vector<MessageQueue> lockOKMQVec;
         client_instance_->getMQClientAPIImpl()->lockBatchMQ(findBrokerResult->broker_addr(), lockBatchRequest.get(),
                                                             lockOKMQVec, 1000);
 
-        std::set<MQMessageQueue> lockOKMQSet;
+        std::set<MessageQueue> lockOKMQSet;
         for (const auto& mq : lockOKMQVec) {
           lockOKMQSet.insert(mq);
 
           ProcessQueuePtr processQueue = getProcessQueue(mq);
           if (processQueue != nullptr) {
             if (!processQueue->locked()) {
-              LOG_INFO_NEW("the message queue locked OK, Group: {} {}", consumer_group_, mq.toString());
+              LOG_INFO_NEW("the message queue locked OK, Group: {} {}", consumer_group_, mq.ToString());
             }
 
             processQueue->set_locked(true);
@@ -118,7 +118,7 @@ void RebalancePushImpl::lockAll() {
             ProcessQueuePtr processQueue = getProcessQueue(mq);
             if (processQueue != nullptr) {
               processQueue->set_locked(false);
-              LOG_WARN_NEW("the message queue locked Failed, Group: {} {}", consumer_group_, mq.toString());
+              LOG_WARN_NEW("the message queue locked Failed, Group: {} {}", consumer_group_, mq.ToString());
             }
           }
         }
@@ -131,7 +131,7 @@ void RebalancePushImpl::lockAll() {
   }
 }
 
-void RebalancePushImpl::unlock(const MQMessageQueue& mq, const bool oneway) {
+void RebalancePushImpl::unlock(const MessageQueue& mq, const bool oneway) {
   std::unique_ptr<FindBrokerResult> findBrokerResult(
       client_instance_->findBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true));
   if (findBrokerResult) {
@@ -150,9 +150,9 @@ void RebalancePushImpl::unlock(const MQMessageQueue& mq, const bool oneway) {
       }
 
       LOG_WARN_NEW("unlock messageQueue. group:{}, clientId:{}, mq:{}", consumer_group_,
-                   client_instance_->getClientId(), mq.toString());
+                   client_instance_->getClientId(), mq.ToString());
     } catch (MQException& e) {
-      LOG_ERROR_NEW("unlockBatchMQ exception, mq:{}", mq.toString());
+      LOG_ERROR_NEW("unlockBatchMQ exception, mq:{}", mq.ToString());
     }
   } else {
     LOG_WARN("unlock findBrokerAddressInSubscribe ret null for broker:{}", mq.broker_name());
@@ -165,7 +165,7 @@ void RebalancePushImpl::unlockAll(const bool oneway) {
 
   for (const auto& it : *brokerMqs) {
     const std::string& brokerName = it.first;
-    const std::vector<MQMessageQueue>& mqs = it.second;
+    const std::vector<MessageQueue>& mqs = it.second;
 
     if (mqs.size() == 0) {
       continue;
@@ -186,7 +186,7 @@ void RebalancePushImpl::unlockAll(const bool oneway) {
           ProcessQueuePtr processQueue = getProcessQueue(mq);
           if (processQueue != nullptr) {
             processQueue->set_locked(false);
-            LOG_INFO_NEW("the message queue unlock OK, Group: {} {}", consumer_group_, mq.toString());
+            LOG_INFO_NEW("the message queue unlock OK, Group: {} {}", consumer_group_, mq.ToString());
           }
         }
       } catch (MQException& e) {
@@ -205,7 +205,7 @@ std::shared_ptr<BROKER2MQS> RebalancePushImpl::buildProcessQueueTableByBrokerNam
     const auto& mq = it.first;
     std::string brokerName = mq.broker_name();
     if (brokerMqs->find(brokerName) == brokerMqs->end()) {
-      brokerMqs->emplace(brokerName, std::vector<MQMessageQueue>());
+      brokerMqs->emplace(brokerName, std::vector<MessageQueue>());
     }
     (*brokerMqs)[brokerName].push_back(mq);
   }
@@ -221,13 +221,13 @@ void RebalancePushImpl::shutdown() {
 }
 
 bool RebalancePushImpl::updateMessageQueueInRebalance(const std::string& topic,
-                                                      std::vector<MQMessageQueue>& mqSet,
+                                                      std::vector<MessageQueue>& mqSet,
                                                       const bool isOrder) {
   return updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
 }
 
 bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& topic,
-                                                           std::vector<MQMessageQueue>& mqSet,
+                                                           std::vector<MessageQueue>& mqSet,
                                                            const bool isOrder) {
   LOG_DEBUG("updateRequestTableInRebalance Enter");
 
@@ -245,7 +245,7 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
         if (removeUnnecessaryMessageQueue(mq, pq)) {
           removeProcessQueueDirectly(mq);
           changed = true;
-          LOG_INFO_NEW("doRebalance, {}, remove unnecessary mq, {}", consumer_group_, mq.toString());
+          LOG_INFO_NEW("doRebalance, {}, remove unnecessary mq, {}", consumer_group_, mq.ToString());
         }
       } else if (pq->IsPullExpired()) {
         switch (consumeType()) {
@@ -258,7 +258,7 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
               changed = true;
               LOG_ERROR_NEW(
                   "[BUG]doRebalance, {}, remove unnecessary mq, {}, because pull is pause, so try to fixed it",
-                  consumer_group_, mq.toString());
+                  consumer_group_, mq.ToString());
             }
             break;
           default:
@@ -274,7 +274,7 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
     ProcessQueuePtr pq = getProcessQueue(mq);
     if (nullptr == pq) {
       if (isOrder && !lock(mq)) {
-        LOG_WARN_NEW("doRebalance, {}, add a new mq failed, {}, because lock failed", consumer_group_, mq.toString());
+        LOG_WARN_NEW("doRebalance, {}, add a new mq failed, {}, because lock failed", consumer_group_, mq.ToString());
         continue;
       }
 
@@ -284,16 +284,16 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
       if (nextOffset >= 0) {
         auto pre = putProcessQueueIfAbsent(mq, pq);
         if (pre) {
-          LOG_INFO_NEW("doRebalance, {}, mq already exists, {}", consumer_group_, mq.toString());
+          LOG_INFO_NEW("doRebalance, {}, mq already exists, {}", consumer_group_, mq.ToString());
         } else {
-          LOG_INFO_NEW("doRebalance, {}, add a new mq, {}", consumer_group_, mq.toString());
+          LOG_INFO_NEW("doRebalance, {}, add a new mq, {}", consumer_group_, mq.ToString());
           auto pull_request = std::make_shared<PullRequest>(consumer_group_, pq);
           pull_request->set_next_offset(nextOffset);
           pull_request_list.push_back(std::move(pull_request));
           changed = true;
         }
       } else {
-        LOG_WARN_NEW("doRebalance, {}, add new mq failed, {}", consumer_group_, mq.toString());
+        LOG_WARN_NEW("doRebalance, {}, add new mq failed, {}", consumer_group_, mq.ToString());
       }
     }
   }
@@ -304,7 +304,7 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
   return changed;
 }
 
-bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq) {
+bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MessageQueue& mq, ProcessQueuePtr pq) {
   auto* offset_store = default_mq_push_consumer_impl_->offset_store();
 
   offset_store->persist(mq);
@@ -320,7 +320,7 @@ bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, 
         return true;
       } else {
         LOG_WARN("[WRONG] mq is consuming, so can not unlock it, %s. maybe hanged for a while, %ld",
-                 mq.toString().c_str(), pq->try_unlock_times());
+                 mq.ToString().c_str(), pq->try_unlock_times());
 
         pq->inc_try_unlock_times();
       }
@@ -334,11 +334,11 @@ bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, 
   return true;
 }
 
-void RebalancePushImpl::removeDirtyOffset(const MQMessageQueue& mq) {
+void RebalancePushImpl::removeDirtyOffset(const MessageQueue& mq) {
   default_mq_push_consumer_impl_->offset_store()->removeOffset(mq);
 }
 
-int64_t RebalancePushImpl::computePullFromWhere(const MQMessageQueue& mq) {
+int64_t RebalancePushImpl::computePullFromWhere(const MessageQueue& mq) {
   return RebalanceImpl::computePullFromWhereImpl(mq, default_mq_push_consumer_impl_->config().consume_from_where(),
                                                  default_mq_push_consumer_impl_->config().consume_timestamp(),
                                                  *default_mq_push_consumer_impl_->offset_store(),
@@ -353,27 +353,27 @@ void RebalancePushImpl::dispatchPullRequest(const std::vector<PullRequestPtr>& p
 }
 
 void RebalancePushImpl::messageQueueChanged(const std::string& topic,
-                                            std::vector<MQMessageQueue>& mqAll,
-                                            std::vector<MQMessageQueue>& mqDivided) {
+                                            std::vector<MessageQueue>& mqAll,
+                                            std::vector<MessageQueue>& mqDivided) {
   // TODO: update subscription's version
 }
 
 void RebalancePushImpl::truncateMessageQueueNotMyTopic() {
   auto& subTable = getSubscriptionInner();
-  std::vector<MQMessageQueue> mqs = getAllocatedMQ();
+  std::vector<MessageQueue> mqs = getAllocatedMQ();
   for (const auto& mq : mqs) {
     if (subTable.find(mq.topic()) == subTable.end()) {
       auto pq = removeProcessQueueDirectly(mq);
       if (pq != nullptr) {
         pq->set_dropped(true);
         LOG_INFO_NEW("doRebalance, {}, truncateMessageQueueNotMyTopic remove unnecessary mq, {}", consumer_group_,
-                     mq.toString());
+                     mq.ToString());
       }
     }
   }
 }
 
-void RebalancePushImpl::removeProcessQueue(const MQMessageQueue& mq) {
+void RebalancePushImpl::removeProcessQueue(const MessageQueue& mq) {
   std::lock_guard<std::mutex> lock(process_queue_table_mutex_);
   const auto& it = process_queue_table_.find(mq);
   if (it != process_queue_table_.end()) {
@@ -383,12 +383,12 @@ void RebalancePushImpl::removeProcessQueue(const MQMessageQueue& mq) {
     bool dropped = prev->dropped();
     prev->set_dropped(true);
     removeUnnecessaryMessageQueue(mq, prev);
-    LOG_INFO_NEW("Fix Offset, {}, remove unnecessary mq, {} Dropped: {}", consumer_group_, mq.toString(),
+    LOG_INFO_NEW("Fix Offset, {}, remove unnecessary mq, {} Dropped: {}", consumer_group_, mq.ToString(),
                  UtilAll::to_string(dropped));
   }
 }
 
-ProcessQueuePtr RebalancePushImpl::removeProcessQueueDirectly(const MQMessageQueue& mq) {
+ProcessQueuePtr RebalancePushImpl::removeProcessQueueDirectly(const MessageQueue& mq) {
   std::lock_guard<std::mutex> lock(process_queue_table_mutex_);
   const auto& it = process_queue_table_.find(mq);
   if (it != process_queue_table_.end()) {
@@ -399,7 +399,7 @@ ProcessQueuePtr RebalancePushImpl::removeProcessQueueDirectly(const MQMessageQue
   return nullptr;
 }
 
-ProcessQueuePtr RebalancePushImpl::putProcessQueueIfAbsent(const MQMessageQueue& mq, ProcessQueuePtr pq) {
+ProcessQueuePtr RebalancePushImpl::putProcessQueueIfAbsent(const MessageQueue& mq, ProcessQueuePtr pq) {
   std::lock_guard<std::mutex> lock(process_queue_table_mutex_);
   const auto& it = process_queue_table_.find(mq);
   if (it != process_queue_table_.end()) {
@@ -410,7 +410,7 @@ ProcessQueuePtr RebalancePushImpl::putProcessQueueIfAbsent(const MQMessageQueue&
   }
 }
 
-ProcessQueuePtr RebalancePushImpl::getProcessQueue(const MQMessageQueue& mq) {
+ProcessQueuePtr RebalancePushImpl::getProcessQueue(const MessageQueue& mq) {
   std::lock_guard<std::mutex> lock(process_queue_table_mutex_);
   const auto& it = process_queue_table_.find(mq);
   if (it != process_queue_table_.end()) {
@@ -425,8 +425,8 @@ MQ2PQ RebalancePushImpl::getProcessQueueTable() {
   return process_queue_table_;
 }
 
-std::vector<MQMessageQueue> RebalancePushImpl::getAllocatedMQ() {
-  std::vector<MQMessageQueue> mqs;
+std::vector<MessageQueue> RebalancePushImpl::getAllocatedMQ() {
+  std::vector<MessageQueue> mqs;
   std::lock_guard<std::mutex> lock(process_queue_table_mutex_);
   for (const auto& it : process_queue_table_) {
     mqs.push_back(it.first);

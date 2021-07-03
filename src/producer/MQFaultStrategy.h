@@ -21,15 +21,15 @@
 #include <vector>
 
 #include "LatencyFaultTolerancyImpl.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "TopicPublishInfo.hpp"
 
 namespace rocketmq {
 
 class MQFaultStrategy {
  public:
-  const MQMessageQueue& SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
-                                              const std::string& last_broker_name);
+  const MessageQueue& SelectOneMessageQueue(const TopicPublishInfo* topic_publish_info,
+                                            const std::string& last_broker_name);
 
   void UpdateFaultItem(const std::string& broker_name, long current_latency, bool isolation);
 

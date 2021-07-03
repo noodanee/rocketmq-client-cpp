@@ -21,7 +21,7 @@
 #include <sstream>  // std::stringstream
 #include <string>
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "ProcessQueue.h"
 
 namespace rocketmq {
@@ -38,7 +38,7 @@ class ROCKETMQCLIENT_API PullRequest {
 
   const std::string& consumer_group() const { return consumer_group_; }
   const ProcessQueuePtr& process_queue() const { return process_queue_; }
-  const MQMessageQueue& message_queue() const { return process_queue_->message_queue(); }
+  const MessageQueue& message_queue() const { return process_queue_->message_queue(); }
 
   bool locked_first() const { return locked_first_; }
   void set_locked_first(bool locked_first) { locked_first_ = locked_first; }

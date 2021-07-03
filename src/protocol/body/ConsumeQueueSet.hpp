@@ -28,7 +28,7 @@ namespace rocketmq {
 struct ConsumeQueueSet {
   std::string consumer_group;
   std::string client_id;
-  std::vector<MQMessageQueue> message_queue_set;
+  std::vector<MessageQueue> message_queue_set;
 
   std::string Encode() const {
     Json::Value body_object;

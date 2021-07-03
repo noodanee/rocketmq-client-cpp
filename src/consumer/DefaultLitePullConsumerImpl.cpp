@@ -57,8 +57,8 @@ class DefaultLitePullConsumerImpl::MessageQueueListenerImpl : public MessageQueu
   ~MessageQueueListenerImpl() = default;
 
   void messageQueueChanged(const std::string& topic,
-                           std::vector<MQMessageQueue>& all_message_queues,
-                           std::vector<MQMessageQueue>& allocated_message_queus) override {
+                           std::vector<MessageQueue>& all_message_queues,
+                           std::vector<MessageQueue>& allocated_message_queus) override {
     auto consumer = default_lite_pull_consumer_.lock();
     if (nullptr == consumer) {
       return;
@@ -236,7 +236,7 @@ void DefaultLitePullConsumerImpl::FetchTopicMessageQueuesAndComparePeriodically(
 
 namespace {
 
-bool IsSetEqual(std::vector<MQMessageQueue>& new_message_queues, std::vector<MQMessageQueue>& old_message_queues) {
+bool IsSetEqual(std::vector<MessageQueue>& new_message_queues, std::vector<MessageQueue>& old_message_queues) {
   if (new_message_queues.size() != old_message_queues.size()) {
     return false;
   }
@@ -288,7 +288,7 @@ void DefaultLitePullConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChange
     const auto& topic = it.first;
     auto topic_route_data = client_instance_->getTopicRouteData(topic);
     if (topic_route_data != nullptr) {
-      std::vector<MQMessageQueue> subscribeInfo =
+      std::vector<MessageQueue> subscribeInfo =
           MQClientInstance::topicRouteData2TopicSubscribeInfo(topic, topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);
     } else {
@@ -389,8 +389,7 @@ std::vector<SubscriptionData> DefaultLitePullConsumerImpl::subscriptions() const
   return result;
 }
 
-void DefaultLitePullConsumerImpl::updateTopicSubscribeInfo(const std::string& topic,
-                                                           std::vector<MQMessageQueue>& info) {
+void DefaultLitePullConsumerImpl::updateTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& info) {
   rebalance_impl_->setTopicSubscribeInfo(topic, info);
 }
 
@@ -401,12 +400,12 @@ void DefaultLitePullConsumerImpl::doRebalance() {
 }
 
 void DefaultLitePullConsumerImpl::UpdateAssignedMessageQueue(const std::string& topic,
-                                                             std::vector<MQMessageQueue>& assigned_message_queues) {
+                                                             std::vector<MessageQueue>& assigned_message_queues) {
   auto pull_request_list = assigned_message_queue_->UpdateAssignedMessageQueue(topic, assigned_message_queues);
   DispatchAssigndPullRequest(pull_request_list);
 }
 
-void DefaultLitePullConsumerImpl::UpdateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues) {
+void DefaultLitePullConsumerImpl::UpdateAssignedMessageQueue(std::vector<MessageQueue>& assigned_message_queues) {
   auto pull_request_list = assigned_message_queue_->UpdateAssignedMessageQueue(assigned_message_queues);
   DispatchAssigndPullRequest(pull_request_list);
 }
@@ -444,7 +443,7 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
 
   if (process_queue->paused()) {
     ExecutePullRequestLater(pull_request, PULL_TIME_DELAY_MILLS_WHEN_PAUSE);
-    LOG_DEBUG_NEW("Message Queue: {} has been paused!", message_queue.toString());
+    LOG_DEBUG_NEW("Message Queue: {} has been paused!", message_queue.ToString());
     return;
   }
 
@@ -604,7 +603,7 @@ int64_t DefaultLitePullConsumerImpl::NextPullOffset(const ProcessQueuePtr& proce
   return offset;
 }
 
-int64_t DefaultLitePullConsumerImpl::FetchConsumeOffset(const MQMessageQueue& message_queue) {
+int64_t DefaultLitePullConsumerImpl::FetchConsumeOffset(const MessageQueue& message_queue) {
   // checkServiceState();
   return rebalance_impl_->computePullFromWhere(message_queue);
 }
@@ -620,7 +619,7 @@ void DefaultLitePullConsumerImpl::MaybeAutoCommit() {
 void DefaultLitePullConsumerImpl::CommitAll() {
   // TODO: lock
   try {
-    std::vector<MQMessageQueue> message_queues = assigned_message_queue_->GetMessageQueues();
+    std::vector<MessageQueue> message_queues = assigned_message_queue_->GetMessageQueues();
     for (const auto& message_queue : message_queues) {
       auto process_queue = assigned_message_queue_->GetProcessQueue(message_queue);
       if (process_queue != nullptr && !process_queue->dropped()) {
@@ -635,20 +634,20 @@ void DefaultLitePullConsumerImpl::CommitAll() {
   }
 }
 
-void DefaultLitePullConsumerImpl::UpdateConsumeOffset(const MQMessageQueue& mq, int64_t offset) {
+void DefaultLitePullConsumerImpl::UpdateConsumeOffset(const MessageQueue& mq, int64_t offset) {
   // checkServiceState();
   offset_store_->updateOffset(mq, offset, false);
 }
 
 void DefaultLitePullConsumerImpl::persistConsumerOffset() {
   if (isServiceStateOk()) {
-    std::vector<MQMessageQueue> allocated_mqs = assigned_message_queue_->GetMessageQueues();
+    std::vector<MessageQueue> allocated_mqs = assigned_message_queue_->GetMessageQueues();
     offset_store_->persistAll(allocated_mqs);
   }
 }
 
-std::vector<MQMessageQueue> DefaultLitePullConsumerImpl::FetchMessageQueues(const std::string& topic) {
-  std::vector<MQMessageQueue> result;
+std::vector<MessageQueue> DefaultLitePullConsumerImpl::FetchMessageQueues(const std::string& topic) {
+  std::vector<MessageQueue> result;
   if (isServiceStateOk()) {
     client_instance_->getMQAdminImpl()->fetchSubscribeMessageQueues(topic, result);
     ParseMessageQueues(result);
@@ -656,18 +655,18 @@ std::vector<MQMessageQueue> DefaultLitePullConsumerImpl::FetchMessageQueues(cons
   return result;
 }
 
-void DefaultLitePullConsumerImpl::ParseMessageQueues(std::vector<MQMessageQueue>& queueSet) {
+void DefaultLitePullConsumerImpl::ParseMessageQueues(std::vector<MessageQueue>& queueSet) {
   const auto& name_space = client_config_->name_space();
   if (name_space.empty()) {
     return;
   }
   for (auto& message_queue : queueSet) {
     auto user_topic = NamespaceUtil::withoutNamespace(message_queue.topic(), name_space);
-    message_queue.set_topic(user_topic);
+    message_queue.set_topic(std::move(user_topic));
   }
 }
 
-void DefaultLitePullConsumerImpl::Assign(std::vector<MQMessageQueue>& message_queues) {
+void DefaultLitePullConsumerImpl::Assign(std::vector<MessageQueue>& message_queues) {
   if (message_queues.empty()) {
     THROW_MQEXCEPTION(MQClientException, "Message queues can not be empty.", -1);
   }
@@ -676,17 +675,17 @@ void DefaultLitePullConsumerImpl::Assign(std::vector<MQMessageQueue>& message_qu
   UpdateAssignedMessageQueue(message_queues);
 }
 
-void DefaultLitePullConsumerImpl::Seek(const MQMessageQueue& message_queue, int64_t offset) {
+void DefaultLitePullConsumerImpl::Seek(const MessageQueue& message_queue, int64_t offset) {
   auto process_queue = assigned_message_queue_->GetProcessQueue(message_queue);
   if (process_queue == nullptr || process_queue->dropped()) {
     if (subscription_type_ == SubscriptionType::kSubscribe) {
       THROW_MQEXCEPTION(
           MQClientException,
-          "The message queue is not in assigned list, may be rebalancing, message queue: " + message_queue.toString(),
+          "The message queue is not in assigned list, may be rebalancing, message queue: " + message_queue.ToString(),
           -1);
     }
     THROW_MQEXCEPTION(MQClientException,
-                      "The message queue is not in assigned list, message queue: " + message_queue.toString(), -1);
+                      "The message queue is not in assigned list, message queue: " + message_queue.ToString(), -1);
   }
   long min_offset = minOffset(message_queue);
   long max_offset = maxOffset(message_queue);
@@ -701,25 +700,25 @@ void DefaultLitePullConsumerImpl::Seek(const MQMessageQueue& message_queue, int6
   message_cache_.ClearMessages(process_queue);
 }
 
-void DefaultLitePullConsumerImpl::SeekToBegin(const MQMessageQueue& message_queue) {
+void DefaultLitePullConsumerImpl::SeekToBegin(const MessageQueue& message_queue) {
   int64_t begin = minOffset(message_queue);
   Seek(message_queue, begin);
 }
 
-void DefaultLitePullConsumerImpl::SeekToEnd(const MQMessageQueue& message_queue) {
+void DefaultLitePullConsumerImpl::SeekToEnd(const MessageQueue& message_queue) {
   int64_t end = maxOffset(message_queue);
   Seek(message_queue, end);
 }
 
-int64_t DefaultLitePullConsumerImpl::OffsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) {
+int64_t DefaultLitePullConsumerImpl::OffsetForTimestamp(const MessageQueue& message_queue, int64_t timestamp) {
   return searchOffset(message_queue, timestamp);
 }
 
-void DefaultLitePullConsumerImpl::Pause(const std::vector<MQMessageQueue>& message_queues) {
+void DefaultLitePullConsumerImpl::Pause(const std::vector<MessageQueue>& message_queues) {
   assigned_message_queue_->Pause(message_queues);
 }
 
-void DefaultLitePullConsumerImpl::Resume(const std::vector<MQMessageQueue>& message_queues) {
+void DefaultLitePullConsumerImpl::Resume(const std::vector<MessageQueue>& message_queues) {
   assigned_message_queue_->Resume(message_queues);
 }
 
@@ -727,7 +726,7 @@ void DefaultLitePullConsumerImpl::CommitSync() {
   CommitAll();
 }
 
-int64_t DefaultLitePullConsumerImpl::Committed(const MQMessageQueue& message_queue) {
+int64_t DefaultLitePullConsumerImpl::Committed(const MessageQueue& message_queue) {
   // checkServiceState();
   auto offset = offset_store_->readOffset(message_queue, ReadOffsetType::MEMORY_FIRST_THEN_STORE);
   if (offset == -2) {

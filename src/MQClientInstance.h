@@ -26,8 +26,8 @@
 #include "MQClientConfig.h"
 #include "MQConsumerInner.h"
 #include "MQException.h"
-#include "MQMessageQueue.h"
 #include "MQProducerInner.h"
+#include "MessageQueue.hpp"
 #include "ServiceState.h"
 #include "TopicPublishInfo.hpp"
 #include "concurrent/executor.hpp"
@@ -56,8 +56,7 @@ class MQClientInstance {
   virtual ~MQClientInstance();
 
   static TopicPublishInfoPtr topicRouteData2TopicPublishInfo(const std::string& topic, TopicRouteDataPtr route);
-  static std::vector<MQMessageQueue> topicRouteData2TopicSubscribeInfo(const std::string& topic,
-                                                                       TopicRouteDataPtr route);
+  static std::vector<MessageQueue> topicRouteData2TopicSubscribeInfo(const std::string& topic, TopicRouteDataPtr route);
 
   const std::string& getClientId() const;
   std::string getNamesrvAddr() const;
@@ -95,7 +94,7 @@ class MQClientInstance {
 
   void resetOffset(const std::string& group,
                    const std::string& topic,
-                   const std::map<MQMessageQueue, int64_t>& offsetTable);
+                   const std::map<MessageQueue, int64_t>& offsetTable);
 
   std::unique_ptr<ConsumerRunningInfo> consumerRunningInfo(const std::string& consumerGroup);
 
@@ -150,7 +149,7 @@ class MQClientInstance {
   void eraseConsumerFromTable(const std::string& consumerName);
   int getConsumerTableSize();
   void getTopicListFromConsumerSubscription(std::set<std::string>& topicList);
-  void updateConsumerTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue> subscribeInfo);
+  void updateConsumerTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue> subscribeInfo);
 
   // producer related operation
   bool addProducerToTable(const std::string& producerName, MQProducerInner* producer);

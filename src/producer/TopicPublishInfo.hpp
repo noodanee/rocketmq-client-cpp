@@ -22,7 +22,7 @@
 #include <mutex>   // std::mutex
 
 #include "MQException.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "protocol/body/TopicRouteData.hpp"
 
 namespace rocketmq {
@@ -32,7 +32,7 @@ using TopicPublishInfoPtr = std::shared_ptr<const TopicPublishInfo>;
 
 class TopicPublishInfo {
  public:
-  using QueuesVec = std::vector<MQMessageQueue>;
+  using QueuesVec = std::vector<MessageQueue>;
 
  public:
   bool isOrderTopic() const { return order_topic_; }
@@ -49,7 +49,7 @@ class TopicPublishInfo {
 
   void setHaveTopicRouterInfo(bool haveTopicRouterInfo) { have_topic_router_info_ = haveTopicRouterInfo; }
 
-  const MQMessageQueue& selectOneMessageQueue(const std::string& lastBrokerName) const {
+  const MessageQueue& selectOneMessageQueue(const std::string& lastBrokerName) const {
     if (!lastBrokerName.empty()) {
       auto mqSize = message_queue_list_.size();
       if (mqSize <= 1) {
@@ -74,7 +74,7 @@ class TopicPublishInfo {
     return selectOneMessageQueue();
   }
 
-  const MQMessageQueue& selectOneMessageQueue() const {
+  const MessageQueue& selectOneMessageQueue() const {
     auto index = send_which_queue_.fetch_add(1);
     auto pos = index % message_queue_list_.size();
     return message_queue_list_[pos];

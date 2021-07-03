@@ -215,7 +215,7 @@ void DefaultMQPushConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChanged(
     const auto& topic = it.first;
     auto topic_route_data = client_instance_->getTopicRouteData(topic);
     if (topic_route_data != nullptr) {
-      std::vector<MQMessageQueue> subscribeInfo =
+      std::vector<MessageQueue> subscribeInfo =
           MQClientInstance::topicRouteData2TopicSubscribeInfo(topic, topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);
     } else {
@@ -280,7 +280,7 @@ std::vector<SubscriptionData> DefaultMQPushConsumerImpl::subscriptions() const {
   return result;
 }
 
-void DefaultMQPushConsumerImpl::updateTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& info) {
+void DefaultMQPushConsumerImpl::updateTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& info) {
   rebalance_impl_->setTopicSubscribeInfo(topic, info);
 }
 
@@ -518,16 +518,16 @@ bool DefaultMQPushConsumerImpl::SendMessageBack(MessageExtPtr message,
 
 void DefaultMQPushConsumerImpl::persistConsumerOffset() {
   if (isServiceStateOk()) {
-    std::vector<MQMessageQueue> message_queues = rebalance_impl_->getAllocatedMQ();
+    std::vector<MessageQueue> message_queues = rebalance_impl_->getAllocatedMQ();
     offset_store_->persistAll(message_queues);
   }
 }
 
-void DefaultMQPushConsumerImpl::UpdateConsumeOffset(const MQMessageQueue& message_queue, int64_t offset) {
+void DefaultMQPushConsumerImpl::UpdateConsumeOffset(const MessageQueue& message_queue, int64_t offset) {
   if (offset >= 0) {
     offset_store_->updateOffset(message_queue, offset, false);
   } else {
-    LOG_ERROR_NEW("updateConsumeOffset of mq:{} error", message_queue.toString());
+    LOG_ERROR_NEW("updateConsumeOffset of mq:{} error", message_queue.ToString());
   }
 }
 

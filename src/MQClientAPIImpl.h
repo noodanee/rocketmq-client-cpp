@@ -130,7 +130,7 @@ class MQClientAPIImpl {
 
   void lockBatchMQ(const std::string& addr,
                    ConsumeQueueSet* requestBody,
-                   std::vector<MQMessageQueue>& mqs,
+                   std::vector<MessageQueue>& mqs,
                    int timeoutMillis);
   void unlockBatchMQ(const std::string& addr, ConsumeQueueSet* requestBody, int timeoutMillis, bool oneway = false);
 

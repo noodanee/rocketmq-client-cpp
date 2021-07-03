@@ -22,7 +22,7 @@
 
 #include "MQClientInstance.h"
 #include "MQMessageExt.h"
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 #include "QueryResult.h"
 
 namespace rocketmq {
@@ -33,12 +33,12 @@ class MQAdminImpl {
 
   void createTopic(const std::string& key, const std::string& newTopic, int queueNum);
 
-  void fetchSubscribeMessageQueues(const std::string& topic, std::vector<MQMessageQueue>& mqs);
+  void fetchSubscribeMessageQueues(const std::string& topic, std::vector<MessageQueue>& mqs);
 
-  int64_t searchOffset(const MQMessageQueue& mq, int64_t timestamp);
-  int64_t maxOffset(const MQMessageQueue& mq);
-  int64_t minOffset(const MQMessageQueue& mq);
-  int64_t earliestMsgStoreTime(const MQMessageQueue& mq);
+  int64_t searchOffset(const MessageQueue& mq, int64_t timestamp);
+  int64_t maxOffset(const MessageQueue& mq);
+  int64_t minOffset(const MessageQueue& mq);
+  int64_t earliestMsgStoreTime(const MessageQueue& mq);
 
   MQMessageExt viewMessage(const std::string& msgId);
   QueryResult queryMessage(const std::string& topic, const std::string& key, int maxNum, int64_t begin, int64_t end);

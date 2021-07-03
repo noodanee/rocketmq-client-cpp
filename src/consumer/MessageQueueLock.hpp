@@ -21,7 +21,7 @@
 #include <memory>
 #include <mutex>
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -30,7 +30,7 @@ namespace rocketmq {
  */
 class MessageQueueLock {
  public:
-  std::shared_ptr<std::mutex> fetchLockObject(const MQMessageQueue& mq) {
+  std::shared_ptr<std::mutex> fetchLockObject(const MessageQueue& mq) {
     std::lock_guard<std::mutex> lock(mq_lock_table_mutex_);
     const auto& it = mq_lock_table_.find(mq);
     if (it != mq_lock_table_.end()) {
@@ -41,7 +41,7 @@ class MessageQueueLock {
   }
 
  private:
-  std::map<MQMessageQueue, std::shared_ptr<std::mutex>> mq_lock_table_;
+  std::map<MessageQueue, std::shared_ptr<std::mutex>> mq_lock_table_;
   std::mutex mq_lock_table_mutex_;
 };
 

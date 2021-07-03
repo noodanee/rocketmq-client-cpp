@@ -87,7 +87,7 @@ class ConsumeMessageOrderlyService : public ConsumeMsgService {
 
   void lockMQPeriodically();
   void unlockAllMQ();
-  bool lockOneMQ(const MQMessageQueue& mq);
+  bool lockOneMQ(const MessageQueue& mq);
 
  private:
   DefaultMQPushConsumerImpl* consumer_;

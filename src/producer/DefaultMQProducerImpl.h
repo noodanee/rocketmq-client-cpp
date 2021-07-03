@@ -44,7 +44,7 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
                                     public MQProducerInner {
  public:
   using MessageQueueSelector =
-      std::function<MQMessageQueue(const std::vector<MQMessageQueue>&, const MessagePtr&) /* noexcept */>;
+      std::function<MessageQueue(const std::vector<MessageQueue>&, const MessagePtr&) /* noexcept */>;
   using SendCallback = std::function<void(ResultState<std::unique_ptr<SendResult>>) /* noexcept */>;
   using RequestCallback = std::function<void(ResultState<MessagePtr>) /* noexcept */>;
 
@@ -75,22 +75,22 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
   void start() override;
   void shutdown() override;
 
-  std::vector<MQMessageQueue> FetchPublishMessageQueues(const std::string& topic);
+  std::vector<MessageQueue> FetchPublishMessageQueues(const std::string& topic);
 
   // Sync
   SendResult Send(const MessagePtr& message, int64_t timeout);
-  SendResult Send(const MessagePtr& message, const MQMessageQueue& message_queue, int64_t timeout);
+  SendResult Send(const MessagePtr& message, const MessageQueue& message_queue, int64_t timeout);
 
   // Async
   void Send(const MessagePtr& message, SendCallback send_callback, int64_t timeout) noexcept;
   void Send(const MessagePtr& message,
-            const MQMessageQueue& message_queue,
+            const MessageQueue& message_queue,
             SendCallback send_callback,
             int64_t timeout) noexcept;
 
   // Oneyway: same as sync send, but don't care its result.
   void SendOneway(const MessagePtr& message);
-  void SendOneway(const MessagePtr& message, const MQMessageQueue& message_queue);
+  void SendOneway(const MessagePtr& message, const MessageQueue& message_queue);
 
   // Select
   SendResult Send(const MessagePtr& message, MessageQueueSelector selector, int64_t timeout);
@@ -106,9 +106,9 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
   // RPC
   MessagePtr Request(const MessagePtr& message, int64_t timeout);
   void Request(const MessagePtr& message, RequestCallback request_callback, int64_t timeout) noexcept;
-  MessagePtr Request(const MessagePtr& message, const MQMessageQueue& message_queue, int64_t timeout);
+  MessagePtr Request(const MessagePtr& message, const MessageQueue& message_queue, int64_t timeout);
   void Request(const MessagePtr&,
-               const MQMessageQueue& message_queue,
+               const MessageQueue& message_queue,
                RequestCallback request_callback,
                int64_t timeout) noexcept;
   MessagePtr Request(const MessagePtr& message, MessageQueueSelector selector, int64_t timeout);
@@ -133,7 +133,7 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
                                               int64_t timeout);
 
   std::unique_ptr<SendResult> SendToQueueImpl(const MessagePtr& message,
-                                              const MQMessageQueue& message_queue,
+                                              const MessageQueue& message_queue,
                                               CommunicationMode communication_mode,
                                               SendCallback send_callback,
                                               int64_t timeout);
@@ -145,7 +145,7 @@ class DefaultMQProducerImpl final : public std::enable_shared_from_this<DefaultM
                                                   int64_t timeout);
 
   std::unique_ptr<SendResult> SendKernelImpl(const MessagePtr& message,
-                                             const MQMessageQueue& message_queue,
+                                             const MessageQueue& message_queue,
                                              CommunicationMode communication_mode,
                                              SendCallback send_callback,
                                              int64_t timeout);

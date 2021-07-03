@@ -24,8 +24,8 @@
 #include <mutex>   // std::mutex
 #include <vector>  // std::vector
 
-#include "MQMessageQueue.h"
 #include "MessageExt.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -36,10 +36,10 @@ typedef std::shared_ptr<ProcessQueue> ProcessQueuePtr;
 
 class ROCKETMQCLIENT_API ProcessQueue {
  public:
-  static const uint64_t kRebalanceLockInterval = 20000;     // ms
+  static const uint64_t kRebalanceLockInterval = 20000;  // ms
 
  public:
-  ProcessQueue(const MQMessageQueue& message_queue);
+  ProcessQueue(const MessageQueue& message_queue);
   virtual ~ProcessQueue();
 
   bool PutMessages(const std::vector<MessageExtPtr>& messages);
@@ -74,7 +74,7 @@ class ROCKETMQCLIENT_API ProcessQueue {
   void FillProcessQueueInfo(ProcessQueueInfo& info);
 
  public:
-  const MQMessageQueue& message_queue() const { return message_queue_; }
+  const MessageQueue& message_queue() const { return message_queue_; }
 
   bool dropped() const { return dropped_; }
   void set_dropped(bool dropped) { dropped_ = dropped; }
@@ -109,7 +109,7 @@ class ROCKETMQCLIENT_API ProcessQueue {
   void set_last_lock_timestamp(int64_t last_lock_timestamp) { last_lock_timestamp_ = last_lock_timestamp; }
 
  private:
-  const MQMessageQueue message_queue_;
+  const MessageQueue message_queue_;
 
   // message cache
   std::mutex message_cache_mutex_;

@@ -17,46 +17,11 @@
 #ifndef ROCKETMQ_MQMESSAGEQUEUE_H_
 #define ROCKETMQ_MQMESSAGEQUEUE_H_
 
-#include <string>  // std::string
-
-#include "RocketMQClient.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
-/**
- * MessageQueue(Topic, BrokerName, QueueId)
- */
-class ROCKETMQCLIENT_API MQMessageQueue {
- public:
-  MQMessageQueue();
-  MQMessageQueue(const std::string& topic, const std::string& brokerName, int queueId);
-
-  MQMessageQueue(const MQMessageQueue& other);
-  MQMessageQueue& operator=(const MQMessageQueue& other);
-
-  bool operator==(const MQMessageQueue& mq) const;
-  bool operator!=(const MQMessageQueue& mq) const { return !operator==(mq); }
-
-  bool operator<(const MQMessageQueue& mq) const;
-  int compareTo(const MQMessageQueue& mq) const;
-
-  std::string toString() const;
-
- public:
-  const std::string& topic() const { return topic_; };
-  void set_topic(const std::string& topic) { topic_ = topic; };
-
-  const std::string& broker_name() const { return broker_name_; };
-  void set_broker_name(const std::string& broker_name) { broker_name_ = broker_name; };
-
-  int queue_id() const { return queue_id_; };
-  void set_queue_id(int queue_id) { queue_id_ = queue_id; };
-
- private:
-  std::string topic_;
-  std::string broker_name_;
-  int queue_id_;
-};
+using MQMessageQueue = MessageQueue;
 
 }  // namespace rocketmq
 

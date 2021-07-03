@@ -20,7 +20,7 @@
 #include <string>  // std::string
 #include <vector>  // std::vector
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 namespace rocketmq {
 
@@ -29,8 +29,8 @@ class MessageQueueListener {
   virtual ~MessageQueueListener() = default;
 
   virtual void messageQueueChanged(const std::string& topic,
-                                   std::vector<MQMessageQueue>& all_message_queues,
-                                   std::vector<MQMessageQueue>& allocated_message_queues) = 0;
+                                   std::vector<MessageQueue>& all_message_queues,
+                                   std::vector<MessageQueue>& allocated_message_queues) = 0;
 };
 
 }  // namespace rocketmq
