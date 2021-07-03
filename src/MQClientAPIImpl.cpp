@@ -240,11 +240,11 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
                                 responseHeader->queue_offset, responseHeader->transaction_id);
 }
 
-std::unique_ptr<PullResult> MQClientAPIImpl::pullMessage(const std::string& addr,
-                                                         std::unique_ptr<PullMessageRequestHeader> requestHeader,
-                                                         int timeoutMillis,
-                                                         CommunicationMode communicationMode,
-                                                         PullCallback pullCallback) {
+std::unique_ptr<PullResultExt> MQClientAPIImpl::pullMessage(const std::string& addr,
+                                                            std::unique_ptr<PullMessageRequestHeader> requestHeader,
+                                                            int timeoutMillis,
+                                                            CommunicationMode communicationMode,
+                                                            PullCallback pullCallback) {
   RemotingCommand request(PULL_MESSAGE, requestHeader.release());
 
   switch (communicationMode) {
@@ -284,43 +284,40 @@ void MQClientAPIImpl::pullMessageAsync(const std::string& addr,
       timeoutMillis);
 }
 
-std::unique_ptr<PullResult> MQClientAPIImpl::pullMessageSync(const std::string& addr,
-                                                             RemotingCommand request,
-                                                             int timeoutMillis) {
+std::unique_ptr<PullResultExt> MQClientAPIImpl::pullMessageSync(const std::string& addr,
+                                                                RemotingCommand request,
+                                                                int timeoutMillis) {
   auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
   assert(response != nullptr);
   return processPullResponse(*response);
 }
 
-std::unique_ptr<PullResult> MQClientAPIImpl::processPullResponse(RemotingCommand& response) {
-  PullStatus pullStatus = NO_NEW_MSG;
-  switch (response.code()) {
-    case SUCCESS:
-      pullStatus = FOUND;
-      break;
-    case PULL_NOT_FOUND:
-      pullStatus = NO_NEW_MSG;
-      break;
-    case PULL_RETRY_IMMEDIATELY:
-      if ("OFFSET_OVERFLOW_BADLY" == response.remark()) {
-        pullStatus = NO_LATEST_MSG;
-      } else {
-        pullStatus = NO_MATCHED_MSG;
-      }
-      break;
-    case PULL_OFFSET_MOVED:
-      pullStatus = OFFSET_ILLEGAL;
-      break;
-    default:
-      THROW_MQEXCEPTION(MQBrokerException, response.remark(), response.code());
-  }
+std::unique_ptr<PullResultExt> MQClientAPIImpl::processPullResponse(RemotingCommand& response) {
+  auto pullStatus = [&response]() -> PullStatus {
+    switch (response.code()) {
+      case SUCCESS:
+        return PullStatus::kFound;
+      case PULL_NOT_FOUND:
+        return PullStatus::kNoNewMessage;
+      case PULL_RETRY_IMMEDIATELY:
+        if ("OFFSET_OVERFLOW_BADLY" == response.remark()) {
+          return PullStatus::kNoLatestMessage;
+        } else {
+          return PullStatus::kNoMatchedMessage;
+        }
+      case PULL_OFFSET_MOVED:
+        return PullStatus::kOffsetIllegal;
+      default:
+        THROW_MQEXCEPTION(MQBrokerException, response.remark(), response.code());
+    }
+  }();
 
   auto* responseHeader = response.decodeCommandCustomHeader<PullMessageResponseHeader>();
   assert(responseHeader != nullptr);
 
-  return std::unique_ptr<PullResult>(new PullResultExt(pullStatus, responseHeader->next_begin_offset,
-                                                       responseHeader->min_offset, responseHeader->max_offset,
-                                                       (int)responseHeader->suggest_which_broker_id, response.body()));
+  return std::unique_ptr<PullResultExt>(new PullResultExt(pullStatus, responseHeader->next_begin_offset,
+                                                          responseHeader->min_offset, responseHeader->max_offset,
+                                                          responseHeader->suggest_which_broker_id, response.body()));
 }
 
 MQMessageExt MQClientAPIImpl::viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis) {

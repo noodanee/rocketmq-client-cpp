@@ -524,7 +524,8 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
                                               true);
 
   std::weak_ptr<DefaultLitePullConsumerImpl> consumer_ptr{shared_from_this()};
-  auto pull_callback = [consumer_ptr, pull_request, subscription_data](ResultState<std::unique_ptr<PullResult>> state) {
+  auto pull_callback = [consumer_ptr, pull_request,
+                        subscription_data](ResultState<std::unique_ptr<PullResultExt>> state) {
     auto process_queue = pull_request->process_queue();
     if (process_queue->dropped()) {
       LOG_WARN_NEW("the pull request[{}] is dropped.", pull_request->toString());
@@ -545,17 +546,17 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
         std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
         if (process_queue->seek_offset() == -1) {
           process_queue->set_pull_offset(pull_result->next_begin_offset());
-          if (pull_result->pull_status() == PullStatus::FOUND && !pull_result->msg_found_list().empty()) {
-            consumer->message_cache().PutMessages(process_queue, pull_result->msg_found_list());
+          if (pull_result->pull_status() == PullStatus::kFound && !pull_result->found_message_list().empty()) {
+            consumer->message_cache().PutMessages(process_queue, pull_result->found_message_list());
           }
         }
       }
 
-      if (pull_result->pull_status() == PullStatus::NO_LATEST_MSG) {
+      if (pull_result->pull_status() == PullStatus::kNoLatestMessage) {
         consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
       } else {
-        if (pull_result->pull_status() == PullStatus::OFFSET_ILLEGAL) {
-          LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->toString());
+        if (pull_result->pull_status() == PullStatus::kOffsetIllegal) {
+          LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->ToString());
         }
         consumer->ExecutePullRequestImmediately(pull_request);
       }

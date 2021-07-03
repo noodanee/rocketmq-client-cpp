@@ -25,7 +25,7 @@
 #include "MQClientInstance.h"
 #include "MQException.h"
 #include "MQMessageExt.h"
-#include "PullResult.h"
+#include "PullResultExt.hpp"
 #include "RemotingCommand.h"
 #include "SendResult.hpp"
 #include "TopicConfig.h"
@@ -53,7 +53,7 @@ class RPCHook;
 class MQClientAPIImpl {
  public:
   using SendCallback = std::function<void(ResultState<std::unique_ptr<SendResult>>) /* noexcept */>;
-  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResult>>) /* noexcept */>;
+  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResultExt>>) /* noexcept */>;
 
  public:
   MQClientAPIImpl(ClientRemotingProcessor* clientRemotingProcessor,
@@ -76,11 +76,11 @@ class MQClientAPIImpl {
                                           CommunicationMode communicationMode,
                                           SendCallback sendCallback);
 
-  std::unique_ptr<PullResult> pullMessage(const std::string& addr,
-                                          std::unique_ptr<PullMessageRequestHeader> requestHeader,
-                                          int timeoutMillis,
-                                          CommunicationMode communicationMode,
-                                          PullCallback pullCallback);
+  std::unique_ptr<PullResultExt> pullMessage(const std::string& addr,
+                                             std::unique_ptr<PullMessageRequestHeader> requestHeader,
+                                             int timeoutMillis,
+                                             CommunicationMode communicationMode,
+                                             PullCallback pullCallback);
 
   MQMessageExt viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis);
 
@@ -173,11 +173,11 @@ class MQClientAPIImpl {
                                                   Message& message,
                                                   RemotingCommand& response);
 
-  std::unique_ptr<PullResult> pullMessageSync(const std::string& addr, RemotingCommand request, int timeoutMillis);
+  std::unique_ptr<PullResultExt> pullMessageSync(const std::string& addr, RemotingCommand request, int timeoutMillis);
 
   void pullMessageAsync(const std::string& addr, RemotingCommand request, int timeoutMillis, PullCallback pullCallback);
 
-  std::unique_ptr<PullResult> processPullResponse(RemotingCommand& response);
+  std::unique_ptr<PullResultExt> processPullResponse(RemotingCommand& response);
 
  private:
   std::unique_ptr<TcpRemotingClient> remoting_client_;

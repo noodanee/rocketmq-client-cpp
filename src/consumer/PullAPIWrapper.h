@@ -22,7 +22,7 @@
 #include "CommunicationMode.h"
 #include "MQClientInstance.h"
 #include "MessageQueue.hpp"
-#include "PullResult.h"
+#include "PullResultExt.hpp"
 #include "common/ResultState.hpp"
 #include "protocol/body/SubscriptionData.hpp"
 
@@ -30,26 +30,26 @@ namespace rocketmq {
 
 class PullAPIWrapper {
  public:
-  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResult>>) noexcept>;
+  using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResultExt>>) /* noexcept */>;
 
  public:
   PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group);
 
-  std::unique_ptr<PullResult> PullKernelImpl(const MessageQueue& message_queue,
-                                             const std::string& expression,
-                                             const std::string& expression_type,
-                                             int64_t version,
-                                             int64_t offset,
-                                             int max_nums,
-                                             int system_flag,
-                                             int64_t commit_offset,
-                                             int broker_suspend_max_time_millis,
-                                             int timeout_millis,
-                                             CommunicationMode communication_mode,
-                                             PullCallback pull_callback);
+  std::unique_ptr<PullResultExt> PullKernelImpl(const MessageQueue& message_queue,
+                                                const std::string& expression,
+                                                const std::string& expression_type,
+                                                int64_t version,
+                                                int64_t offset,
+                                                int max_nums,
+                                                int system_flag,
+                                                int64_t commit_offset,
+                                                int broker_suspend_max_time_millis,
+                                                int timeout_millis,
+                                                CommunicationMode communication_mode,
+                                                PullCallback pull_callback);
 
   std::unique_ptr<PullResult> ProcessPullResult(const MessageQueue& mq,
-                                                std::unique_ptr<PullResult> pull_result,
+                                                std::unique_ptr<PullResultExt> pull_result_ext,
                                                 SubscriptionData* subscriptionData);
 
  private:

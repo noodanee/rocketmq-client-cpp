@@ -31,18 +31,18 @@ namespace rocketmq {
 PullAPIWrapper::PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group)
     : client_instance_(client_instance), consumer_group_(consumer_group) {}
 
-std::unique_ptr<PullResult> PullAPIWrapper::PullKernelImpl(const MessageQueue& message_queue,
-                                                           const std::string& expression,
-                                                           const std::string& expression_type,
-                                                           int64_t version,
-                                                           int64_t offset,
-                                                           int max_nums,
-                                                           int system_flag,
-                                                           int64_t commit_offset,
-                                                           int broker_suspend_max_time_millis,
-                                                           int timeout_millis,
-                                                           CommunicationMode communication_mode,
-                                                           PullCallback pull_callback) {
+std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue& message_queue,
+                                                              const std::string& expression,
+                                                              const std::string& expression_type,
+                                                              int64_t version,
+                                                              int64_t offset,
+                                                              int max_nums,
+                                                              int system_flag,
+                                                              int64_t commit_offset,
+                                                              int broker_suspend_max_time_millis,
+                                                              int timeout_millis,
+                                                              CommunicationMode communication_mode,
+                                                              PullCallback pull_callback) {
   std::unique_ptr<FindBrokerResult> find_broker_result(client_instance_->findBrokerAddressInSubscribe(
       message_queue.broker_name(), RecalculatePullFromWhichNode(message_queue), false));
   if (find_broker_result == nullptr) {
@@ -86,20 +86,15 @@ int PullAPIWrapper::RecalculatePullFromWhichNode(const MessageQueue& message_que
 }
 
 std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MessageQueue& message_queue,
-                                                              std::unique_ptr<PullResult> pull_result,
+                                                              std::unique_ptr<PullResultExt> pull_result_ext,
                                                               SubscriptionData* subscription_data) {
-  auto* pull_result_ext = dynamic_cast<PullResultExt*>(pull_result.get());
-  if (pull_result_ext == nullptr) {
-    return pull_result;
-  }
-
   // update node
-  UpdatePullFromWhichNode(message_queue, pull_result_ext->suggert_which_boker_id());
+  UpdatePullFromWhichNode(message_queue, static_cast<int>(pull_result_ext->suggert_which_boker_id));
 
   std::vector<MessageExtPtr> filtered_message_list;
-  if (PullStatus::FOUND == pull_result_ext->pull_status()) {
+  if (PullStatus::kFound == pull_result_ext->pull_status) {
     // decode all msg list
-    std::unique_ptr<ByteBuffer> byte_buffer(ByteBuffer::wrap(pull_result_ext->message_binary()));
+    std::unique_ptr<ByteBuffer> byte_buffer(ByteBuffer::wrap(pull_result_ext->message_binary));
     auto message_list = MessageDecoder::decodes(*byte_buffer);
 
     // filter msg list again
@@ -116,8 +111,8 @@ std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MessageQueue
     }
 
     if (!filtered_message_list.empty()) {
-      std::string min_offset = UtilAll::to_string(pull_result_ext->min_offset());
-      std::string max_offset = UtilAll::to_string(pull_result_ext->max_offset());
+      std::string min_offset = UtilAll::to_string(pull_result_ext->min_offset);
+      std::string max_offset = UtilAll::to_string(pull_result_ext->max_offset);
       for (auto& message : filtered_message_list) {
         const auto& transaction_flag = message->getProperty(MQMessageConst::PROPERTY_TRANSACTION_PREPARED);
         if (UtilAll::stob(transaction_flag)) {
@@ -129,9 +124,9 @@ std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MessageQueue
     }
   }
 
-  return std::unique_ptr<PullResult>(new PullResult(pull_result_ext->pull_status(),
-                                                    pull_result_ext->next_begin_offset(), pull_result_ext->min_offset(),
-                                                    pull_result_ext->max_offset(), std::move(filtered_message_list)));
+  return std::unique_ptr<PullResult>(new PullResult(pull_result_ext->pull_status, pull_result_ext->next_begin_offset,
+                                                    pull_result_ext->min_offset, pull_result_ext->max_offset,
+                                                    std::move(filtered_message_list)));
 }
 
 void PullAPIWrapper::UpdatePullFromWhichNode(const MessageQueue& message_queue, int broker_id) {

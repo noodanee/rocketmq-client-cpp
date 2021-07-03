@@ -17,42 +17,35 @@
 #ifndef ROCKETMQ_CONSUMER_PULLRESULTEXT_HPP_
 #define ROCKETMQ_CONSUMER_PULLRESULTEXT_HPP_
 
+#include <cstdint>  // int64_t
+
+#include <utility>  // std::move
+
 #include "ByteArray.h"
-#include "PullResult.h"
+#include "PullResult.hpp"
 
 namespace rocketmq {
 
-/**
- * use internal only
- */
-class PullResultExt : public PullResult {
- public:
-  PullResultExt(PullStatus pullStatus,
-                int64_t nextBeginOffset,
-                int64_t minOffset,
-                int64_t maxOffset,
-                int suggestWhichBrokerId)
-      : PullResultExt(pullStatus, nextBeginOffset, minOffset, maxOffset, suggestWhichBrokerId, nullptr) {}
+struct PullResultExt {
+  PullStatus pull_status{PullStatus::kNoMatchedMessage};
+  int64_t next_begin_offset{0};
+  int64_t min_offset{0};
+  int64_t max_offset{0};
+  int64_t suggert_which_boker_id;
+  ByteArrayRef message_binary;
 
-  PullResultExt(PullStatus pullStatus,
-                int64_t nextBeginOffset,
-                int64_t minOffset,
-                int64_t maxOffset,
-                int suggestWhichBrokerId,
-                ByteArrayRef messageBinary)
-      : PullResult(pullStatus, nextBeginOffset, minOffset, maxOffset),
-        suggert_which_boker_id_(suggestWhichBrokerId),
-        message_binary_(messageBinary) {}
-
-  ~PullResultExt() override = default;
-
- public:
-  int suggert_which_boker_id() const { return suggert_which_boker_id_; }
-  ByteArrayRef message_binary() const { return message_binary_; }
-
- private:
-  int suggert_which_boker_id_;
-  ByteArrayRef message_binary_;
+  PullResultExt(PullStatus pull_status,
+                int64_t next_begin_offset,
+                int64_t min_offset,
+                int64_t max_offset,
+                int64_t suggest_which_broker_id,
+                ByteArrayRef message_binary)
+      : pull_status(pull_status),
+        next_begin_offset(next_begin_offset),
+        min_offset(min_offset),
+        max_offset(max_offset),
+        suggert_which_boker_id(suggest_which_broker_id),
+        message_binary(std::move(message_binary)) {}
 };
 
 }  // namespace rocketmq

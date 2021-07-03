@@ -368,7 +368,8 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
                                               false);                // class filter
 
   std::weak_ptr<DefaultMQPushConsumerImpl> consumer_ptr{shared_from_this()};
-  auto pull_callback = [consumer_ptr, pull_request, subscription_data](ResultState<std::unique_ptr<PullResult>> state) {
+  auto pull_callback = [consumer_ptr, pull_request,
+                        subscription_data](ResultState<std::unique_ptr<PullResultExt>> state) {
     auto consumer = consumer_ptr.lock();
     if (nullptr == consumer) {
       LOG_WARN_NEW("DefaultMQPushConsumerImpl is released.");
@@ -379,16 +380,16 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
       auto pull_result = consumer->pull_api_wrapper_->ProcessPullResult(
           pull_request->message_queue(), std::move(state.GetResult()), subscription_data);
       switch (pull_result->pull_status()) {
-        case FOUND: {
+        case PullStatus::kFound: {
           int64_t prev_request_offset = pull_request->next_offset();
           pull_request->set_next_offset(pull_result->next_begin_offset());
 
           int64_t first_msg_offset = (std::numeric_limits<int64_t>::max)();
-          if (!pull_result->msg_found_list().empty()) {
-            first_msg_offset = pull_result->msg_found_list()[0]->queue_offset();
+          if (!pull_result->found_message_list().empty()) {
+            first_msg_offset = pull_result->found_message_list()[0]->queue_offset();
 
-            pull_request->process_queue()->PutMessages(pull_result->msg_found_list());
-            consumer->consume_service_->submitConsumeRequest(pull_result->msg_found_list(),
+            pull_request->process_queue()->PutMessages(pull_result->found_message_list());
+            consumer->consume_service_->submitConsumeRequest(pull_result->found_message_list(),
                                                              pull_request->process_queue(), true);
           }
 
@@ -401,19 +402,19 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
                 pull_result->next_begin_offset(), first_msg_offset, prev_request_offset);
           }
         } break;
-        case NO_NEW_MSG:
-        case NO_MATCHED_MSG:
+        case PullStatus::kNoNewMessage:
+        case PullStatus::kNoMatchedMessage:
           pull_request->set_next_offset(pull_result->next_begin_offset());
           consumer->CorrectTagsOffset(pull_request);
           consumer->ExecutePullRequestImmediately(pull_request);
           break;
-        case NO_LATEST_MSG:
+        case PullStatus::kNoLatestMessage:
           pull_request->set_next_offset(pull_result->next_begin_offset());
           consumer->CorrectTagsOffset(pull_request);
           consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
           break;
-        case OFFSET_ILLEGAL: {
-          LOG_WARN_NEW("the pull request offset illegal, {} {}", pull_request->toString(), pull_result->toString());
+        case PullStatus::kOffsetIllegal: {
+          LOG_WARN_NEW("the pull request offset illegal, {} {}", pull_request->toString(), pull_result->ToString());
 
           pull_request->set_next_offset(pull_result->next_begin_offset());
           pull_request->process_queue()->set_dropped(true);

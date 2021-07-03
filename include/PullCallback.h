@@ -18,7 +18,7 @@
 #define ROCKETMQ_PULLCALLBACK_H_
 
 #include "MQException.h"
-#include "PullResult.h"
+#include "PullResult.hpp"
 
 namespace rocketmq {
 
