@@ -21,13 +21,13 @@
 #include <vector>     // std::vector
 
 #include "MessageQueue.hpp"
-#include "RemotingSerializable.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
-class UnlockBatchRequestBody : public RemotingSerializable {
+class UnlockBatchRequestBody {
  public:
-  std::string encode() override {
+  std::string encode() {
     Json::Value root;
     root["consumerGroup"] = consumer_group_;
     root["clientId"] = client_id_;
@@ -36,7 +36,7 @@ class UnlockBatchRequestBody : public RemotingSerializable {
       root["mqSet"].append(rocketmq::toJson(mq));
     }
 
-    return RemotingSerializable::toJson(root);
+    return JsonSerializer::ToJson(root);
   }
 
  public:

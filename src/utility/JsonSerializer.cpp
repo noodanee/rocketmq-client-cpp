@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "RemotingSerializable.h"
+#include "utility/JsonSerializer.h"
 
 #include <memory>
 #include <sstream>
@@ -22,71 +22,86 @@
 #include "MQException.h"
 
 namespace rocketmq {
+namespace JsonSerializer {
 
-Json::StreamWriterBuilder& RemotingSerializable::getPrettyWriterBuilder() {
+namespace {
+
+class PlainStreamWriterBuilder : public Json::StreamWriterBuilder {
+ public:
+  PlainStreamWriterBuilder() : StreamWriterBuilder() { (*this)["indentation"] = ""; }
+};
+
+class PowerCharReaderBuilder : public Json::CharReaderBuilder {
+ public:
+  PowerCharReaderBuilder() : CharReaderBuilder() { (*this)["allowNumericKeys"] = true; }
+};
+
+Json::StreamWriterBuilder& getPrettyWriterBuilder() {
   static Json::StreamWriterBuilder sPrettyWriterBuilder;
   return sPrettyWriterBuilder;
 }
 
-Json::StreamWriterBuilder& RemotingSerializable::getPlainWriterBuilder() {
+Json::StreamWriterBuilder& getPlainWriterBuilder() {
   static PlainStreamWriterBuilder sPlainWriterBuilder;
   return sPlainWriterBuilder;
 }
 
-Json::CharReaderBuilder& RemotingSerializable::getPowerReaderBuilder() {
+Json::CharReaderBuilder& getPowerReaderBuilder() {
   static PowerCharReaderBuilder sPowerReaderBuilder;
   return sPowerReaderBuilder;
 }
 
-std::string RemotingSerializable::toJson(Json::Value root) {
-  return toJson(root, false);
+}  // namespace
+
+std::string ToJson(const Json::Value& object) {
+  return ToJson(object, false);
 }
 
-std::string RemotingSerializable::toJson(Json::Value root, bool prettyFormat) {
+std::string ToJson(const Json::Value& object, bool pretty_format) {
   std::ostringstream sout;
-  toJson(root, sout, prettyFormat);
+  ToJson(object, sout, pretty_format);
   return sout.str();
 }
 
-void RemotingSerializable::toJson(Json::Value root, std::ostream& sout, bool prettyFormat) {
+void ToJson(const Json::Value& object, std::ostream& sout, bool pretty_format) {
   std::unique_ptr<Json::StreamWriter> writer;
-  if (prettyFormat) {
+  if (pretty_format) {
     writer.reset(getPrettyWriterBuilder().newStreamWriter());
   } else {
     writer.reset(getPlainWriterBuilder().newStreamWriter());
   }
-  writer->write(root, &sout);
+  writer->write(object, &sout);
 }
 
-Json::Value RemotingSerializable::fromJson(std::istream& sin) {
+Json::Value FromJson(std::istream& sin) {
   std::ostringstream ssin;
   ssin << sin.rdbuf();
   std::string json = ssin.str();
-  return fromJson(json);
+  return FromJson(json);
 }
 
-Json::Value RemotingSerializable::fromJson(const std::string& json) {
+Json::Value FromJson(const std::string& json) {
   const char* begin = json.data();
   const char* end = begin + json.size();
-  return fromJson(begin, end);
+  return FromJson(begin, end);
 }
 
-Json::Value RemotingSerializable::fromJson(const ByteArray& bytes) {
+Json::Value FromJson(const ByteArray& bytes) {
   const char* begin = bytes.array();
   const char* end = begin + bytes.size();
-  return fromJson(begin, end);
+  return FromJson(begin, end);
 }
 
-Json::Value RemotingSerializable::fromJson(const char* begin, const char* end) {
+Json::Value FromJson(const char* begin, const char* end) {
   Json::Value root;
   std::string errs;
   std::unique_ptr<Json::CharReader> reader(getPowerReaderBuilder().newCharReader());
   // TODO: object as key
   if (reader->parse(begin, end, &root, &errs)) {
     return root;
-  } else {
-    THROW_MQEXCEPTION(RemotingCommandException, errs, -1);
   }
+  THROW_MQEXCEPTION(MQException, errs, -1);
 }
 
+}  // namespace JsonSerializer
 }  // namespace rocketmq

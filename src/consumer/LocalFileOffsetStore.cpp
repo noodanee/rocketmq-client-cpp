@@ -121,7 +121,7 @@ void LocalFileOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
   for (const auto& mq : mqs) {
     const auto& it = offsetTable.find(mq);
     if (it != offsetTable.end()) {
-      std::string strMQ = RemotingSerializable::toJson(toJson(mq));
+      std::string strMQ = JsonSerializer::ToJson(toJson(mq));
       jOffsetTable[strMQ] = Json::Value((Json::Int64)it->second);
     }
   }
@@ -132,7 +132,7 @@ void LocalFileOffsetStore::persistAll(std::vector<MQMessageQueue>& mqs) {
   std::ofstream ofstrm(storePathTmp, std::ios::binary | std::ios::out);
   if (ofstrm.is_open()) {
     try {
-      RemotingSerializable::toJson(root, ofstrm, true);
+      JsonSerializer::ToJson(root, ofstrm, true);
     } catch (std::exception& e) {
       THROW_MQEXCEPTION(MQClientException, "persistAll failed", -1);
     }
@@ -150,12 +150,12 @@ std::map<MQMessageQueue, int64_t> LocalFileOffsetStore::readLocalOffset() {
   std::ifstream ifstrm(store_path_, std::ios::binary | std::ios::in);
   if (ifstrm.is_open() && !ifstrm.eof()) {
     try {
-      Json::Value root = RemotingSerializable::fromJson(ifstrm);
+      Json::Value root = JsonSerializer::FromJson(ifstrm);
       std::map<MQMessageQueue, int64_t> offsetTable;
       auto& jOffsetTable = root["offsetTable"];
       for (auto& strMQ : jOffsetTable.getMemberNames()) {
         auto& offset = jOffsetTable[strMQ];
-        Json::Value jMQ = RemotingSerializable::fromJson(strMQ);
+        Json::Value jMQ = JsonSerializer::FromJson(strMQ);
         MQMessageQueue mq(jMQ["topic"].asString(), jMQ["brokerName"].asString(), jMQ["queueId"].asInt());
         offsetTable.emplace(std::move(mq), offset.asInt64());
       }
@@ -173,11 +173,11 @@ std::map<MQMessageQueue, int64_t> LocalFileOffsetStore::readLocalOffsetBak() {
   if (ifstrm.is_open()) {
     if (!ifstrm.eof()) {
       try {
-        Json::Value root = RemotingSerializable::fromJson(ifstrm);
+        Json::Value root = JsonSerializer::FromJson(ifstrm);
         auto& jOffsetTable = root["offsetTable"];
         for (auto& strMQ : jOffsetTable.getMemberNames()) {
           auto& offset = jOffsetTable[strMQ];
-          Json::Value jMQ = RemotingSerializable::fromJson(strMQ);
+          Json::Value jMQ = JsonSerializer::FromJson(strMQ);
           MQMessageQueue mq(jMQ["topic"].asString(), jMQ["brokerName"].asString(), jMQ["queueId"].asInt());
           offsetTable.emplace(std::move(mq), offset.asInt64());
         }

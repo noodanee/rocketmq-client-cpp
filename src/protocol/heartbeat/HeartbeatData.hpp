@@ -22,11 +22,11 @@
 
 #include "ConsumerData.hpp"
 #include "ProducerData.hpp"
-#include "RemotingSerializable.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
-class HeartbeatData : public RemotingSerializable {
+class HeartbeatData {
  public:
   std::string encode() {
     Json::Value root;
@@ -45,7 +45,7 @@ class HeartbeatData : public RemotingSerializable {
     }
 
     // output
-    return RemotingSerializable::toJson(root);
+    return JsonSerializer::ToJson(root);
   }
 
  public:

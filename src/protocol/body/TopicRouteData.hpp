@@ -25,8 +25,8 @@
 
 #include "ByteArray.h"
 #include "Logging.h"
-#include "RemotingSerializable.h"
 #include "UtilAll.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
@@ -107,7 +107,7 @@ typedef std::shared_ptr<TopicRouteData> TopicRouteDataPtr;
 class TopicRouteData {
  public:
   static std::unique_ptr<TopicRouteData> Decode(const ByteArray& bodyData) {
-    Json::Value root = RemotingSerializable::fromJson(bodyData);
+    Json::Value root = JsonSerializer::FromJson(bodyData);
 
     std::unique_ptr<TopicRouteData> trd(new TopicRouteData());
     trd->set_order_topic_conf(root["orderTopicConf"].asString());

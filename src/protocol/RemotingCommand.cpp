@@ -26,7 +26,7 @@
 #include "ByteOrder.h"
 #include "Logging.h"
 #include "MQVersion.h"
-#include "RemotingSerializable.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
@@ -100,7 +100,7 @@ ByteArrayRef RemotingCommand::encode() const {
   root["extFields"] = ext_fields;
 
   // serialize header
-  std::string header = RemotingSerializable::toJson(root);
+  std::string header = JsonSerializer::ToJson(root);
 
   // 1> header length size
   uint32_t length = 4;
@@ -154,7 +154,7 @@ static std::unique_ptr<RemotingCommand> Decode(ByteBuffer& byteBuffer, bool hasP
 
   Json::Value object;
   try {
-    object = RemotingSerializable::fromJson(headerData);
+    object = JsonSerializer::FromJson(headerData);
   } catch (std::exception& e) {
     LOG_WARN_NEW("parse json failed. {}", e.what());
     THROW_MQEXCEPTION(MQClientException, "conn't parse json", -1);

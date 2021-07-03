@@ -20,7 +20,7 @@
 #include <map>  // std::map
 
 #include "MQMessageQueue.h"
-#include "RemotingSerializable.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
@@ -28,12 +28,12 @@ class ResetOffsetBody {
  public:
   static std::unique_ptr<ResetOffsetBody> Decode(const ByteArray& bodyData) {
     // FIXME: object as key
-    Json::Value root = RemotingSerializable::fromJson(bodyData);
+    Json::Value root = JsonSerializer::FromJson(bodyData);
     auto& qds = root["offsetTable"];
     std::unique_ptr<ResetOffsetBody> body(new ResetOffsetBody());
     Json::Value::Members members = qds.getMemberNames();
     for (const auto& member : members) {
-      Json::Value key = RemotingSerializable::fromJson(member);
+      Json::Value key = JsonSerializer::FromJson(member);
       MQMessageQueue mq(key["topic"].asString(), key["brokerName"].asString(), key["queueId"].asInt());
       int64_t offset = qds[member].asInt64();
       body->offset_table_.emplace(std::move(mq), offset);

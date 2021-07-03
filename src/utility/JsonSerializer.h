@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __KV_TABLE_H__
-#define __KV_TABLE_H__
+#ifndef ROCKETMQ_UTILITY_JSONSERIALIZER_H_
+#define ROCKETMQ_UTILITY_JSONSERIALIZER_H_
 
-#include <map>
-#include <string>
+#include <json/json.h>
+
+#include "ByteArray.h"
 
 namespace rocketmq {
+namespace JsonSerializer {
 
-class KVTable {
- public:
-  virtual ~KVTable() { m_table.clear(); }
+std::string ToJson(const Json::Value& object);
+std::string ToJson(const Json::Value& object, bool pretty_format);
+void ToJson(const Json::Value& object, std::ostream& sout, bool pretty_format);
 
-  const std::map<std::string, std::string>& getTable() { return m_table; }
+Json::Value FromJson(std::istream& sin);
+Json::Value FromJson(const std::string& json);
+Json::Value FromJson(const ByteArray& bytes);
+Json::Value FromJson(const char* begin, const char* end);
 
-  void setTable(const std::map<std::string, std::string>& table) { m_table = table; }
-
- private:
-  std::map<std::string, std::string> m_table;
-};
-
+}  // namespace JsonSerializer
 }  // namespace rocketmq
 
-#endif  // __KV_TABLE_H__
+#endif  // ROCKETMQ_UTILITY_JSONSERIALIZER_H_

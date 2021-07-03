@@ -22,14 +22,14 @@
 
 #include "Logging.h"
 #include "MQMessageQueue.h"
-#include "RemotingSerializable.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
 class LockBatchResponseBody {
  public:
   static std::unique_ptr<LockBatchResponseBody> Decode(const ByteArray& bodyData) {
-    Json::Value root = RemotingSerializable::fromJson(bodyData);
+    Json::Value root = JsonSerializer::FromJson(bodyData);
     auto& mqs = root["lockOKMQSet"];
     std::unique_ptr<LockBatchResponseBody> body(new LockBatchResponseBody());
     for (const auto& qd : mqs) {

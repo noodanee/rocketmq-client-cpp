@@ -20,8 +20,8 @@
 
 #include "Logging.h"
 #include "MQException.h"
-#include "RemotingSerializable.h"
 #include "UtilAll.h"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
@@ -650,7 +650,7 @@ void ConsumerSendMsgBackRequestHeader::SetDeclaredFieldOfCommandHeader(std::map<
 
 std::unique_ptr<GetConsumerListByGroupResponseBody> GetConsumerListByGroupResponseBody::Decode(
     const ByteArray& bodyData) {
-  Json::Value root = RemotingSerializable::fromJson(bodyData);
+  Json::Value root = JsonSerializer::FromJson(bodyData);
   auto& ids = root["consumerIdList"];
   std::unique_ptr<GetConsumerListByGroupResponseBody> body(new GetConsumerListByGroupResponseBody());
   for (unsigned int i = 0; i < ids.size(); i++) {
