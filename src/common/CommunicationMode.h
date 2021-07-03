@@ -19,7 +19,7 @@
 
 namespace rocketmq {
 
-enum CommunicationMode { SYNC, ASYNC, ONEWAY };
+enum class CommunicationMode { kSync, kAsync, kOneway };
 
 }  // namespace rocketmq
 

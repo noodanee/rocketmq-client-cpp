@@ -577,7 +577,7 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
                                       0,                                                // commitOffset
                                       config().broker_suspend_max_time_millis(),        // brokerSuspendMaxTimeMillis
                                       config().consumer_timeout_millis_when_suspend(),  // timeoutMillis
-                                      CommunicationMode::ASYNC,                         // communicationMode
+                                      CommunicationMode::kAsync,                        // communicationMode
                                       std::move(pull_callback));                        // pullCallback
   } catch (std::exception& e) {
     LOG_ERROR_NEW("An error occurred in pull message process. {}", e.what());

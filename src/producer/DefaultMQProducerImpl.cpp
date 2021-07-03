@@ -150,7 +150,7 @@ std::vector<MQMessageQueue> DefaultMQProducerImpl::FetchPublishMessageQueues(con
 
 SendResult DefaultMQProducerImpl::Send(const MessagePtr& message, int64_t timeout) {
   try {
-    return *SendDefaultImpl(message, CommunicationMode::SYNC, nullptr, timeout);
+    return *SendDefaultImpl(message, CommunicationMode::kSync, nullptr, timeout);
   } catch (MQException& e) {
     LOG_ERROR_NEW("send failed, exception:{}", e.what());
     throw;
@@ -161,7 +161,7 @@ SendResult DefaultMQProducerImpl::Send(const MessagePtr& message,
                                        const MQMessageQueue& message_queue,
                                        int64_t timeout) {
   try {
-    return *SendToQueueImpl(message, message_queue, CommunicationMode::SYNC, nullptr, timeout);
+    return *SendToQueueImpl(message, message_queue, CommunicationMode::kSync, nullptr, timeout);
   } catch (MQException& e) {
     LOG_ERROR_NEW("send failed, exception:{}", e.what());
     throw;
@@ -177,7 +177,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message, SendCallback send_ca
 #endif
       () {
         try {
-          (void)SendDefaultImpl(message, CommunicationMode::ASYNC, send_callback, timeout);
+          (void)SendDefaultImpl(message, CommunicationMode::kAsync, send_callback, timeout);
         } catch (...) {
           send_callback({std::current_exception()});
         }
@@ -197,7 +197,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message,
       () {
         try {
           try {
-            (void)SendToQueueImpl(message, message_queue, CommunicationMode::ASYNC, send_callback, timeout);
+            (void)SendToQueueImpl(message, message_queue, CommunicationMode::kAsync, send_callback, timeout);
           } catch (MQBrokerException& e) {
             std::string error_message = std::string("unknown exception, ") + e.what();
             THROW_MQEXCEPTION(MQClientException, error_message, e.GetError());
@@ -210,7 +210,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message,
 
 void DefaultMQProducerImpl::SendOneway(const MessagePtr& message) {
   try {
-    (void)SendDefaultImpl(message, CommunicationMode::ONEWAY, nullptr, config().send_msg_timeout());
+    (void)SendDefaultImpl(message, CommunicationMode::kOneway, nullptr, config().send_msg_timeout());
   } catch (MQBrokerException& e) {
     std::string error_message = std::string("unknown exception, ") + e.what();
     THROW_MQEXCEPTION(MQClientException, error_message, e.GetError());
@@ -219,7 +219,7 @@ void DefaultMQProducerImpl::SendOneway(const MessagePtr& message) {
 
 void DefaultMQProducerImpl::SendOneway(const MessagePtr& message, const MQMessageQueue& message_queue) {
   try {
-    (void)SendToQueueImpl(message, message_queue, CommunicationMode::ASYNC, nullptr, config().send_msg_timeout());
+    (void)SendToQueueImpl(message, message_queue, CommunicationMode::kAsync, nullptr, config().send_msg_timeout());
   } catch (MQBrokerException& e) {
     std::string error_message = std::string("unknown exception, ") + e.what();
     THROW_MQEXCEPTION(MQClientException, error_message, e.GetError());
@@ -228,7 +228,7 @@ void DefaultMQProducerImpl::SendOneway(const MessagePtr& message, const MQMessag
 
 SendResult DefaultMQProducerImpl::Send(const MessagePtr& message, MessageQueueSelector selector, int64_t timeout) {
   try {
-    return *SendSelectQueueImpl(message, selector, CommunicationMode::SYNC, nullptr, timeout);
+    return *SendSelectQueueImpl(message, selector, CommunicationMode::kSync, nullptr, timeout);
   } catch (MQException& e) {
     LOG_ERROR_NEW("send failed, exception:{}", e.what());
     throw;
@@ -248,7 +248,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message,
       () mutable {
         try {
           try {
-            (void)SendSelectQueueImpl(message, selector, CommunicationMode::ASYNC, send_callback, timeout);
+            (void)SendSelectQueueImpl(message, selector, CommunicationMode::kAsync, send_callback, timeout);
           } catch (MQBrokerException& e) {
             std::string error_message = std::string("unknown exception, ") + e.what();
             THROW_MQEXCEPTION(MQClientException, error_message, e.GetError());
@@ -261,7 +261,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message,
 
 void DefaultMQProducerImpl::SendOneway(const MessagePtr& message, MessageQueueSelector selector) {
   try {
-    (void)SendSelectQueueImpl(message, selector, CommunicationMode::ONEWAY, nullptr, config().send_msg_timeout());
+    (void)SendSelectQueueImpl(message, selector, CommunicationMode::kOneway, nullptr, config().send_msg_timeout());
   } catch (MQBrokerException& e) {
     std::string error_message = std::string("unknown exception, ") + e.what();
     THROW_MQEXCEPTION(MQClientException, error_message, e.GetError());
@@ -330,8 +330,8 @@ class DefaultMQProducerImpl::UnifiedSendDefaultImpl {
                          int64_t timeout)
       : message_(std::move(message)),
         communication_mode_(communication_mode),
-        retry_times_(communication_mode == CommunicationMode::ASYNC ? producer.config().retry_times_for_async()
-                                                                    : producer.config().retry_times()),
+        retry_times_(communication_mode == CommunicationMode::kAsync ? producer.config().retry_times_for_async()
+                                                                     : producer.config().retry_times()),
         retry_when_not_store_ok_(producer.config().retry_another_broker_when_not_store_ok()),
         begin_time_first_(UtilAll::currentTimeMillis()),
         begin_time_prev_(begin_time_first_),
@@ -350,7 +350,7 @@ class DefaultMQProducerImpl::UnifiedSendDefaultImpl {
   UnifiedSendDefaultImpl& operator=(UnifiedSendDefaultImpl&&) = default;
 
   std::unique_ptr<SendResult> SendDefault(DefaultMQProducerImpl& producer) {
-    if (communication_mode_ == CommunicationMode::ASYNC) {
+    if (communication_mode_ == CommunicationMode::kAsync) {
       producer_ptr_ = producer.shared_from_this();
     }
 
@@ -378,9 +378,9 @@ class DefaultMQProducerImpl::UnifiedSendDefaultImpl {
         last_broker_name_ = message_queue.broker_name();
         auto send_result =
             producer.SendKernelImpl(message_, message_queue, communication_mode_,
-                                    communication_mode_ == CommunicationMode::ASYNC ? *this : (SendCallback) nullptr,
+                                    communication_mode_ == CommunicationMode::kAsync ? *this : (SendCallback) nullptr,
                                     deadline_ - begin_time_prev_);
-        if (communication_mode_ == CommunicationMode::SYNC) {
+        if (communication_mode_ == CommunicationMode::kSync) {
           *send_result_ = std::move(send_result);
           if (!ProcessSendResult(producer, **send_result_)) {
             continue;
@@ -620,7 +620,7 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
 
   std::unique_ptr<SendResult> send_result;
   try {
-    send_result = SendDefaultImpl(message, CommunicationMode::SYNC, nullptr, timeout);
+    send_result = SendDefaultImpl(message, CommunicationMode::kSync, nullptr, timeout);
   } catch (MQException& e) {
     THROW_MQEXCEPTION(MQClientException, "send message Exception", -1);
   }
@@ -919,7 +919,7 @@ void DefaultMQProducerImpl::AsyncRequestImpl(const MessagePtr& message,
 
   int64_t cost_time = UtilAll::currentTimeMillis() - begin_time;
 
-  // async
+  // kAsync
   send_delegate(
       message,
       [response_future](ResultState<std::unique_ptr<SendResult>> state) noexcept {

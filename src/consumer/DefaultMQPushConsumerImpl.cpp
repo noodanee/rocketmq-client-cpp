@@ -458,7 +458,7 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
                                       commit_offset_value,                // commitOffset
                                       kBrockerSuspendMaxTimeMillis,       // brokerSuspendMaxTimeMillis
                                       kConsumerTimeoutMillisWhenSuspend,  // timeoutMillis
-                                      CommunicationMode::ASYNC,           // communicationMode
+                                      CommunicationMode::kAsync,          // communicationMode
                                       pull_callback);                     // pullCallback
   } catch (MQException& e) {
     LOG_ERROR_NEW("pullKernelImpl exception: {}", e.what());
