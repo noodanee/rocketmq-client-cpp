@@ -44,7 +44,7 @@
 #include "MessageSysFlag.h"
 #include "RequestFutureTable.h"
 #include "ResultState.hpp"
-#include "SendResult.h"
+#include "SendResult.hpp"
 #include "TopicPublishInfo.hpp"
 #include "TransactionMQProducerConfig.h"
 #include "UtilAll.h"
@@ -396,7 +396,7 @@ class DefaultMQProducerImpl::UnifiedSendDefaultImpl {
   bool ProcessSendResult(DefaultMQProducerImpl& producer, SendResult& send_result) {
     end_time_ = UtilAll::currentTimeMillis();
     producer.mq_fault_strategy_->UpdateFaultItem(last_broker_name_, end_time_ - begin_time_prev_, false);
-    return send_result.send_status() == SEND_OK || !retry_when_not_store_ok_;
+    return send_result.send_status() == SendStatus::kSendOk || !retry_when_not_store_ok_;
   }
 
   void ProcessException(DefaultMQProducerImpl& producer, const std::exception& exception) {
@@ -623,10 +623,10 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
     THROW_MQEXCEPTION(MQClientException, "send message Exception", -1);
   }
 
-  LocalTransactionState local_transaction_state = LocalTransactionState::UNKNOWN;
+  LocalTransactionState local_transaction_state = LocalTransactionState::kUnknown;
   std::exception_ptr local_exception;
   switch (send_result->send_status()) {
-    case SendStatus::SEND_OK:
+    case SendStatus::kSendOk:
       try {
         if (!send_result->transaction_id().empty()) {
           message->putProperty("__transactionId__", send_result->transaction_id());
@@ -636,7 +636,7 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
           message->set_transaction_id(transaction_id);
         }
         local_transaction_state = transaction_listener->executeLocalTransaction(MQMessage(message), arg);
-        if (local_transaction_state != LocalTransactionState::COMMIT_MESSAGE) {
+        if (local_transaction_state != LocalTransactionState::kCommitMessage) {
           LOG_INFO_NEW("executeLocalTransaction return not COMMIT_MESSAGE, msg:{}", message->toString());
         }
       } catch (MQException& e) {
@@ -644,11 +644,11 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
         local_exception = std::current_exception();
       }
       break;
-    case SendStatus::SEND_FLUSH_DISK_TIMEOUT:
-    case SendStatus::SEND_FLUSH_SLAVE_TIMEOUT:
-    case SendStatus::SEND_SLAVE_NOT_AVAILABLE:
-      local_transaction_state = LocalTransactionState::ROLLBACK_MESSAGE;
-      LOG_WARN_NEW("sendMessageInTransaction, send not ok, rollback, result:{}", send_result->toString());
+    case SendStatus::kSendFlushDiskTimeout:
+    case SendStatus::kSendFlushSlaveTimeout:
+    case SendStatus::kSendSlaveNotAvailable:
+      local_transaction_state = LocalTransactionState::kRollbackMessage;
+      LOG_WARN_NEW("sendMessageInTransaction, send not ok, rollback, result:{}", send_result->ToString());
       break;
     default:
       break;
@@ -697,7 +697,7 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
     return;
   }
 
-  LocalTransactionState local_transaction_state = LocalTransactionState::UNKNOWN;
+  LocalTransactionState local_transaction_state = LocalTransactionState::kUnknown;
   std::exception_ptr exception = nullptr;
   try {
     local_transaction_state = transaction_check_listener->checkLocalTransaction(MQMessageExt(message));
@@ -720,14 +720,14 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
   request_header->message_id = unique_key;
   request_header->transaction_id = transaction_id;
   switch (local_transaction_state) {
-    case LocalTransactionState::COMMIT_MESSAGE:
+    case LocalTransactionState::kCommitMessage:
       request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_COMMIT_TYPE;
       break;
-    case LocalTransactionState::ROLLBACK_MESSAGE:
+    case LocalTransactionState::kRollbackMessage:
       request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_ROLLBACK_TYPE;
       LOG_WARN_NEW("when broker check, client rollback this transaction, {}", request_header->toString());
       break;
-    case LocalTransactionState::UNKNOWN:
+    case LocalTransactionState::kUnknown:
       request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_NOT_TYPE;
       LOG_WARN_NEW("when broker check, client does not know this transaction state, {}", request_header->toString());
       break;
@@ -750,7 +750,8 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
 void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
                                            LocalTransactionState local_transaction_state,
                                            const std::exception_ptr& local_exception) {
-  const auto& message_id = !send_result.offset_msg_id().empty() ? send_result.offset_msg_id() : send_result.msg_id();
+  const auto& message_id =
+      !send_result.offset_message_id().empty() ? send_result.offset_message_id() : send_result.message_id();
   auto id = MessageDecoder::decodeMessageId(message_id);
   const auto& transaction_id = send_result.transaction_id();
   std::string broker_address = client_instance_->findBrokerAddressInPublish(send_result.message_queue().broker_name());
@@ -759,13 +760,13 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   request_header->transaction_id = transaction_id;
   request_header->commit_log_offset = id.getOffset();
   switch (local_transaction_state) {
-    case LocalTransactionState::COMMIT_MESSAGE:
+    case LocalTransactionState::kCommitMessage:
       request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_COMMIT_TYPE;
       break;
-    case LocalTransactionState::ROLLBACK_MESSAGE:
+    case LocalTransactionState::kRollbackMessage:
       request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_ROLLBACK_TYPE;
       break;
-    case LocalTransactionState::UNKNOWN:
+    case LocalTransactionState::kUnknown:
       request_header->commit_or_rollback = MessageSysFlag::TRANSACTION_NOT_TYPE;
       break;
     default:
@@ -773,7 +774,7 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   }
   request_header->producer_group = config().group_name();
   request_header->transaction_state_table_offset = send_result.queue_offset();
-  request_header->message_id = send_result.msg_id();
+  request_header->message_id = send_result.message_id();
 
   std::string remark =
       local_exception ? ("executeLocalTransactionBranch exception: " + UtilAll::to_string(local_exception)) : null;

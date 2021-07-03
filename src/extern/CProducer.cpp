@@ -51,34 +51,34 @@ class LocalTransactionListenerInner : public TransactionListener {
 
   LocalTransactionState executeLocalTransaction(const MQMessage& message, void* arg) override {
     if (checker_callback_ == nullptr) {
-      return LocalTransactionState::UNKNOWN;
+      return LocalTransactionState::kUnknown;
     }
     auto* msg = reinterpret_cast<CMessage*>(const_cast<MQMessage*>(&message));
     auto* executorInner = reinterpret_cast<LocalTransactionExecutorInner*>(arg);
     auto status = executorInner->excutor_callback_(producer_, msg, executorInner->user_data_);
     switch (status) {
       case E_COMMIT_TRANSACTION:
-        return LocalTransactionState::COMMIT_MESSAGE;
+        return LocalTransactionState::kCommitMessage;
       case E_ROLLBACK_TRANSACTION:
-        return LocalTransactionState::ROLLBACK_MESSAGE;
+        return LocalTransactionState::kRollbackMessage;
       default:
-        return LocalTransactionState::UNKNOWN;
+        return LocalTransactionState::kUnknown;
     }
   }
 
   LocalTransactionState checkLocalTransaction(const MQMessageExt& message) override {
     if (checker_callback_ == NULL) {
-      return LocalTransactionState::UNKNOWN;
+      return LocalTransactionState::kUnknown;
     }
     auto* msgExt = reinterpret_cast<CMessageExt*>(const_cast<MQMessageExt*>(&message));
     auto status = checker_callback_(producer_, msgExt, user_data_);
     switch (status) {
       case E_COMMIT_TRANSACTION:
-        return LocalTransactionState::COMMIT_MESSAGE;
+        return LocalTransactionState::kCommitMessage;
       case E_ROLLBACK_TRANSACTION:
-        return LocalTransactionState::ROLLBACK_MESSAGE;
+        return LocalTransactionState::kRollbackMessage;
       default:
-        return LocalTransactionState::UNKNOWN;
+        return LocalTransactionState::kUnknown;
     }
   }
 
@@ -129,7 +129,7 @@ class COnSendCallback : public AutoDeleteSendCallback {
     CSendResult result;
     result.sendStatus = CSendStatus((int)sendResult.send_status());
     result.offset = sendResult.queue_offset();
-    strncpy(result.msgId, sendResult.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result.msgId, sendResult.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result.msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
     send_success_callback_(result, message_, user_data_);
   }
@@ -161,7 +161,7 @@ class CSendCallback : public AutoDeleteSendCallback {
     CSendResult result;
     result.sendStatus = CSendStatus((int)sendResult.send_status());
     result.offset = sendResult.queue_offset();
-    strncpy(result.msgId, sendResult.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result.msgId, sendResult.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result.msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
     send_success_callback_(result);
   }
@@ -258,16 +258,16 @@ int SendMessageSync(CProducer* producer, CMessage* msg, CSendResult* result) {
     auto* message = reinterpret_cast<MQMessage*>(msg);
     auto sendResult = defaultMQProducer->send(*message);
     switch (sendResult.send_status()) {
-      case SEND_OK:
+      case SendStatus::kSendOk:
         result->sendStatus = E_SEND_OK;
         break;
-      case SEND_FLUSH_DISK_TIMEOUT:
+      case SendStatus::kSendFlushDiskTimeout:
         result->sendStatus = E_SEND_FLUSH_DISK_TIMEOUT;
         break;
-      case SEND_FLUSH_SLAVE_TIMEOUT:
+      case SendStatus::kSendFlushSlaveTimeout:
         result->sendStatus = E_SEND_FLUSH_SLAVE_TIMEOUT;
         break;
-      case SEND_SLAVE_NOT_AVAILABLE:
+      case SendStatus::kSendSlaveNotAvailable:
         result->sendStatus = E_SEND_SLAVE_NOT_AVAILABLE;
         break;
       default:
@@ -275,7 +275,7 @@ int SendMessageSync(CProducer* producer, CMessage* msg, CSendResult* result) {
         break;
     }
     result->offset = sendResult.queue_offset();
-    strncpy(result->msgId, sendResult.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result->msgId, sendResult.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result->msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
   } catch (std::exception& e) {
     CErrorContainer::setErrorMessage(e.what());
@@ -293,16 +293,16 @@ int SendBatchMessage(CProducer* producer, CBatchMessage* batcMsg, CSendResult* r
     auto* message = reinterpret_cast<std::vector<MQMessage>*>(batcMsg);
     auto sendResult = defaultMQProducer->send(*message);
     switch (sendResult.send_status()) {
-      case SEND_OK:
+      case SendStatus::kSendOk:
         result->sendStatus = E_SEND_OK;
         break;
-      case SEND_FLUSH_DISK_TIMEOUT:
+      case SendStatus::kSendFlushDiskTimeout:
         result->sendStatus = E_SEND_FLUSH_DISK_TIMEOUT;
         break;
-      case SEND_FLUSH_SLAVE_TIMEOUT:
+      case SendStatus::kSendFlushSlaveTimeout:
         result->sendStatus = E_SEND_FLUSH_SLAVE_TIMEOUT;
         break;
-      case SEND_SLAVE_NOT_AVAILABLE:
+      case SendStatus::kSendSlaveNotAvailable:
         result->sendStatus = E_SEND_SLAVE_NOT_AVAILABLE;
         break;
       default:
@@ -310,7 +310,7 @@ int SendBatchMessage(CProducer* producer, CBatchMessage* batcMsg, CSendResult* r
         break;
     }
     result->offset = sendResult.queue_offset();
-    strncpy(result->msgId, sendResult.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result->msgId, sendResult.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result->msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
   } catch (std::exception& e) {
     return PRODUCER_SEND_SYNC_FAILED;
@@ -414,7 +414,7 @@ int SendMessageOrderly(CProducer* producer,
     // Convert SendStatus to CSendStatus
     result->sendStatus = CSendStatus((int)send_result.send_status());
     result->offset = send_result.queue_offset();
-    strncpy(result->msgId, send_result.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result->msgId, send_result.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result->msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
   } catch (std::exception& e) {
     CErrorContainer::setErrorMessage(e.what());
@@ -437,7 +437,7 @@ int SendMessageOrderlyByShardingKey(CProducer* producer, CMessage* msg, const ch
     // Convert SendStatus to CSendStatus
     result->sendStatus = CSendStatus((int)send_esult.send_status());
     result->offset = send_esult.queue_offset();
-    strncpy(result->msgId, send_esult.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result->msgId, send_esult.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result->msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
   } catch (std::exception& e) {
     CErrorContainer::setErrorMessage(e.what());
@@ -461,7 +461,7 @@ int SendMessageTransaction(CProducer* producer,
     auto send_result = transactionMQProducer->sendMessageInTransaction(*message, &executorInner);
     result->sendStatus = CSendStatus((int)send_result.send_status());
     result->offset = send_result.queue_offset();
-    strncpy(result->msgId, send_result.msg_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
+    strncpy(result->msgId, send_result.message_id().c_str(), MAX_MESSAGE_ID_LENGTH - 1);
     result->msgId[MAX_MESSAGE_ID_LENGTH - 1] = 0;
   } catch (std::exception& e) {
     CErrorContainer::setErrorMessage(e.what());

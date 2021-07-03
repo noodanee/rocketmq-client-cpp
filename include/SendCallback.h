@@ -18,7 +18,7 @@
 #define ROCKETMQ_SENDCALLBACK_H_
 
 #include "MQException.h"
-#include "SendResult.h"
+#include "SendResult.hpp"
 
 namespace rocketmq {
 

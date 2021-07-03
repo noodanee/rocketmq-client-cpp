@@ -52,6 +52,7 @@
 #include "protocol/header/UnregisterClientRequestHeader.hpp"
 #include "protocol/header/UpdateConsumerOffsetRequestHeader.hpp"
 #include "protocol/header/ViewMessageRequestHeader.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace {
 
@@ -199,24 +200,20 @@ std::unique_ptr<SendResult> MQClientAPIImpl::sendMessageSync(const std::string& 
 std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::string& brokerName,
                                                                  Message& msg,
                                                                  RemotingCommand& response) {
-  SendStatus sendStatus = SEND_OK;
-  switch (response.code()) {
-    case FLUSH_DISK_TIMEOUT:
-      sendStatus = SEND_FLUSH_DISK_TIMEOUT;
-      break;
-    case FLUSH_SLAVE_TIMEOUT:
-      sendStatus = SEND_FLUSH_SLAVE_TIMEOUT;
-      break;
-    case SLAVE_NOT_AVAILABLE:
-      sendStatus = SEND_SLAVE_NOT_AVAILABLE;
-      break;
-    case SUCCESS:
-      sendStatus = SEND_OK;
-      break;
-    default:
-      THROW_MQEXCEPTION(MQBrokerException, response.remark(), response.code());
-      return nullptr;
-  }
+  auto sendStatus = [&response]() -> SendStatus {
+    switch (response.code()) {
+      case SUCCESS:
+        return SendStatus::kSendOk;
+      case FLUSH_DISK_TIMEOUT:
+        return SendStatus::kSendFlushDiskTimeout;
+      case FLUSH_SLAVE_TIMEOUT:
+        return SendStatus::kSendFlushSlaveTimeout;
+      case SLAVE_NOT_AVAILABLE:
+        return SendStatus::kSendSlaveNotAvailable;
+      default:
+        THROW_MQEXCEPTION(MQBrokerException, response.remark(), response.code());
+    }
+  }();
 
   auto* responseHeader = response.decodeCommandCustomHeader<SendMessageResponseHeader>();
   assert(responseHeader != nullptr);
@@ -239,11 +236,8 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
     }
   }
 
-  std::unique_ptr<SendResult> sendResult(
-      new SendResult(sendStatus, uniqMsgId, responseHeader->message_id, messageQueue, responseHeader->queue_offset));
-  sendResult->set_transaction_id(responseHeader->transaction_id);
-
-  return sendResult;
+  return MakeUnique<SendResult>(sendStatus, uniqMsgId, responseHeader->message_id, messageQueue,
+                                responseHeader->queue_offset, responseHeader->transaction_id);
 }
 
 std::unique_ptr<PullResult> MQClientAPIImpl::pullMessage(const std::string& addr,

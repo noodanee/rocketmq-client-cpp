@@ -27,7 +27,7 @@
 #include "MQMessageExt.h"
 #include "PullResult.h"
 #include "RemotingCommand.h"
-#include "SendResult.h"
+#include "SendResult.hpp"
 #include "TopicConfig.h"
 #include "TopicList.h"
 #include "TopicPublishInfo.hpp"

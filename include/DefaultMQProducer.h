@@ -27,7 +27,7 @@
 #include "RPCHook.h"
 #include "RequestCallback.h"
 #include "SendCallback.h"
-#include "SendResult.h"
+#include "SendResult.hpp"
 
 namespace rocketmq {
 
