@@ -51,6 +51,7 @@
 #include "Validators.h"
 #include "protocol/header/CheckTransactionStateRequestHeader.hpp"
 #include "protocol/header/EndTransactionRequestHeader.hpp"
+#include "protocol/header/SendMessageRequestHeader.hpp"
 #include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
@@ -530,11 +531,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
 
       // TOOD: send message hook
 
-#if __cplusplus >= 201402L
-      auto request_header = std::make_unique<SendMessageRequestHeader>();
-#else
-      auto request_header = std::unique_ptr<SendMessageRequestHeader>(new SendMessageRequestHeader());
-#endif
+      auto request_header = MakeUnique<SendMessageRequestHeader>();
       request_header->producer_group = config().group_name();
       request_header->topic = message->topic();
       request_header->default_topic = AUTO_CREATE_TOPIC_KEY_TOPIC;
@@ -568,7 +565,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
       }
 
       LOG_DEBUG_NEW("send to mq: {}", message_queue.ToString());
-      return client_instance_->getMQClientAPIImpl()->sendMessage(broker_addr, message_queue.broker_name(), message,
+      return client_instance_->getMQClientAPIImpl()->SendMessage(broker_addr, message_queue.broker_name(), message,
                                                                  std::move(request_header), timeout, communication_mode,
                                                                  std::move(send_callback));
     } catch (MQException& e) {
@@ -742,7 +739,7 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
   }
 
   try {
-    client_instance_->getMQClientAPIImpl()->endTransactionOneway(address, std::move(request_header), remark);
+    client_instance_->getMQClientAPIImpl()->EndTransactionOneway(address, std::move(request_header), remark);
   } catch (std::exception& e) {
     LOG_ERROR_NEW("endTransactionOneway exception: {}", e.what());
   }
@@ -780,7 +777,7 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   std::string remark =
       local_exception ? ("executeLocalTransactionBranch exception: " + UtilAll::to_string(local_exception)) : null;
 
-  client_instance_->getMQClientAPIImpl()->endTransactionOneway(broker_address, std::move(request_header), remark);
+  client_instance_->getMQClientAPIImpl()->EndTransactionOneway(broker_address, std::move(request_header), remark);
 }
 
 //

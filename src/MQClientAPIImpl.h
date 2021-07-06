@@ -17,11 +17,12 @@
 #ifndef ROCKETMQ_MQCLIENTAPIIMPL_H_
 #define ROCKETMQ_MQCLIENTAPIIMPL_H_
 
-#include <functional>
-#include <memory>
+#include <cstdint>  // int64_t
+
+#include <functional>  // std::function
+#include <memory>      // std::unique_ptr
 
 #include "CommunicationMode.h"
-#include "KVTable.h"
 #include "MQClientInstance.h"
 #include "MQException.h"
 #include "MQMessageExt.h"
@@ -29,23 +30,20 @@
 #include "RemotingCommand.h"
 #include "SendResult.hpp"
 #include "TopicConfig.h"
-#include "TopicList.h"
 #include "TopicPublishInfo.hpp"
 #include "common/ResultState.hpp"
-#include "protocol/body/ConsumeQueueSet.hpp"
-#include "protocol/body/HeartbeatData.hpp"
-#include "protocol/body/TopicRouteData.hpp"
-#include "protocol/header/EndTransactionRequestHeader.hpp"
-#include "protocol/header/PullMessageRequestHeader.hpp"
-#include "protocol/header/QueryConsumerOffsetRequestHeader.hpp"
-#include "protocol/header/SendMessageRequestHeader.hpp"
-#include "protocol/header/UpdateConsumerOffsetRequestHeader.hpp"
 
 namespace rocketmq {
 
 class TcpRemotingClient;
 class ClientRemotingProcessor;
 class RPCHook;
+
+struct TopicRouteData;
+struct SendMessageRequestHeader;
+struct EndTransactionRequestHeader;
+struct PullMessageRequestHeader;
+struct HeartbeatData;
 
 /**
  * wrap all RPC API
@@ -56,128 +54,150 @@ class MQClientAPIImpl {
   using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResultExt>>) /* noexcept */>;
 
  public:
-  MQClientAPIImpl(ClientRemotingProcessor* clientRemotingProcessor,
-                  RPCHookPtr rpcHook,
-                  const MQClientConfig& clientConfig);
-  virtual ~MQClientAPIImpl();
+  MQClientAPIImpl(ClientRemotingProcessor* client_remoting_processor,
+                  RPCHookPtr rpc_hook,
+                  const MQClientConfig& client_config);
+  ~MQClientAPIImpl() = default;
 
-  void start();
-  void shutdown();
+  // disable copy
+  MQClientAPIImpl(const MQClientAPIImpl&) = delete;
+  MQClientAPIImpl& operator=(const MQClientAPIImpl&) = delete;
 
-  void updateNameServerAddressList(const std::string& addrs);
+  // disable move
+  MQClientAPIImpl(MQClientAPIImpl&&) = delete;
+  MQClientAPIImpl& operator=(MQClientAPIImpl&&) = delete;
 
-  void createTopic(const std::string& addr, const std::string& defaultTopic, TopicConfig topicConfig);
+  std::vector<std::string> GetNameServerAddressList() const;
+  void UpdateNameServerAddressList(const std::string& address_list);
 
-  std::unique_ptr<SendResult> sendMessage(const std::string& addr,
-                                          const std::string& brokerName,
-                                          const MessagePtr& msg,
-                                          std::unique_ptr<SendMessageRequestHeader> requestHeader,
-                                          int timeoutMillis,
-                                          CommunicationMode communicationMode,
-                                          SendCallback sendCallback);
+  void Start();
+  void Shutdown();
 
-  std::unique_ptr<PullResultExt> pullMessage(const std::string& addr,
-                                             std::unique_ptr<PullMessageRequestHeader> requestHeader,
-                                             int timeoutMillis,
-                                             CommunicationMode communicationMode,
-                                             PullCallback pullCallback);
+  std::unique_ptr<TopicRouteData> GetTopicRouteInfoFromNameServer(std::string topic, int64_t timeout_millis);
 
-  MQMessageExt viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis);
+  std::unique_ptr<SendResult> SendMessageSync(const std::string& broker_address,
+                                              const std::string& broker_name,
+                                              const MessagePtr& message,
+                                              std::unique_ptr<SendMessageRequestHeader> request_header,
+                                              int64_t timeout_millis);
 
-  int64_t searchOffset(const std::string& addr,
-                       const std::string& topic,
-                       int queueId,
+  void SendMessageAsync(const std::string& broker_address,
+                        const std::string& broker_name,
+                        const MessagePtr& message,
+                        std::unique_ptr<SendMessageRequestHeader> request_header,
+                        int64_t timeout_millis,
+                        SendCallback send_callback);
+
+  void SendMessageOneway(const std::string& broker_address,
+                         const MessagePtr& message,
+                         std::unique_ptr<SendMessageRequestHeader> request_header);
+
+  std::unique_ptr<SendResult> SendMessage(const std::string& broker_address,
+                                          const std::string& broker_name,
+                                          const MessagePtr& message,
+                                          std::unique_ptr<SendMessageRequestHeader> request_header,
+                                          int64_t timeout_millis,
+                                          CommunicationMode communication_mode,
+                                          SendCallback send_callback);
+
+  void EndTransactionOneway(const std::string& broker_address,
+                            std::unique_ptr<EndTransactionRequestHeader> request_header,
+                            std::string remark);
+
+  void ConsumerSendMessageBack(const std::string& broker_address,
+                               const MessageExtPtr& message,
+                               std::string consumer_group,
+                               int32_t delay_level,
+                               int32_t max_consume_retry_times,
+                               int64_t timeout_millis);
+
+  std::unique_ptr<PullResultExt> PullMessageSync(const std::string& broker_address,
+                                                 std::unique_ptr<PullMessageRequestHeader> request_header,
+                                                 int64_t timeout_millis);
+
+  void PullMessageAsync(const std::string& broker_address,
+                        std::unique_ptr<PullMessageRequestHeader> request_header,
+                        int64_t timeout_millis,
+                        PullCallback pull_callback);
+
+  std::unique_ptr<PullResultExt> PullMessage(const std::string& broker_address,
+                                             std::unique_ptr<PullMessageRequestHeader> request_header,
+                                             int64_t timeoutMillis,
+                                             CommunicationMode communication_mode,
+                                             PullCallback pull_callback);
+
+  std::vector<std::string> GetConsumerIdListByGroup(const std::string& brocker_address,
+                                                    std::string consumer_group,
+                                                    int64_t timeout_millis);
+
+  void UpdateConsumerOffset(const std::string& broker_address,
+                            std::string consumer_group,
+                            std::string topic,
+                            int32_t queue_id,
+                            int64_t commit_offset,
+                            int64_t timeout_millis);
+
+  void UpdateConsumerOffsetOneway(const std::string& broker_address,
+                                  std::string consumer_group,
+                                  std::string topic,
+                                  int32_t queue_id,
+                                  int64_t commit_offset);
+
+  int64_t QueryConsumerOffset(const std::string& broker_address,
+                              std::string consumer_group,
+                              std::string topic,
+                              int32_t queue_id,
+                              int64_t timeout_millis);
+
+  int64_t GetMaxOffset(const std::string& broker_address, std::string topic, int32_t queue_id, int64_t timeout_millis);
+
+  int64_t GetMinOffset(const std::string& broker_address, std::string topic, int32_t queue_id, int64_t timeout_millis);
+
+  int64_t SearchOffset(const std::string& broker_address,
+                       std::string topic,
+                       int32_t queue_id,
                        int64_t timestamp,
-                       int timeoutMillis);
+                       int64_t timeout_millis);
 
-  int64_t getMaxOffset(const std::string& addr, const std::string& topic, int queueId, int timeoutMillis);
-  int64_t getMinOffset(const std::string& addr, const std::string& topic, int queueId, int timeoutMillis);
+  std::vector<MessageQueue> LockBatchMQ(const std::string& broker_address,
+                                        std::string consumer_group,
+                                        std::string client_id,
+                                        std::vector<MessageQueue> message_queue_set,
+                                        int64_t timeout_millis);
 
-  int64_t getEarliestMsgStoretime(const std::string& addr, const std::string& topic, int queueId, int timeoutMillis);
+  void UnlockBatchMQSync(const std::string& broker_address,
+                         std::string consumer_group,
+                         std::string client_id,
+                         std::vector<MessageQueue> message_queue_set,
+                         int64_t timeout_millis);
 
-  void getConsumerIdListByGroup(const std::string& addr,
-                                const std::string& consumerGroup,
-                                std::vector<std::string>& cids,
-                                int timeoutMillis);
+  void UnlockBatchMQOneway(const std::string& broker_address,
+                           std::string consumer_group,
+                           std::string client_id,
+                           std::vector<MessageQueue> message_queue_set);
 
-  int64_t queryConsumerOffset(const std::string& addr,
-                              std::unique_ptr<QueryConsumerOffsetRequestHeader> requestHeader,
-                              int timeoutMillis);
+  void UnlockBatchMQ(const std::string& broker_address,
+                     std::string consumer_group,
+                     std::string client_id,
+                     std::vector<MessageQueue> message_queue_set,
+                     int64_t timeout_millis,
+                     bool oneway);
 
-  void updateConsumerOffset(const std::string& addr,
-                            std::unique_ptr<UpdateConsumerOffsetRequestHeader> requestHeader,
-                            int timeoutMillis);
-  void updateConsumerOffsetOneway(const std::string& addr,
-                                  std::unique_ptr<UpdateConsumerOffsetRequestHeader> requestHeader,
-                                  int timeoutMillis);
+  void SendHearbeat(const std::string& broker_address, const HeartbeatData& heartbeat_data, int64_t timeout_millis);
 
-  void sendHearbeat(const std::string& addr, HeartbeatData* heartbeatData, long timeoutMillis);
-  void unregisterClient(const std::string& addr,
-                        const std::string& clientID,
-                        const std::string& producerGroup,
-                        const std::string& consumerGroup);
+  void UnregisterClient(const std::string& broker_address,
+                        std::string client_id,
+                        std::string producer_group,
+                        std::string consumer_group);
 
-  void endTransactionOneway(const std::string& addr,
-                            std::unique_ptr<EndTransactionRequestHeader> requestHeader,
-                            const std::string& remark);
+  void CreateTopic(const std::string& broker_address, std::string default_topic, const TopicConfig& topic_config);
 
-  void consumerSendMessageBack(const std::string& addr,
-                               MessageExtPtr msg,
-                               const std::string& consumerGroup,
-                               int delayLevel,
-                               int timeoutMillis,
-                               int maxConsumeRetryTimes);
+  int64_t GetEarliestMsgStoretime(const std::string& broker_address,
+                                  std::string topic,
+                                  int32_t queue_id,
+                                  int64_t timeout_millis);
 
-  void lockBatchMQ(const std::string& addr,
-                   ConsumeQueueSet* requestBody,
-                   std::vector<MessageQueue>& mqs,
-                   int timeoutMillis);
-  void unlockBatchMQ(const std::string& addr, ConsumeQueueSet* requestBody, int timeoutMillis, bool oneway = false);
-
-  std::unique_ptr<TopicRouteData> getTopicRouteInfoFromNameServer(const std::string& topic, int timeoutMillis);
-
-  std::unique_ptr<TopicList> getTopicListFromNameServer();
-
-  int wipeWritePermOfBroker(const std::string& namesrvAddr, const std::string& brokerName, int timeoutMillis);
-
-  void deleteTopicInBroker(const std::string& addr, const std::string& topic, int timeoutMillis);
-  void deleteTopicInNameServer(const std::string& addr, const std::string& topic, int timeoutMillis);
-
-  void deleteSubscriptionGroup(const std::string& addr, const std::string& groupName, int timeoutMillis);
-
-  std::string getKVConfigByValue(const std::string& projectNamespace,
-                                 const std::string& projectGroup,
-                                 int timeoutMillis);
-  void deleteKVConfigByValue(const std::string& projectNamespace, const std::string& projectGroup, int timeoutMillis);
-
-  KVTable getKVListByNamespace(const std::string& projectNamespace, int timeoutMillis);
-
- public:
-  TcpRemotingClient* getRemotingClient() { return remoting_client_.get(); }
-
- private:
-  std::unique_ptr<SendResult> sendMessageSync(const std::string& addr,
-                                              const std::string& brokerName,
-                                              const MessagePtr& msg,
-                                              RemotingCommand request,
-                                              int timeoutMillis);
-
-  void sendMessageAsync(const std::string& addr,
-                        const std::string& brokerName,
-                        const MessagePtr& msg,
-                        RemotingCommand request,
-                        SendCallback sendCallback,
-                        int64_t timeoutMilliseconds);
-
-  std::unique_ptr<SendResult> processSendResponse(const std::string& brokerName,
-                                                  Message& message,
-                                                  RemotingCommand& response);
-
-  std::unique_ptr<PullResultExt> pullMessageSync(const std::string& addr, RemotingCommand request, int timeoutMillis);
-
-  void pullMessageAsync(const std::string& addr, RemotingCommand request, int timeoutMillis, PullCallback pullCallback);
-
-  std::unique_ptr<PullResultExt> processPullResponse(RemotingCommand& response);
+  MessageExtPtr ViewMessage(const std::string& broker_address, int64_t physical_offset, int64_t timeout_millis);
 
  private:
   std::unique_ptr<TcpRemotingClient> remoting_client_;

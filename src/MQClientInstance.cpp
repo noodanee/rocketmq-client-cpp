@@ -55,7 +55,7 @@ MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std
 
   std::string namesrvAddr = clientConfig.namesrv_addr();
   if (!namesrvAddr.empty()) {
-    mq_client_api_impl_->updateNameServerAddressList(namesrvAddr);
+    mq_client_api_impl_->UpdateNameServerAddressList(namesrvAddr);
     LOG_INFO_NEW("user specified name server address: {}", namesrvAddr);
   }
 
@@ -79,7 +79,7 @@ MQClientInstance::~MQClientInstance() {
 }
 
 std::string MQClientInstance::getNamesrvAddr() const {
-  auto namesrvAddrs = mq_client_api_impl_->getRemotingClient()->GetNameServerAddressList();
+  auto namesrvAddrs = mq_client_api_impl_->GetNameServerAddressList();
   std::ostringstream oss;
   for (const auto& addr : namesrvAddrs) {
     oss << addr << ";";
@@ -172,7 +172,7 @@ void MQClientInstance::start() {
       LOG_INFO_NEW("the client instance [{}] is starting", client_id_);
       service_state_ = ServiceState::kStartFailed;
 
-      mq_client_api_impl_->start();
+      mq_client_api_impl_->Start();
 
       // start various schedule tasks
       startScheduledTask();
@@ -214,7 +214,7 @@ void MQClientInstance::shutdown() {
       service_state_ = ServiceState::kShutdownAlready;
       pull_message_service_->shutdown();
       scheduled_executor_service_.shutdown();
-      mq_client_api_impl_->shutdown();
+      mq_client_api_impl_->Shutdown();
       rebalance_service_->shutdown();
 
       MQClientManager::getInstance()->removeMQClientInstance(client_id_);
@@ -395,7 +395,7 @@ void MQClientInstance::sendHeartbeatToAllBroker() {
         }
 
         try {
-          mq_client_api_impl_->sendHearbeat(addr, heartbeatData.get(), 3000);
+          mq_client_api_impl_->SendHearbeat(addr, *heartbeatData, 3000);
         } catch (const MQException& e) {
           LOG_ERROR_NEW("{}", e.what());
         }
@@ -415,7 +415,7 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
     try {
       TopicRouteDataPtr topicRouteData;
       if (isDefault) {
-        topicRouteData = mq_client_api_impl_->getTopicRouteInfoFromNameServer(AUTO_CREATE_TOPIC_KEY_TOPIC, 1000 * 3);
+        topicRouteData = mq_client_api_impl_->GetTopicRouteInfoFromNameServer(AUTO_CREATE_TOPIC_KEY_TOPIC, 1000 * 3);
         if (topicRouteData != nullptr) {
           auto& queueDatas = topicRouteData->queue_datas;
           for (auto& qd : queueDatas) {
@@ -426,7 +426,7 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
         }
         LOG_DEBUG_NEW("getTopicRouteInfoFromNameServer is null for topic: {}", topic);
       } else {
-        topicRouteData = mq_client_api_impl_->getTopicRouteInfoFromNameServer(topic, 1000 * 3);
+        topicRouteData = mq_client_api_impl_->GetTopicRouteInfoFromNameServer(topic, 1000 * 3);
       }
       if (topicRouteData != nullptr) {
         LOG_INFO_NEW("updateTopicRouteInfoFromNameServer has data");
@@ -572,7 +572,7 @@ void MQClientInstance::unregisterClient(const std::string& producerGroup, const 
       const auto& index = it2.first;
       const auto& addr = it2.second;
       try {
-        mq_client_api_impl_->unregisterClient(addr, client_id_, producerGroup, consumerGroup);
+        mq_client_api_impl_->UnregisterClient(addr, client_id_, producerGroup, consumerGroup);
         LOG_INFO_NEW("unregister client[Producer: {} Consumer: {}] from broker[{} {} {}] success", producerGroup,
                      consumerGroup, brokerName, index, addr);
       } catch (const std::exception& e) {
@@ -884,7 +884,7 @@ void MQClientInstance::findConsumerIds(const std::string& topic,
   if (!brokerAddr.empty()) {
     try {
       LOG_INFO_NEW("getConsumerIdList from broker:{}", brokerAddr);
-      return mq_client_api_impl_->getConsumerIdListByGroup(brokerAddr, group, cids, 5000);
+      cids = mq_client_api_impl_->GetConsumerIdListByGroup(brokerAddr, group, 5000);
     } catch (const MQException& e) {
       LOG_ERROR_NEW("encounter exception when getConsumerIdList: {}", e.what());
 

@@ -17,6 +17,7 @@
 #include "PullAPIWrapper.h"
 
 #include <memory>
+#include <utility>  // std::move
 
 #include "ByteBuffer.hpp"
 #include "MQClientAPIImpl.h"
@@ -25,6 +26,8 @@
 #include "MessageDecoder.h"
 #include "PullResultExt.hpp"
 #include "PullSysFlag.h"
+#include "protocol/header/PullMessageRequestHeader.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
 
@@ -56,7 +59,7 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
       system_flag = PullSysFlag::clearCommitOffsetFlag(system_flag);
     }
 
-    std::unique_ptr<PullMessageRequestHeader> request_header{new PullMessageRequestHeader()};
+    auto request_header = MakeUnique<PullMessageRequestHeader>();
     request_header->consumer_group = consumer_group_;
     request_header->topic = message_queue.topic();
     request_header->queue_id = message_queue.queue_id();
@@ -68,7 +71,7 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
     request_header->subscription = expression;
     request_header->subscription_version = version;
 
-    return client_instance_->getMQClientAPIImpl()->pullMessage(find_broker_result->broker_addr(),
+    return client_instance_->getMQClientAPIImpl()->PullMessage(find_broker_result->broker_addr(),
                                                                std::move(request_header), timeout_millis,
                                                                communication_mode, std::move(pull_callback));
   }

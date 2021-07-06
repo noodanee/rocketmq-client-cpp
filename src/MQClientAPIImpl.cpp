@@ -22,12 +22,17 @@
 #include <exception>
 #include <memory>
 #include <typeindex>
+#include <utility>  // std::move
 
+#include "ByteBuffer.hpp"
 #include "ClientRemotingProcessor.h"
 #include "MQClientInstance.h"
 #include "MessageBatch.h"
 #include "MessageClientIDSetter.h"
+#include "MessageDecoder.h"
 #include "PullResultExt.hpp"
+#include "RemotingCommand.h"
+#include "ResponseCode.h"
 #include "ResultState.hpp"
 #include "TcpRemotingClient.h"
 #include "protocol/body/ConsumeQueueSet.hpp"
@@ -35,6 +40,7 @@
 #include "protocol/body/LockBatchResult.hpp"
 #include "protocol/header/ConsumerSendMsgBackRequestHeader.hpp"
 #include "protocol/header/CreateTopicRequestHeader.hpp"
+#include "protocol/header/EndTransactionRequestHeader.hpp"
 #include "protocol/header/GetConsumerListByGroupRequestHeader.hpp"
 #include "protocol/header/GetEarliestMsgStoretimeRequestHeader.hpp"
 #include "protocol/header/GetEarliestMsgStoretimeResponseHeader.hpp"
@@ -43,7 +49,9 @@
 #include "protocol/header/GetMinOffsetRequestHeader.hpp"
 #include "protocol/header/GetMinOffsetResponseHeader.hpp"
 #include "protocol/header/GetRouteInfoRequestHeader.hpp"
+#include "protocol/header/PullMessageRequestHeader.hpp"
 #include "protocol/header/PullMessageResponseHeader.hpp"
+#include "protocol/header/QueryConsumerOffsetRequestHeader.hpp"
 #include "protocol/header/QueryConsumerOffsetResponseHeader.hpp"
 #include "protocol/header/SearchOffsetRequestHeader.hpp"
 #include "protocol/header/SearchOffsetResponseHeader.hpp"
@@ -62,145 +70,86 @@ constexpr int64_t kRpcTimeoutMillis = 3000;
 
 namespace rocketmq {
 
-MQClientAPIImpl::MQClientAPIImpl(ClientRemotingProcessor* clientRemotingProcessor,
-                                 RPCHookPtr rpcHook,
-                                 const MQClientConfig& clientConfig)
-    : remoting_client_(new TcpRemotingClient(clientConfig.tcp_transport_worker_thread_nums(),
-                                             clientConfig.tcp_transport_connect_timeout(),
-                                             clientConfig.tcp_transport_try_lock_timeout())) {
-  remoting_client_->RegisterRPCHook(std::move(rpcHook));
-  remoting_client_->RegisterProcessor(CHECK_TRANSACTION_STATE, clientRemotingProcessor);
-  remoting_client_->RegisterProcessor(NOTIFY_CONSUMER_IDS_CHANGED, clientRemotingProcessor);
-  remoting_client_->RegisterProcessor(RESET_CONSUMER_CLIENT_OFFSET, clientRemotingProcessor);
-  remoting_client_->RegisterProcessor(GET_CONSUMER_STATUS_FROM_CLIENT, clientRemotingProcessor);
-  remoting_client_->RegisterProcessor(GET_CONSUMER_RUNNING_INFO, clientRemotingProcessor);
-  remoting_client_->RegisterProcessor(CONSUME_MESSAGE_DIRECTLY, clientRemotingProcessor);
-  remoting_client_->RegisterProcessor(PUSH_REPLY_MESSAGE_TO_CLIENT, clientRemotingProcessor);
+MQClientAPIImpl::MQClientAPIImpl(ClientRemotingProcessor* client_remoting_processor,
+                                 RPCHookPtr rpc_hook,
+                                 const MQClientConfig& client_config)
+    : remoting_client_(new TcpRemotingClient(client_config.tcp_transport_worker_thread_nums(),
+                                             client_config.tcp_transport_connect_timeout(),
+                                             client_config.tcp_transport_try_lock_timeout())) {
+  remoting_client_->RegisterRPCHook(std::move(rpc_hook));
+  remoting_client_->RegisterProcessor(CHECK_TRANSACTION_STATE, client_remoting_processor);
+  remoting_client_->RegisterProcessor(NOTIFY_CONSUMER_IDS_CHANGED, client_remoting_processor);
+  remoting_client_->RegisterProcessor(RESET_CONSUMER_CLIENT_OFFSET, client_remoting_processor);
+  remoting_client_->RegisterProcessor(GET_CONSUMER_STATUS_FROM_CLIENT, client_remoting_processor);
+  remoting_client_->RegisterProcessor(GET_CONSUMER_RUNNING_INFO, client_remoting_processor);
+  remoting_client_->RegisterProcessor(CONSUME_MESSAGE_DIRECTLY, client_remoting_processor);
+  remoting_client_->RegisterProcessor(PUSH_REPLY_MESSAGE_TO_CLIENT, client_remoting_processor);
 }
 
-MQClientAPIImpl::~MQClientAPIImpl() = default;
+std::vector<std::string> MQClientAPIImpl::GetNameServerAddressList() const {
+  return remoting_client_->GetNameServerAddressList();
+}
 
-void MQClientAPIImpl::start() {
+void MQClientAPIImpl::UpdateNameServerAddressList(const std::string& address_list) {
+  remoting_client_->UpdateNameServerAddressList(address_list);
+}
+
+void MQClientAPIImpl::Start() {
   remoting_client_->Start();
 }
 
-void MQClientAPIImpl::shutdown() {
+void MQClientAPIImpl::Shutdown() {
   remoting_client_->Shutdown();
 }
 
-void MQClientAPIImpl::updateNameServerAddressList(const std::string& addrs) {
-  // TODO: split addrs
-  remoting_client_->UpdateNameServerAddressList(addrs);
-}
+std::unique_ptr<TopicRouteData> MQClientAPIImpl::GetTopicRouteInfoFromNameServer(std::string topic,
+                                                                                 int64_t timeout_millis) {
+  auto request_header = MakeUnique<GetRouteInfoRequestHeader>(std::move(topic));
 
-void MQClientAPIImpl::createTopic(const std::string& addr, const std::string& defaultTopic, TopicConfig topicConfig) {
-  auto requestHeader = MakeUnique<CreateTopicRequestHeader>();
-  requestHeader->topic = topicConfig.topic_name();
-  requestHeader->default_topic = defaultTopic;
-  requestHeader->read_queue_nums = topicConfig.read_queue_nums();
-  requestHeader->write_queue_nums = topicConfig.write_queue_nums();
-  requestHeader->perm = topicConfig.perm();
-  requestHeader->topic_filter_type = topicConfig.topic_filter_type();
+  RemotingCommand request(GET_ROUTEINFO_BY_TOPIC, std::move(request_header));
 
-  RemotingCommand request(UPDATE_AND_CREATE_TOPIC, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), kRpcTimeoutMillis);
+  auto response = remoting_client_->InvokeSync(null, std::move(request), timeout_millis);
   assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      return;
+  if (response->code() == SUCCESS) {
+    auto response_body = response->body();
+    if (response_body != nullptr && response_body->size() > 0) {
+      return TopicRouteData::Decode(*response_body);
     }
-    default:
-      break;
   }
 
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+  THROW_MQEXCEPTION(MQClientException, response->remark(), response->code());
 }
 
-std::unique_ptr<SendResult> MQClientAPIImpl::sendMessage(const std::string& addr,
-                                                         const std::string& brokerName,
-                                                         const MessagePtr& msg,
-                                                         std::unique_ptr<SendMessageRequestHeader> requestHeader,
-                                                         int timeoutMillis,
-                                                         CommunicationMode communicationMode,
-                                                         SendCallback sendCallback) {
-  int code = SEND_MESSAGE;
-  if (msg->getProperty(MQMessageConst::PROPERTY_MESSAGE_TYPE) == REPLY_MESSAGE_FLAG) {
-    code = SEND_REPLY_MESSAGE_V2;
-  } else if (msg->isBatch()) {
-    code = SEND_BATCH_MESSAGE;
+namespace {
+
+RemotingCommand MakeSendMessageRequest(const MessagePtr& message,
+                                       std::unique_ptr<SendMessageRequestHeader> request_header) {
+  int command_code = SEND_MESSAGE;
+  if (message->getProperty(MQMessageConst::PROPERTY_MESSAGE_TYPE) == REPLY_MESSAGE_FLAG) {
+    command_code = SEND_REPLY_MESSAGE_V2;
+  } else if (message->isBatch()) {
+    command_code = SEND_BATCH_MESSAGE;
   } else {
-    code = SEND_MESSAGE_V2;
+    command_code = SEND_MESSAGE_V2;
   }
 
-  std::unique_ptr<CommandCustomHeader> header;
-  if (code != SEND_MESSAGE && code != SEND_REPLY_MESSAGE) {
-    header = SendMessageRequestHeaderV2::CreateSendMessageRequestHeaderV2(std::move(requestHeader));
-  } else {
-    header = std::move(requestHeader);
-  }
+  auto header = [command_code, &request_header]() -> std::unique_ptr<CommandCustomHeader> {
+    if (command_code != SEND_MESSAGE && command_code != SEND_REPLY_MESSAGE) {
+      return SendMessageRequestHeaderV2::CreateSendMessageRequestHeaderV2(std::move(request_header));
+    }
+    return std::move(request_header);
+  }();
 
-  RemotingCommand request(code, std::move(header));
-  request.set_body(msg->body());
+  RemotingCommand request(command_code, std::move(header));
+  request.set_body(message->body());
 
-  switch (communicationMode) {
-    case CommunicationMode::kOneway:
-      remoting_client_->InvokeOneway(addr, std::move(request));
-      return nullptr;
-    case CommunicationMode::kAsync:
-      sendMessageAsync(addr, brokerName, msg, std::move(request), std::move(sendCallback), timeoutMillis);
-      return nullptr;
-    case CommunicationMode::kSync:
-      return sendMessageSync(addr, brokerName, msg, std::move(request), timeoutMillis);
-    default:
-      assert(false);
-      break;
-  }
-
-  return nullptr;
+  return request;
 }
 
-void MQClientAPIImpl::sendMessageAsync(const std::string& addr,
-                                       const std::string& brokerName,
-                                       const MessagePtr& msg,
-                                       RemotingCommand request,
-                                       SendCallback sendCallback,
-                                       int64_t timeoutMillis) {
-  assert(sendCallback != nullptr);
-  remoting_client_->InvokeAsync(
-      addr, std::move(request),
-#if __cplusplus >= 201402L
-      [this, brokerName, msg, sendCallback = std::move(sendCallback)]
-#else
-      [this, brokerName, msg, sendCallback]
-#endif
-      (ResultState<std::unique_ptr<RemotingCommand>> state) {
-        try {
-          auto response = std::move(state.GetResult());
-          auto send_result = processSendResponse(brokerName, *msg, *response);
-          assert(send_result != nullptr);
-          sendCallback({std::move(send_result)});
-        } catch (...) {
-          sendCallback({std::current_exception()});
-        }
-      },
-      timeoutMillis);
-}
-
-std::unique_ptr<SendResult> MQClientAPIImpl::sendMessageSync(const std::string& addr,
-                                                             const std::string& brokerName,
-                                                             const MessagePtr& msg,
-                                                             RemotingCommand request,
-                                                             int timeoutMillis) {
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  return processSendResponse(brokerName, *msg, *response);
-}
-
-std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::string& brokerName,
-                                                                 Message& msg,
-                                                                 RemotingCommand& response) {
-  auto sendStatus = [&response]() -> SendStatus {
+std::unique_ptr<SendResult> ProcessSendMessageResponse(const std::string& broker_name,
+                                                       const Message& message,
+                                                       RemotingCommand& response) {
+  auto send_status = [&response]() -> SendStatus {
     switch (response.code()) {
       case SUCCESS:
         return SendStatus::kSendOk;
@@ -215,85 +164,136 @@ std::unique_ptr<SendResult> MQClientAPIImpl::processSendResponse(const std::stri
     }
   }();
 
-  auto* responseHeader = response.DecodeHeader<SendMessageResponseHeader>();
-  assert(responseHeader != nullptr);
+  auto* response_header = response.DecodeHeader<SendMessageResponseHeader>();
+  assert(response_header != nullptr);
 
-  MessageQueue messageQueue(msg.topic(), brokerName, responseHeader->queue_id);
+  MessageQueue message_queue(message.topic(), broker_name, response_header->queue_id);
 
-  std::string uniqMsgId = MessageClientIDSetter::getUniqID(msg);
+  std::string unique_message_id = MessageClientIDSetter::getUniqID(message);
 
   // MessageBatch
-  if (msg.isBatch()) {
-    const auto& messages = dynamic_cast<MessageBatch&>(msg).messages();
-    uniqMsgId.clear();
-    uniqMsgId.reserve(33 * messages.size() + 1);
-    for (const auto& message : messages) {
-      uniqMsgId.append(MessageClientIDSetter::getUniqID(*message));
-      uniqMsgId.append(",");
+  if (message.isBatch()) {
+    const auto& batched_messages = dynamic_cast<const MessageBatch&>(message).messages();
+    unique_message_id.clear();
+    unique_message_id.reserve(33 * batched_messages.size() + 1);
+    for (const auto& batched_message : batched_messages) {
+      unique_message_id.append(MessageClientIDSetter::getUniqID(*batched_message));
+      unique_message_id.append(",");
     }
-    if (!uniqMsgId.empty()) {
-      uniqMsgId.resize(uniqMsgId.length() - 1);
+    if (!unique_message_id.empty()) {
+      unique_message_id.resize(unique_message_id.length() - 1);
     }
   }
 
-  return MakeUnique<SendResult>(sendStatus, uniqMsgId, responseHeader->message_id, messageQueue,
-                                responseHeader->queue_offset, responseHeader->transaction_id);
+  return MakeUnique<SendResult>(send_status, unique_message_id, response_header->message_id, message_queue,
+                                response_header->queue_offset, response_header->transaction_id);
 }
 
-std::unique_ptr<PullResultExt> MQClientAPIImpl::pullMessage(const std::string& addr,
-                                                            std::unique_ptr<PullMessageRequestHeader> requestHeader,
-                                                            int timeoutMillis,
-                                                            CommunicationMode communicationMode,
-                                                            PullCallback pullCallback) {
-  RemotingCommand request(PULL_MESSAGE, std::move(requestHeader));
+}  // namespace
 
-  switch (communicationMode) {
-    case CommunicationMode::kAsync:
-      pullMessageAsync(addr, std::move(request), timeoutMillis, std::move(pullCallback));
-      return nullptr;
-    case CommunicationMode::kSync:
-      return pullMessageSync(addr, std::move(request), timeoutMillis);
-    default:
-      assert(false);
-      return nullptr;
-  }
+std::unique_ptr<SendResult> MQClientAPIImpl::SendMessageSync(const std::string& broker_address,
+                                                             const std::string& broker_name,
+                                                             const MessagePtr& message,
+                                                             std::unique_ptr<SendMessageRequestHeader> request_header,
+                                                             int64_t timeout_millis) {
+  RemotingCommand request = MakeSendMessageRequest(message, std::move(request_header));
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  return ProcessSendMessageResponse(broker_name, *message, *response);
 }
 
-void MQClientAPIImpl::pullMessageAsync(const std::string& addr,
-                                       RemotingCommand request,
-                                       int timeoutMillis,
-                                       PullCallback pullCallback) {
-  assert(pullCallback != nullptr);
+void MQClientAPIImpl::SendMessageAsync(const std::string& broker_address,
+                                       const std::string& broker_name,
+                                       const MessagePtr& message,
+                                       std::unique_ptr<SendMessageRequestHeader> request_header,
+                                       int64_t timeout_millis,
+                                       SendCallback send_callback) {
+  assert(send_callback != nullptr);
+  RemotingCommand request = MakeSendMessageRequest(message, std::move(request_header));
   remoting_client_->InvokeAsync(
-      addr, std::move(request),
+      broker_address, std::move(request),
 #if __cplusplus >= 201402L
-      [this, pullCallback = std::move(pullCallback)]
+      [broker_name, message, send_callback = std::move(send_callback)]
 #else
-      [this, pullCallback]
+      [broker_name, message, send_callback]
 #endif
-      (ResultState<std::unique_ptr<RemotingCommand>> state) noexcept {
+      (ResultState<std::unique_ptr<RemotingCommand>> state) {
         try {
           auto response = std::move(state.GetResult());
-          auto pull_result = processPullResponse(*response);
-          assert(pull_result != nullptr);
-          pullCallback({std::move(pull_result)});
+          auto send_result = ProcessSendMessageResponse(broker_name, *message, *response);
+          assert(send_result != nullptr);
+          send_callback({std::move(send_result)});
         } catch (...) {
-          pullCallback({std::current_exception()});
+          send_callback({std::current_exception()});
         }
       },
-      timeoutMillis);
+      timeout_millis);
 }
 
-std::unique_ptr<PullResultExt> MQClientAPIImpl::pullMessageSync(const std::string& addr,
-                                                                RemotingCommand request,
-                                                                int timeoutMillis) {
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
+void MQClientAPIImpl::SendMessageOneway(const std::string& broker_address,
+                                        const MessagePtr& message,
+                                        std::unique_ptr<SendMessageRequestHeader> request_header) {
+  RemotingCommand request = MakeSendMessageRequest(message, std::move(request_header));
+  remoting_client_->InvokeOneway(broker_address, std::move(request));
+}
+
+std::unique_ptr<SendResult> MQClientAPIImpl::SendMessage(const std::string& broker_address,
+                                                         const std::string& broker_name,
+                                                         const MessagePtr& message,
+                                                         std::unique_ptr<SendMessageRequestHeader> request_header,
+                                                         int64_t timeout_millis,
+                                                         CommunicationMode communication_mode,
+                                                         SendCallback send_callback) {
+  switch (communication_mode) {
+    case CommunicationMode::kSync:
+      return SendMessageSync(broker_address, broker_name, message, std::move(request_header), timeout_millis);
+    case CommunicationMode::kAsync:
+      SendMessageAsync(broker_address, broker_name, message, std::move(request_header), timeout_millis,
+                       std::move(send_callback));
+      return nullptr;
+    case CommunicationMode::kOneway:
+      SendMessageOneway(broker_address, message, std::move(request_header));
+      return nullptr;
+  }
+}
+
+void MQClientAPIImpl::EndTransactionOneway(const std::string& broker_address,
+                                           std::unique_ptr<EndTransactionRequestHeader> request_header,
+                                           std::string remark) {
+  RemotingCommand request(END_TRANSACTION, std::move(request_header));
+  request.set_remark(std::move(remark));
+  remoting_client_->InvokeOneway(broker_address, std::move(request));
+}
+
+void MQClientAPIImpl::ConsumerSendMessageBack(const std::string& broker_address,
+                                              const MessageExtPtr& message,
+                                              std::string consumer_group,
+                                              int32_t delay_level,
+                                              int32_t max_consume_retry_times,
+                                              int64_t timeout_millis) {
+  auto request_header =
+      MakeUnique<ConsumerSendMsgBackRequestHeader>(message->commit_log_offset(), std::move(consumer_group), delay_level,
+                                                   message->msg_id(), message->topic(), max_consume_retry_times);
+
+  RemotingCommand request(CONSUMER_SEND_MSG_BACK, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
   assert(response != nullptr);
-  return processPullResponse(*response);
+  if (response->code() == SUCCESS) {
+    return;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-std::unique_ptr<PullResultExt> MQClientAPIImpl::processPullResponse(RemotingCommand& response) {
-  auto pullStatus = [&response]() -> PullStatus {
+namespace {
+
+RemotingCommand MakePullMessageRequest(std::unique_ptr<PullMessageRequestHeader> request_header) {
+  return RemotingCommand(PULL_MESSAGE, std::move(request_header));
+}
+
+std::unique_ptr<PullResultExt> ProcessPullResponse(RemotingCommand& response) {
+  auto pull_status = [&response]() -> PullStatus {
     switch (response.code()) {
       case SUCCESS:
         return PullStatus::kFound;
@@ -312,404 +312,373 @@ std::unique_ptr<PullResultExt> MQClientAPIImpl::processPullResponse(RemotingComm
     }
   }();
 
-  auto* responseHeader = response.DecodeHeader<PullMessageResponseHeader>();
-  assert(responseHeader != nullptr);
+  auto* response_header = response.DecodeHeader<PullMessageResponseHeader>();
+  assert(response_header != nullptr);
 
-  return std::unique_ptr<PullResultExt>(new PullResultExt(pullStatus, responseHeader->next_begin_offset,
-                                                          responseHeader->min_offset, responseHeader->max_offset,
-                                                          responseHeader->suggest_which_broker_id, response.body()));
+  return MakeUnique<PullResultExt>(pull_status, response_header->next_begin_offset, response_header->min_offset,
+                                   response_header->max_offset, response_header->suggest_which_broker_id,
+                                   response.body());
 }
 
-MQMessageExt MQClientAPIImpl::viewMessage(const std::string& addr, int64_t phyoffset, int timeoutMillis) {
-  auto requestHeader = MakeUnique<ViewMessageRequestHeader>();
-  requestHeader->offset = phyoffset;
+}  // namespace
 
-  RemotingCommand request(VIEW_MESSAGE_BY_ID, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
+std::unique_ptr<PullResultExt> MQClientAPIImpl::PullMessageSync(
+    const std::string& broker_address,
+    std::unique_ptr<PullMessageRequestHeader> request_header,
+    int64_t timeout_millis) {
+  RemotingCommand request = MakePullMessageRequest(std::move(request_header));
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
   assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      // TODO: ...
-    }
+  return ProcessPullResponse(*response);
+}
+
+void MQClientAPIImpl::PullMessageAsync(const std::string& broker_address,
+                                       std::unique_ptr<PullMessageRequestHeader> request_header,
+                                       int64_t timeout_millis,
+                                       PullCallback pull_callback) {
+  assert(pull_callback != nullptr);
+  RemotingCommand request = MakePullMessageRequest(std::move(request_header));
+  remoting_client_->InvokeAsync(
+      broker_address, std::move(request),
+#if __cplusplus >= 201402L
+      [pull_callback = std::move(pull_callback)]
+#else
+      [pull_callback]
+#endif
+      (ResultState<std::unique_ptr<RemotingCommand>> state) noexcept {
+        try {
+          auto response = std::move(state.GetResult());
+          auto pull_result = ProcessPullResponse(*response);
+          assert(pull_result != nullptr);
+          pull_callback({std::move(pull_result)});
+        } catch (...) {
+          pull_callback({std::current_exception()});
+        }
+      },
+      timeout_millis);
+}
+
+std::unique_ptr<PullResultExt> MQClientAPIImpl::PullMessage(const std::string& broker_address,
+                                                            std::unique_ptr<PullMessageRequestHeader> request_header,
+                                                            int64_t timeoutMillis,
+                                                            CommunicationMode communication_mode,
+                                                            PullCallback pull_callback) {
+  switch (communication_mode) {
+    case CommunicationMode::kAsync:
+      PullMessageAsync(broker_address, std::move(request_header), timeoutMillis, std::move(pull_callback));
+      return nullptr;
+    case CommunicationMode::kSync:
+      return PullMessageSync(broker_address, std::move(request_header), timeoutMillis);
     default:
-      break;
+      assert(false);
+      return nullptr;
+  }
+}
+
+std::vector<std::string> MQClientAPIImpl::GetConsumerIdListByGroup(const std::string& brocker_address,
+                                                                   std::string consumer_group,
+                                                                   int64_t timeout_millis) {
+  auto request_header = MakeUnique<GetConsumerListByGroupRequestHeader>(std::move(consumer_group));
+
+  RemotingCommand request(GET_CONSUMER_LIST_BY_GROUP, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(brocker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    auto response_body = response->body();
+    if (response_body != nullptr && response_body->size() > 0) {
+      auto consumer_list = ConsumerList::Decode(*response_body);
+      return std::move(consumer_list->consumer_id_list);
+    }
   }
 
   THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-int64_t MQClientAPIImpl::searchOffset(const std::string& addr,
-                                      const std::string& topic,
-                                      int queueId,
+namespace {
+
+RemotingCommand MakeUpdateConsumerOffsetRequest(std::string consumer_group,
+                                                std::string topic,
+                                                int32_t queue_id,
+                                                int64_t commit_offset) {
+  auto request_header = MakeUnique<UpdateConsumerOffsetRequestHeader>(std::move(consumer_group), std::move(topic),
+                                                                      queue_id, commit_offset);
+  return RemotingCommand(UPDATE_CONSUMER_OFFSET, std::move(request_header));
+}
+
+}  // namespace
+
+void MQClientAPIImpl::UpdateConsumerOffset(const std::string& broker_address,
+                                           std::string consumer_group,
+                                           std::string topic,
+                                           int32_t queue_id,
+                                           int64_t commit_offset,
+                                           int64_t timeout_millis) {
+  RemotingCommand request =
+      MakeUpdateConsumerOffsetRequest(std::move(consumer_group), std::move(topic), queue_id, commit_offset);
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    return;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+}
+
+void MQClientAPIImpl::UpdateConsumerOffsetOneway(const std::string& broker_address,
+                                                 std::string consumer_group,
+                                                 std::string topic,
+                                                 int32_t queue_id,
+                                                 int64_t commit_offset) {
+  RemotingCommand request =
+      MakeUpdateConsumerOffsetRequest(std::move(consumer_group), std::move(topic), queue_id, commit_offset);
+  remoting_client_->InvokeOneway(broker_address, std::move(request));
+}
+
+int64_t MQClientAPIImpl::QueryConsumerOffset(const std::string& broker_address,
+                                             std::string consumer_group,
+                                             std::string topic,
+                                             int32_t queue_id,
+                                             int64_t timeout_millis) {
+  auto request_header =
+      MakeUnique<QueryConsumerOffsetRequestHeader>(std::move(consumer_group), std::move(topic), queue_id);
+
+  RemotingCommand request(QUERY_CONSUMER_OFFSET, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    auto* response_header = response->DecodeHeader<QueryConsumerOffsetResponseHeader>();
+    assert(response_header != nullptr);
+    return response_header->offset;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+}
+
+int64_t MQClientAPIImpl::GetMaxOffset(const std::string& broker_address,
+                                      std::string topic,
+                                      int32_t queue_id,
+                                      int64_t timeout_millis) {
+  auto request_header = MakeUnique<GetMaxOffsetRequestHeader>(std::move(topic), queue_id);
+
+  RemotingCommand request(GET_MAX_OFFSET, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    auto* response_header = response->DecodeHeader<GetMaxOffsetResponseHeader>();
+    assert(response_header != nullptr);
+    return response_header->offset;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+}
+
+int64_t MQClientAPIImpl::GetMinOffset(const std::string& broker_address,
+                                      std::string topic,
+                                      int32_t queue_id,
+                                      int64_t timeout_millis) {
+  auto request_header = MakeUnique<GetMinOffsetRequestHeader>(std::move(topic), queue_id);
+
+  RemotingCommand request(GET_MIN_OFFSET, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    auto* response_header = response->DecodeHeader<GetMinOffsetResponseHeader>();
+    assert(response_header != nullptr);
+    return response_header->offset;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+}
+
+int64_t MQClientAPIImpl::SearchOffset(const std::string& broker_address,
+                                      std::string topic,
+                                      int32_t queue_id,
                                       int64_t timestamp,
-                                      int timeoutMillis) {
-  auto requestHeader = MakeUnique<SearchOffsetRequestHeader>();
-  requestHeader->topic = topic;
-  requestHeader->queue_id = queueId;
-  requestHeader->timestamp = timestamp;
+                                      int64_t timeout_millis) {
+  auto request_header = MakeUnique<SearchOffsetRequestHeader>(std::move(topic), queue_id, timestamp);
 
-  RemotingCommand request(SEARCH_OFFSET_BY_TIMESTAMP, std::move(requestHeader));
+  RemotingCommand request(SEARCH_OFFSET_BY_TIMESTAMP, std::move(request_header));
 
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
   assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto* responseHeader = response->DecodeHeader<SearchOffsetResponseHeader>();
-      assert(responseHeader != nullptr);
-      return responseHeader->offset;
-    }
-    default:
-      break;
+  if (response->code() == SUCCESS) {
+    auto* response_header = response->DecodeHeader<SearchOffsetResponseHeader>();
+    assert(response_header != nullptr);
+    return response_header->offset;
   }
 
   THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-int64_t MQClientAPIImpl::getMaxOffset(const std::string& addr,
-                                      const std::string& topic,
-                                      int queueId,
-                                      int timeoutMillis) {
-  auto requestHeader = MakeUnique<GetMaxOffsetRequestHeader>();
-  requestHeader->topic = topic;
-  requestHeader->queue_id = queueId;
+std::vector<MessageQueue> MQClientAPIImpl::LockBatchMQ(const std::string& broker_address,
+                                                       std::string consumer_group,
+                                                       std::string client_id,
+                                                       std::vector<MessageQueue> message_queue_set,
+                                                       int64_t timeout_millis) {
+  ConsumeQueueSet consume_queue_set{std::move(consumer_group), std::move(client_id), std::move(message_queue_set)};
 
-  RemotingCommand request(GET_MAX_OFFSET, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto* responseHeader = response->DecodeHeader<GetMaxOffsetResponseHeader>();
-      return responseHeader->offset;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-int64_t MQClientAPIImpl::getMinOffset(const std::string& addr,
-                                      const std::string& topic,
-                                      int queueId,
-                                      int timeoutMillis) {
-  auto requestHeader = MakeUnique<GetMinOffsetRequestHeader>();
-  requestHeader->topic = topic;
-  requestHeader->queue_id = queueId;
-
-  RemotingCommand request(GET_MIN_OFFSET, std::move(requestHeader));
-
-  std::unique_ptr<RemotingCommand> response(remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis));
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto* responseHeader = response->DecodeHeader<GetMinOffsetResponseHeader>();
-      assert(responseHeader != nullptr);
-      return responseHeader->offset;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-int64_t MQClientAPIImpl::getEarliestMsgStoretime(const std::string& addr,
-                                                 const std::string& topic,
-                                                 int queueId,
-                                                 int timeoutMillis) {
-  auto requestHeader = MakeUnique<GetEarliestMsgStoretimeRequestHeader>();
-  requestHeader->topic = topic;
-  requestHeader->queue_id = queueId;
-
-  RemotingCommand request(GET_EARLIEST_MSG_STORETIME, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto* responseHeader = response->DecodeHeader<GetEarliestMsgStoretimeResponseHeader>();
-      assert(responseHeader != nullptr);
-      return responseHeader->timestamp;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-void MQClientAPIImpl::getConsumerIdListByGroup(const std::string& addr,
-                                               const std::string& consumerGroup,
-                                               std::vector<std::string>& cids,
-                                               int timeoutMillis) {
-  auto requestHeader = MakeUnique<GetConsumerListByGroupRequestHeader>();
-  requestHeader->consumer_group = consumerGroup;
-
-  RemotingCommand request(GET_CONSUMER_LIST_BY_GROUP, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto responseBody = response->body();
-      if (responseBody != nullptr && responseBody->size() > 0) {
-        std::unique_ptr<ConsumerList> body(ConsumerList::Decode(*responseBody));
-        cids = std::move(body->consumer_id_list);
-        return;
-      }
-    }
-    case SYSTEM_ERROR:
-    // no consumer for this group
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-int64_t MQClientAPIImpl::queryConsumerOffset(const std::string& addr,
-                                             std::unique_ptr<QueryConsumerOffsetRequestHeader> requestHeader,
-                                             int timeoutMillis) {
-  RemotingCommand request(QUERY_CONSUMER_OFFSET, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto* responseHeader = response->DecodeHeader<QueryConsumerOffsetResponseHeader>();
-      assert(responseHeader != nullptr);
-      return responseHeader->offset;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-void MQClientAPIImpl::updateConsumerOffset(const std::string& addr,
-                                           std::unique_ptr<UpdateConsumerOffsetRequestHeader> requestHeader,
-                                           int timeoutMillis) {
-  RemotingCommand request(UPDATE_CONSUMER_OFFSET, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      return;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-void MQClientAPIImpl::updateConsumerOffsetOneway(const std::string& addr,
-                                                 std::unique_ptr<UpdateConsumerOffsetRequestHeader> requestHeader,
-                                                 int timeoutMillis) {
-  RemotingCommand request(UPDATE_CONSUMER_OFFSET, std::move(requestHeader));
-
-  remoting_client_->InvokeOneway(addr, std::move(request));
-}
-
-void MQClientAPIImpl::sendHearbeat(const std::string& addr, HeartbeatData* heartbeatData, long timeoutMillis) {
-  RemotingCommand request(HEART_BEAT, nullptr);
-  request.set_body(heartbeatData->Encode());
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      LOG_DEBUG_NEW("sendHeartbeat to broker:{} success", addr);
-      return;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-void MQClientAPIImpl::unregisterClient(const std::string& addr,
-                                       const std::string& clientID,
-                                       const std::string& producerGroup,
-                                       const std::string& consumerGroup) {
-  LOG_INFO("unregisterClient to broker:%s", addr.c_str());
-  RemotingCommand request(UNREGISTER_CLIENT,
-                          MakeUnique<UnregisterClientRequestHeader>(clientID, producerGroup, consumerGroup));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), kRpcTimeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS:
-      LOG_INFO("unregisterClient to:%s success", addr.c_str());
-      return;
-    default:
-      break;
-  }
-
-  LOG_WARN("unregisterClient fail:%s, %d", response->remark().c_str(), response->code());
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-void MQClientAPIImpl::endTransactionOneway(const std::string& addr,
-                                           std::unique_ptr<EndTransactionRequestHeader> requestHeader,
-                                           const std::string& remark) {
-  RemotingCommand request(END_TRANSACTION, std::move(requestHeader));
-  request.set_remark(remark);
-
-  remoting_client_->InvokeOneway(addr, std::move(request));
-}
-
-void MQClientAPIImpl::consumerSendMessageBack(const std::string& addr,
-                                              MessageExtPtr msg,
-                                              const std::string& consumerGroup,
-                                              int delayLevel,
-                                              int timeoutMillis,
-                                              int maxConsumeRetryTimes) {
-  auto requestHeader = MakeUnique<ConsumerSendMsgBackRequestHeader>();
-  requestHeader->group = consumerGroup;
-  requestHeader->origin_topic = msg->topic();
-  requestHeader->offset = msg->commit_log_offset();
-  requestHeader->delay_level = delayLevel;
-  requestHeader->origin_message_id = msg->msg_id();
-  requestHeader->max_reconsume_times = maxConsumeRetryTimes;
-
-  RemotingCommand request(CONSUMER_SEND_MSG_BACK, std::move(requestHeader));
-
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-  assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      return;
-    }
-    default:
-      break;
-  }
-
-  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
-}
-
-void MQClientAPIImpl::lockBatchMQ(const std::string& addr,
-                                  ConsumeQueueSet* requestBody,
-                                  std::vector<MessageQueue>& mqs,
-                                  int timeoutMillis) {
   RemotingCommand request(LOCK_BATCH_MQ, nullptr);
-  request.set_body(requestBody->Encode());
+  request.set_body(consume_queue_set.Encode());
 
-  auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
   assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto requestBody = response->body();
-      if (requestBody != nullptr && requestBody->size() > 0) {
-        std::unique_ptr<LockBatchResult> body(LockBatchResult::Decode(*requestBody));
-        mqs = std::move(body->lock_ok_message_queue_set);
-      } else {
-        mqs.clear();
-      }
-      return;
-    } break;
-    default:
-      break;
+  if (response->code() == SUCCESS) {
+    auto request_body = response->body();
+    if (request_body != nullptr && request_body->size() > 0) {
+      std::unique_ptr<LockBatchResult> result = LockBatchResult::Decode(*request_body);
+      return std::move(result->lock_ok_message_queue_set);
+    }
+    return {};
   }
 
   THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-void MQClientAPIImpl::unlockBatchMQ(const std::string& addr,
-                                    ConsumeQueueSet* requestBody,
-                                    int timeoutMillis,
-                                    bool oneway) {
+void MQClientAPIImpl::UnlockBatchMQSync(const std::string& broker_address,
+                                        std::string consumer_group,
+                                        std::string client_id,
+                                        std::vector<MessageQueue> message_queue_set,
+                                        int64_t timeout_millis) {
+  ConsumeQueueSet consume_queue_set{std::move(consumer_group), std::move(client_id), std::move(message_queue_set)};
+
   RemotingCommand request(UNLOCK_BATCH_MQ, nullptr);
-  request.set_body(requestBody->Encode());
+  request.set_body(consume_queue_set.Encode());
 
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    return;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+}
+
+void MQClientAPIImpl::UnlockBatchMQOneway(const std::string& broker_address,
+                                          std::string consumer_group,
+                                          std::string client_id,
+                                          std::vector<MessageQueue> message_queue_set) {
+  ConsumeQueueSet consume_queue_set{std::move(consumer_group), std::move(client_id), std::move(message_queue_set)};
+
+  RemotingCommand request(UNLOCK_BATCH_MQ, nullptr);
+  request.set_body(consume_queue_set.Encode());
+
+  remoting_client_->InvokeOneway(broker_address, std::move(request));
+}
+
+void MQClientAPIImpl::UnlockBatchMQ(const std::string& broker_address,
+                                    std::string consumer_group,
+                                    std::string client_id,
+                                    std::vector<MessageQueue> message_queue_set,
+                                    int64_t timeout_millis,
+                                    bool oneway) {
   if (oneway) {
-    remoting_client_->InvokeOneway(addr, std::move(request));
+    UnlockBatchMQOneway(broker_address, std::move(consumer_group), std::move(client_id), std::move(message_queue_set));
   } else {
-    auto response = remoting_client_->InvokeSync(addr, std::move(request), timeoutMillis);
-    assert(response != nullptr);
-    switch (response->code()) {
-      case SUCCESS: {
-        return;
-      } break;
-      default:
-        break;
-    }
-
-    THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
+    UnlockBatchMQSync(broker_address, std::move(consumer_group), std::move(client_id), std::move(message_queue_set),
+                      timeout_millis);
   }
 }
 
-std::unique_ptr<TopicRouteData> MQClientAPIImpl::getTopicRouteInfoFromNameServer(const std::string& topic,
-                                                                                 int timeoutMillis) {
-  RemotingCommand request(GET_ROUTEINFO_BY_TOPIC, MakeUnique<GetRouteInfoRequestHeader>(topic));
+void MQClientAPIImpl::SendHearbeat(const std::string& broker_address,
+                                   const HeartbeatData& heartbeat_data,
+                                   int64_t timeout_millis) {
+  RemotingCommand request(HEART_BEAT, nullptr);
+  request.set_body(heartbeat_data.Encode());
 
-  auto response = remoting_client_->InvokeSync(null, std::move(request), timeoutMillis);
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
   assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto responseBody = response->body();
-      if (responseBody != nullptr && responseBody->size() > 0) {
-        return TopicRouteData::Decode(*responseBody);
-      }
-    }
-    case TOPIC_NOT_EXIST:
-    default:
-      break;
+  if (response->code() == SUCCESS) {
+    LOG_DEBUG_NEW("sendHeartbeat to broker:{} success", broker_address);
+    return;
   }
 
-  THROW_MQEXCEPTION(MQClientException, response->remark(), response->code());
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-std::unique_ptr<TopicList> MQClientAPIImpl::getTopicListFromNameServer() {
-  RemotingCommand request(GET_ALL_TOPIC_LIST_FROM_NAMESERVER, nullptr);
+void MQClientAPIImpl::UnregisterClient(const std::string& broker_address,
+                                       std::string client_id,
+                                       std::string producer_group,
+                                       std::string consumer_group) {
+  LOG_INFO_NEW("unregisterClient to broker: {}", broker_address);
 
-  auto response = remoting_client_->InvokeSync(null, std::move(request), kRpcTimeoutMillis);
+  auto request_header = MakeUnique<UnregisterClientRequestHeader>(std::move(client_id), std::move(producer_group),
+                                                                  std::move(consumer_group));
+
+  RemotingCommand request(UNREGISTER_CLIENT, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), kRpcTimeoutMillis);
   assert(response != nullptr);
-  switch (response->code()) {
-    case SUCCESS: {
-      auto responseBody = response->body();
-      if (responseBody != nullptr && responseBody->size() > 0) {
-        return TopicList::Decode(*responseBody);
-      }
-    }
-    default:
-      break;
+  if (response->code() == SUCCESS) {
+    LOG_INFO_NEW("unregisterClient to: {} success", broker_address);
+    return;
   }
 
-  THROW_MQEXCEPTION(MQClientException, response->remark(), response->code());
+  LOG_WARN_NEW("unregisterClient fail: {}, {}", response->remark(), response->code());
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-int MQClientAPIImpl::wipeWritePermOfBroker(const std::string& namesrvAddr,
-                                           const std::string& brokerName,
-                                           int timeoutMillis) {
-  return 0;
+void MQClientAPIImpl::CreateTopic(const std::string& broker_address,
+                                  std::string default_topic,
+                                  const TopicConfig& topic_config) {
+  auto request_header = MakeUnique<CreateTopicRequestHeader>(
+      topic_config.topic_name(), std::move(default_topic), topic_config.read_queue_nums(),
+      topic_config.write_queue_nums(), topic_config.perm(),
+      topic_config.topic_filter_type() == SINGLE_TAG ? "SINGLE_TAG" : "MULTI_TAG");
+
+  RemotingCommand request(UPDATE_AND_CREATE_TOPIC, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), kRpcTimeoutMillis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    return;
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-void MQClientAPIImpl::deleteTopicInBroker(const std::string& addr, const std::string& topic, int timeoutMillis) {}
+int64_t MQClientAPIImpl::GetEarliestMsgStoretime(const std::string& broker_address,
+                                                 std::string topic,
+                                                 int32_t queue_id,
+                                                 int64_t timeout_millis) {
+  auto request_header = MakeUnique<GetEarliestMsgStoretimeRequestHeader>(std::move(topic), queue_id);
 
-void MQClientAPIImpl::deleteTopicInNameServer(const std::string& addr, const std::string& topic, int timeoutMillis) {}
+  RemotingCommand request(GET_EARLIEST_MSG_STORETIME, std::move(request_header));
 
-void MQClientAPIImpl::deleteSubscriptionGroup(const std::string& addr,
-                                              const std::string& groupName,
-                                              int timeoutMillis) {}
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    auto* response_header = response->DecodeHeader<GetEarliestMsgStoretimeResponseHeader>();
+    assert(response_header != nullptr);
+    return response_header->timestamp;
+  }
 
-std::string MQClientAPIImpl::getKVConfigByValue(const std::string& projectNamespace,
-                                                const std::string& projectGroup,
-                                                int timeoutMillis) {
-  return "";
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
-void MQClientAPIImpl::deleteKVConfigByValue(const std::string& projectNamespace,
-                                            const std::string& projectGroup,
-                                            int timeoutMillis) {}
+MessageExtPtr MQClientAPIImpl::ViewMessage(const std::string& broker_address,
+                                           int64_t physical_offset,
+                                           int64_t timeout_millis) {
+  auto request_header = MakeUnique<ViewMessageRequestHeader>(physical_offset);
 
-KVTable MQClientAPIImpl::getKVListByNamespace(const std::string& projectNamespace, int timeoutMillis) {
-  return KVTable();
+  RemotingCommand request(VIEW_MESSAGE_BY_ID, std::move(request_header));
+
+  auto response = remoting_client_->InvokeSync(broker_address, std::move(request), timeout_millis);
+  assert(response != nullptr);
+  if (response->code() == SUCCESS) {
+    auto response_body = response->body();
+    if (response_body != nullptr && response_body->size() > 0) {
+      auto message_ext = MessageDecoder::clientDecode(*ByteBuffer::wrap(response_body), true);
+      // TODO: check namespace
+      return message_ext;
+    }
+  }
+
+  THROW_MQEXCEPTION(MQBrokerException, response->remark(), response->code());
 }
 
 }  // namespace rocketmq

@@ -16,13 +16,12 @@
  */
 #include "RemoteBrokerOffsetStore.h"
 
+#include <utility>  // std::move
+
 #include "Logging.h"
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
 #include "UtilAll.h"
-#include "protocol/header/QueryConsumerOffsetRequestHeader.hpp"
-#include "protocol/header/UpdateConsumerOffsetRequestHeader.hpp"
-#include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
 
@@ -157,15 +156,9 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq
   }
 
   if (findBrokerResult != nullptr) {
-    auto requestHeader = MakeUnique<UpdateConsumerOffsetRequestHeader>();
-    requestHeader->topic = mq.topic();
-    requestHeader->consumer_group = group_name_;
-    requestHeader->queue_id = mq.queue_id();
-    requestHeader->commit_offset = offset;
-
     try {
-      return client_instance_->getMQClientAPIImpl()->updateConsumerOffsetOneway(findBrokerResult->broker_addr(),
-                                                                                std::move(requestHeader), 1000 * 5);
+      return client_instance_->getMQClientAPIImpl()->UpdateConsumerOffsetOneway(
+          findBrokerResult->broker_addr(), group_name_, mq.topic(), mq.queue_id(), offset);
     } catch (MQException& e) {
       LOG_ERROR(e.what());
     }
@@ -183,17 +176,12 @@ int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MessageQueue
   }
 
   if (findBrokerResult != nullptr) {
-    auto requestHeader = MakeUnique<QueryConsumerOffsetRequestHeader>();
-    requestHeader->topic = mq.topic();
-    requestHeader->consumer_group = group_name_;
-    requestHeader->queue_id = mq.queue_id();
-
-    return client_instance_->getMQClientAPIImpl()->queryConsumerOffset(findBrokerResult->broker_addr(),
-                                                                       std::move(requestHeader), 1000 * 5);
-  } else {
-    LOG_ERROR("The broker not exist when fetchConsumeOffsetFromBroker");
-    THROW_MQEXCEPTION(MQClientException, "The broker not exist", -1);
+    return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult->broker_addr(), group_name_,
+                                                                       mq.topic(), mq.queue_id(), 1000 * 5);
   }
+
+  LOG_ERROR("The broker not exist when fetchConsumeOffsetFromBroker");
+  THROW_MQEXCEPTION(MQClientException, "The broker not exist", -1);
 }
 
 }  // namespace rocketmq

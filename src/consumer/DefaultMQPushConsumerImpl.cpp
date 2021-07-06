@@ -507,8 +507,8 @@ bool DefaultMQPushConsumerImpl::SendMessageBack(MessageExtPtr message,
     std::string broker_addr =
         broker_name.empty() ? message->store_host_string() : client_instance_->findBrokerAddressInPublish(broker_name);
 
-    client_instance_->getMQClientAPIImpl()->consumerSendMessageBack(broker_addr, message, config().group_name(),
-                                                                    delay_level, 5000, config().max_reconsume_times());
+    client_instance_->getMQClientAPIImpl()->ConsumerSendMessageBack(broker_addr, message, config().group_name(),
+                                                                    delay_level, config().max_reconsume_times(), 5000);
     return true;
   } catch (const std::exception& e) {
     LOG_ERROR_NEW("sendMessageBack exception, group: {}, msg: {}. {}", config().group_name(), message->toString(),

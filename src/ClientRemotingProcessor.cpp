@@ -17,6 +17,7 @@
 #include "ClientRemotingProcessor.h"
 
 #include <cassert>
+#include <memory>
 
 #include "MQProtos.h"
 #include "MessageAccessor.hpp"
@@ -31,6 +32,7 @@
 #include "protocol/header/NotifyConsumerIdsChangedRequestHeader.hpp"
 #include "protocol/header/ReplyMessageRequestHeader.hpp"
 #include "protocol/header/ResetOffsetRequestHeader.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
 
@@ -126,8 +128,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::getConsumerRunningInfo
   auto* requestHeader = request->DecodeHeader<GetConsumerRunningInfoRequestHeader>();
   LOG_INFO_NEW("getConsumerRunningInfo, group:{}", requestHeader->consumer_group);
 
-  std::unique_ptr<RemotingCommand> response(
-      new RemotingCommand(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr));
+  auto response = MakeUnique<RemotingCommand>(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr);
 
   std::unique_ptr<ConsumerRunningInfo> runningInfo(
       client_instance_->consumerRunningInfo(requestHeader->consumer_group));
@@ -147,8 +148,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::getConsumerRunningInfo
 }
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::receiveReplyMessage(RemotingCommand* request) {
-  std::unique_ptr<RemotingCommand> response(
-      new RemotingCommand(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr));
+  auto response = MakeUnique<RemotingCommand>(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr);
 
   auto receiveTime = UtilAll::currentTimeMillis();
   auto* requestHeader = request->DecodeHeader<ReplyMessageRequestHeader>();
