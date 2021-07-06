@@ -51,6 +51,7 @@
 #include "Validators.h"
 #include "protocol/header/CheckTransactionStateRequestHeader.hpp"
 #include "protocol/header/EndTransactionRequestHeader.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
 
@@ -706,7 +707,7 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
     exception = std::current_exception();
   }
 
-  auto* request_header = new EndTransactionRequestHeader();
+  auto request_header = MakeUnique<EndTransactionRequestHeader>();
   request_header->commit_log_offset = commit_log_offset;
   request_header->producer_group = config().group_name();
   request_header->transaction_state_table_offset = transaction_state_table_offset;
@@ -741,7 +742,7 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
   }
 
   try {
-    client_instance_->getMQClientAPIImpl()->endTransactionOneway(address, request_header, remark);
+    client_instance_->getMQClientAPIImpl()->endTransactionOneway(address, std::move(request_header), remark);
   } catch (std::exception& e) {
     LOG_ERROR_NEW("endTransactionOneway exception: {}", e.what());
   }
@@ -756,7 +757,7 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   const auto& transaction_id = send_result.transaction_id();
   std::string broker_address = client_instance_->findBrokerAddressInPublish(send_result.message_queue().broker_name());
 
-  auto* request_header = new EndTransactionRequestHeader();
+  auto request_header = MakeUnique<EndTransactionRequestHeader>();
   request_header->transaction_id = transaction_id;
   request_header->commit_log_offset = id.getOffset();
   switch (local_transaction_state) {
@@ -779,7 +780,7 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   std::string remark =
       local_exception ? ("executeLocalTransactionBranch exception: " + UtilAll::to_string(local_exception)) : null;
 
-  client_instance_->getMQClientAPIImpl()->endTransactionOneway(broker_address, request_header, remark);
+  client_instance_->getMQClientAPIImpl()->endTransactionOneway(broker_address, std::move(request_header), remark);
 }
 
 //

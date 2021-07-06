@@ -101,14 +101,14 @@ class MQClientAPIImpl {
                                 int timeoutMillis);
 
   int64_t queryConsumerOffset(const std::string& addr,
-                              QueryConsumerOffsetRequestHeader* requestHeader,
+                              std::unique_ptr<QueryConsumerOffsetRequestHeader> requestHeader,
                               int timeoutMillis);
 
   void updateConsumerOffset(const std::string& addr,
-                            UpdateConsumerOffsetRequestHeader* requestHeader,
+                            std::unique_ptr<UpdateConsumerOffsetRequestHeader> requestHeader,
                             int timeoutMillis);
   void updateConsumerOffsetOneway(const std::string& addr,
-                                  UpdateConsumerOffsetRequestHeader* requestHeader,
+                                  std::unique_ptr<UpdateConsumerOffsetRequestHeader> requestHeader,
                                   int timeoutMillis);
 
   void sendHearbeat(const std::string& addr, HeartbeatData* heartbeatData, long timeoutMillis);
@@ -118,7 +118,7 @@ class MQClientAPIImpl {
                         const std::string& consumerGroup);
 
   void endTransactionOneway(const std::string& addr,
-                            EndTransactionRequestHeader* requestHeader,
+                            std::unique_ptr<EndTransactionRequestHeader> requestHeader,
                             const std::string& remark);
 
   void consumerSendMessageBack(const std::string& addr,

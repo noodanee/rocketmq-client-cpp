@@ -34,42 +34,43 @@ namespace rocketmq {
  */
 class ROCKETMQCLIENT_API RemotingCommand {
  public:
-  static int32_t createNewRequestId();
-
- public:
-  RemotingCommand() : code_(0) {}
-  RemotingCommand(int32_t code, CommandCustomHeader* customHeader = nullptr);
-  RemotingCommand(int32_t code, const std::string& remark, CommandCustomHeader* customHeader = nullptr);
+  RemotingCommand() = default;
+  RemotingCommand(int32_t code, std::unique_ptr<CommandCustomHeader> header);
+  RemotingCommand(int32_t code, std::string remark, std::unique_ptr<CommandCustomHeader> header);
   RemotingCommand(int32_t code,
-                  const std::string& language,
+                  std::string language,
                   int32_t version,
                   int32_t opaque,
                   int32_t flag,
-                  const std::string& remark,
-                  CommandCustomHeader* customHeader);
+                  std::string remark,
+                  std::unique_ptr<CommandCustomHeader> header);
 
-  RemotingCommand(RemotingCommand&& command);
+  ~RemotingCommand() = default;
 
-  virtual ~RemotingCommand();
+  // disable copy
+  RemotingCommand(const RemotingCommand&) = delete;
+  RemotingCommand& operator=(const RemotingCommand&) = delete;
 
- public:
-  bool isResponseType();
-  void markResponseType();
+  // enable move
+  RemotingCommand(RemotingCommand&&) = default;
+  RemotingCommand& operator=(RemotingCommand&&) = default;
 
-  bool isOnewayRPC();
-  void markOnewayRPC();
+  bool IsResponse() const;
+  void MarkResponse();
 
-  CommandCustomHeader* readCustomHeader() const;
+  bool IsOneway() const;
+  void MarkOneway();
 
- public:
-  ByteArrayRef encode() const;
+  CommandCustomHeader* GetHeader() const;
+
+  ByteArrayRef Encode() const;
+
+  static std::unique_ptr<RemotingCommand> Decode(ByteArrayRef array, bool has_package_length = false);
 
   template <class H>
-  H* decodeCommandCustomHeader(bool useCache = true);
+  H* DecodeHeader(bool use_cache = true);
 
-  static std::unique_ptr<RemotingCommand> Decode(ByteArrayRef array, bool hasPackageLength = false);
-
-  std::string toString() const;
+  std::string ToString() const;
 
  public:
   int32_t code() const { return code_; }
@@ -83,9 +84,9 @@ class ROCKETMQCLIENT_API RemotingCommand {
   int32_t flag() const { return flag_; }
 
   const std::string& remark() const { return remark_; }
-  void set_remark(const std::string& remark) { remark_ = remark; }
+  void set_remark(std::string remark) { remark_ = std::move(remark); }
 
-  void set_ext_field(const std::string& name, const std::string& value) { ext_fields_[name] = value; }
+  void set_extend_field(const std::string& name, std::string value) { extend_fields_[name] = std::move(value); }
 
   ByteArrayRef body() const { return body_; }
   void set_body(ByteArrayRef body) { body_ = std::move(body); }
@@ -93,32 +94,31 @@ class ROCKETMQCLIENT_API RemotingCommand {
   void set_body(std::string&& body) { body_ = stoba(std::move(body)); }
 
  private:
-  int32_t code_;
+  int32_t code_{0};
   std::string language_;
-  int32_t version_;
-  int32_t opaque_;
-  int32_t flag_;
+  int32_t version_{0};
+  int32_t opaque_{0};
+  int32_t flag_{0};
   std::string remark_;
-  std::map<std::string, std::string> ext_fields_;
+  std::map<std::string, std::string> extend_fields_;
 
-  std::unique_ptr<CommandCustomHeader> custom_header_;  // transient
+  std::unique_ptr<CommandCustomHeader> header_;  // transient
 
   ByteArrayRef body_;  // transient
 };
 
 template <class H>
-H* RemotingCommand::decodeCommandCustomHeader(bool useCache) {
-  if (useCache) {
-    auto* cache = custom_header_.get();
-    if (cache != nullptr && std::type_index(typeid(*cache)) == std::type_index(typeid(H))) {
-      return static_cast<H*>(custom_header_.get());
+H* RemotingCommand::DecodeHeader(bool use_cache) {
+  if (use_cache) {
+    auto* cached = header_.get();
+    if (cached != nullptr && std::type_index(typeid(*cached)) == std::type_index(typeid(H))) {
+      return static_cast<H*>(cached);
     }
   }
 
   try {
-    std::unique_ptr<H> header = H::Decode(ext_fields_);
-    custom_header_ = std::move(header);
-    return static_cast<H*>(custom_header_.get());
+    header_ = H::Decode(extend_fields_);
+    return static_cast<H*>(header_.get());
   } catch (std::exception& e) {
     THROW_MQEXCEPTION(RemotingCommandException, e.what(), -1);
   }

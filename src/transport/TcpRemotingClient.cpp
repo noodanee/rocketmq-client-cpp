@@ -265,7 +265,7 @@ ResponseFuturePtr PopResponseFuture(const TcpTransportPtr& channel, int opaque) 
 }
 
 bool SendCommand(const TcpTransportPtr& channel, RemotingCommand& command) noexcept {
-  auto package = command.encode();
+  auto package = command.Encode();
   return channel->SendPackage(package->array(), package->size());
 }
 
@@ -398,7 +398,7 @@ void TcpRemotingClient::InvokeAsync(const std::string& addr,
 namespace {
 
 void InvokeOnewayImpl(const TcpTransportPtr& channel, RemotingCommand& request) {
-  request.markOnewayRPC();
+  request.MarkOneway();
   try {
     if (!SendCommand(channel, request)) {
       LOG_WARN_NEW("send a request command to channel <{}> failed.", channel->peer_address());
@@ -675,9 +675,9 @@ void ProcessRequestCommand(std::unique_ptr<RemotingCommand> request_command,
     LOG_ERROR_NEW("{}: {}", channel->peer_address(), error);
   }
 
-  if (!request_command->isOnewayRPC() && response != nullptr) {
+  if (!request_command->IsOneway() && response != nullptr) {
     response->set_opaque(request_command->opaque());
-    response->markResponseType();
+    response->MarkResponse();
     try {
       if (!SendCommand(channel, *response)) {
         LOG_WARN_NEW("send a response command to channel <{}> failed.", channel->peer_address());
@@ -699,7 +699,7 @@ void TcpRemotingClient::ProcessPackageReceived(ByteArrayRef package, TcpTranspor
     return;
   }
 
-  if (command->isResponseType()) {
+  if (command->IsResponse()) {
     ProcessResponseCommand(std::move(command), channel);
   } else {
     auto request_command = std::make_shared<std::unique_ptr<RemotingCommand>>(std::move(command));

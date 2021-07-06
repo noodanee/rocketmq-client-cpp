@@ -67,7 +67,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::processRequest(TcpTran
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::checkTransactionState(const std::string& addr,
                                                                                 RemotingCommand* request) {
-  auto* requestHeader = request->decodeCommandCustomHeader<CheckTransactionStateRequestHeader>();
+  auto* requestHeader = request->DecodeHeader<CheckTransactionStateRequestHeader>();
   assert(requestHeader != nullptr);
 
   auto requestBody = request->body();
@@ -101,14 +101,14 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::checkTransactionState(
 }
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::notifyConsumerIdsChanged(RemotingCommand* request) {
-  auto* requestHeader = request->decodeCommandCustomHeader<NotifyConsumerIdsChangedRequestHeader>();
+  auto* requestHeader = request->DecodeHeader<NotifyConsumerIdsChangedRequestHeader>();
   LOG_INFO_NEW("notifyConsumerIdsChanged, group:{}", requestHeader->consumer_group);
   client_instance_->rebalanceImmediately();
   return nullptr;
 }
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::resetOffset(RemotingCommand* request) {
-  auto* responseHeader = request->decodeCommandCustomHeader<ResetOffsetRequestHeader>();
+  auto* responseHeader = request->DecodeHeader<ResetOffsetRequestHeader>();
   auto requestBody = request->body();
   if (requestBody != nullptr && requestBody->size() > 0) {
     std::unique_ptr<ResetOffsetBody> body(ResetOffsetBody::Decode(*requestBody));
@@ -123,11 +123,11 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::resetOffset(RemotingCo
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::getConsumerRunningInfo(const std::string& addr,
                                                                                  RemotingCommand* request) {
-  auto* requestHeader = request->decodeCommandCustomHeader<GetConsumerRunningInfoRequestHeader>();
+  auto* requestHeader = request->DecodeHeader<GetConsumerRunningInfoRequestHeader>();
   LOG_INFO_NEW("getConsumerRunningInfo, group:{}", requestHeader->consumer_group);
 
   std::unique_ptr<RemotingCommand> response(
-      new RemotingCommand(MQResponseCode::SYSTEM_ERROR, "not set any response code"));
+      new RemotingCommand(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr));
 
   std::unique_ptr<ConsumerRunningInfo> runningInfo(
       client_instance_->consumerRunningInfo(requestHeader->consumer_group));
@@ -148,10 +148,10 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::getConsumerRunningInfo
 
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::receiveReplyMessage(RemotingCommand* request) {
   std::unique_ptr<RemotingCommand> response(
-      new RemotingCommand(MQResponseCode::SYSTEM_ERROR, "not set any response code"));
+      new RemotingCommand(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr));
 
   auto receiveTime = UtilAll::currentTimeMillis();
-  auto* requestHeader = request->decodeCommandCustomHeader<ReplyMessageRequestHeader>();
+  auto* requestHeader = request->DecodeHeader<ReplyMessageRequestHeader>();
 
   try {
     std::unique_ptr<MQMessageExt> msg(new MQMessageExt);
