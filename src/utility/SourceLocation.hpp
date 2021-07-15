@@ -14,9 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_LOGGERCONFIG_H_
-#define ROCKETMQ_LOGGERCONFIG_H_
+#ifndef ROCKETMQ_UTILITY_SOURCELOCATION_HPP_
+#define ROCKETMQ_UTILITY_SOURCELOCATION_HPP_
 
-#include "LoggerConfig.hpp"
+#include <cstdint>  // int32_t
 
-#endif  // ROCKETMQ_LOGGERCONFIG_H_
+namespace rocketmq {
+
+struct SourceLocation {
+  int32_t line{0};
+  int32_t column{0};
+  const char* file_name{""};
+  const char* function_name{""};
+
+  SourceLocation() = default;
+  SourceLocation(int32_t line, const char* file_name, const char* function_name)
+      : line(line), file_name(file_name), function_name(function_name) {}
+};
+
+}  // namespace rocketmq
+
+#define CurrentSourceLocation() \
+  ::rocketmq::SourceLocation { __LINE__, __FILE__, static_cast<const char*>(__FUNCTION__) }
+
+#endif  // ROCKETMQ_UTILITY_SOURCELOCATION_HPP_

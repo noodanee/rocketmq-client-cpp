@@ -259,7 +259,7 @@ int SetPushConsumerLogFileNumAndSize(CPushConsumer* consumer, int fileNum, long 
     return NULL_POINTER;
   }
   auto& default_logger_config = GetDefaultLoggerConfig();
-  default_logger_config.set_file_count(fileNum);
+  default_logger_config.set_file_nums(fileNum);
   default_logger_config.set_file_size(fileSize);
   return OK;
 }

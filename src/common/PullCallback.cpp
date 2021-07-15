@@ -20,7 +20,7 @@
 #include <memory>
 #include <utility>  // std::move
 
-#include "log/Logging.h"
+#include "logging/Logging.hpp"
 
 namespace rocketmq {
 

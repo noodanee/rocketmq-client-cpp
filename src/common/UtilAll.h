@@ -49,7 +49,6 @@ const std::string MESSAGE_COMPRESS_LEVEL = "rocketmq.message.compressLevel";
 
 const std::string ROCKETMQ_HOME_ENV = "ROCKETMQ_HOME";
 const std::string ROCKETMQ_NAMESRV_ADDR_ENV = "NAMESRV_ADDR";
-const std::string ROCKETMQ_CPP_LOG_DIR_ENV = "ROCKETMQ_CPP_LOG_DIR";
 
 const int POLL_NAMESERVER_INTEVAL = 1000 * 30;
 const int HEARTBEAT_BROKER_INTERVAL = 1000 * 30;

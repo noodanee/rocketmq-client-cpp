@@ -19,7 +19,7 @@
 #include <exception>
 #include <memory>
 
-#include "log/Logging.h"
+#include "logging/Logging.hpp"
 
 namespace rocketmq {
 

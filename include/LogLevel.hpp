@@ -14,9 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_LOGGERCONFIG_H_
-#define ROCKETMQ_LOGGERCONFIG_H_
+#ifndef ROCKETMQ_LOGGING_LOGLEVEL_HPP_
+#define ROCKETMQ_LOGGING_LOGLEVEL_HPP_
 
-#include "LoggerConfig.hpp"
+namespace rocketmq {
 
-#endif  // ROCKETMQ_LOGGERCONFIG_H_
+enum class LogLevel { kFatal = 1, kError, kWarn, kInfo, kDebug, kTrace };
+
+}  // namespace rocketmq
+
+#endif  // ROCKETMQ_LOGGING_LOGLEVEL_HPP_

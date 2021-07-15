@@ -25,7 +25,7 @@
 
 #include "CommandCustomHeader.h"
 #include "common/UtilAll.h"
-#include "log/Logging.h"
+#include "logging/Logging.hpp"
 
 namespace rocketmq {
 

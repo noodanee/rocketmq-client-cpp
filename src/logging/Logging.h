@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_LOGGERCONFIG_H_
-#define ROCKETMQ_LOGGERCONFIG_H_
+#ifndef ROCKETMQ_LOGGING_LOGGING_H_
+#define ROCKETMQ_LOGGING_LOGGING_H_
 
-#include "LoggerConfig.hpp"
+#include "logging/Logging.hpp"
 
-#endif  // ROCKETMQ_LOGGERCONFIG_H_
+#endif  // ROCKETMQ_LOGGING_LOGGING_H_
