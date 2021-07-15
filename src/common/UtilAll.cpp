@@ -41,8 +41,9 @@
 #include "SocketUtil.h"
 
 namespace rocketmq {
+namespace UtilAll {
 
-bool UtilAll::try_lock_for(std::timed_mutex& mutex, long timeout) {
+bool try_lock_for(std::timed_mutex& mutex, uint64_t timeout) {
   auto now = std::chrono::steady_clock::now();
   auto deadline = now + std::chrono::milliseconds(timeout);
   for (;;) {
@@ -57,7 +58,7 @@ bool UtilAll::try_lock_for(std::timed_mutex& mutex, long timeout) {
   }
 }
 
-int32_t UtilAll::hash_code(const std::string& str) {
+int32_t hash_code(const std::string& str) {
   // FIXME: don't equal to String#hashCode in Java for non-ascii
   int32_t h = 0;
   if (!str.empty()) {
@@ -68,9 +69,13 @@ int32_t UtilAll::hash_code(const std::string& str) {
   return h;
 }
 
-static const char kHexAlphabet[] = "0123456789ABCDEF";
+namespace {
 
-std::string UtilAll::bytes2string(const char* bytes, size_t len) {
+const char kHexAlphabet[] = "0123456789ABCDEF";
+
+}
+
+std::string bytes2string(const char* bytes, size_t len) {
   if (bytes == nullptr || len <= 0) {
     return null;
   }
@@ -78,15 +83,17 @@ std::string UtilAll::bytes2string(const char* bytes, size_t len) {
   std::string buffer;
   buffer.reserve(len * 2 + 1);
   for (std::size_t i = 0; i < len; i++) {
-    uint8_t v = (uint8_t)bytes[i];
+    auto v = static_cast<uint8_t>(bytes[i]);
     buffer.append(1, kHexAlphabet[v >> 4]);
     buffer.append(1, kHexAlphabet[v & 0x0FU]);
   }
   return buffer;
 }
 
+namespace {
+
 // clang-format off
-static const uint8_t kHexIndex[256] = {
+const uint8_t kHexIndex[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -106,7 +113,9 @@ static const uint8_t kHexIndex[256] = {
 };
 // clang-format on
 
-void UtilAll::string2bytes(char* dest, const std::string& src) {
+}  // namespace
+
+void string2bytes(char* dest, const std::string& src) {
   if (dest == nullptr || src.empty()) {
     return;
   }
@@ -116,46 +125,42 @@ void UtilAll::string2bytes(char* dest, const std::string& src) {
   }
 }
 
-bool UtilAll::isRetryTopic(const std::string& resource) {
+bool isRetryTopic(const std::string& resource) {
   return resource.find(RETRY_GROUP_TOPIC_PREFIX) == 0;
 }
 
-bool UtilAll::isDLQTopic(const std::string& resource) {
+bool isDLQTopic(const std::string& resource) {
   return resource.find(DLQ_GROUP_TOPIC_PREFIX) == 0;
 }
 
-std::string UtilAll::getRetryTopic(const std::string& consumerGroup) {
+std::string getRetryTopic(const std::string& consumerGroup) {
   return RETRY_GROUP_TOPIC_PREFIX + consumerGroup;
 }
 
-std::string UtilAll::getDLQTopic(const std::string& consumerGroup) {
+std::string getDLQTopic(const std::string& consumerGroup) {
   return DLQ_GROUP_TOPIC_PREFIX + consumerGroup;
 }
 
-std::string UtilAll::getReplyTopic(const std::string& clusterName) {
+std::string getReplyTopic(const std::string& clusterName) {
   return clusterName + "_" + REPLY_TOPIC_POSTFIX;
 }
 
-void UtilAll::Trim(std::string& str) {
+void Trim(std::string& str) {
   str.erase(0, str.find_first_not_of(' '));  // prefixing spaces
   str.erase(str.find_last_not_of(' ') + 1);  // surfixing spaces
 }
 
-bool UtilAll::isBlank(const std::string& str) {
+bool isBlank(const std::string& str) {
   if (str.empty()) {
     return true;
   }
 
   std::string::size_type left = str.find_first_not_of(WHITESPACE);
 
-  if (left == std::string::npos) {
-    return true;
-  }
-
-  return false;
+  return left == std::string::npos;
 }
 
-bool UtilAll::SplitURL(const std::string& serverURL, std::string& addr, short& nPort) {
+bool SplitURL(const std::string& serverURL, std::string& addr, short& nPort) {
   auto pos = serverURL.find_last_of(':');
   if (pos == std::string::npos) {
     return false;
@@ -169,15 +174,13 @@ bool UtilAll::SplitURL(const std::string& serverURL, std::string& addr, short& n
   pos++;
   std::string port = serverURL.substr(pos, serverURL.length() - pos);
   nPort = atoi(port.c_str());
-  if (nPort == 0) {
-    return false;
-  }
-  return true;
+  return nPort != 0;
 }
 
-int UtilAll::Split(std::vector<std::string>& ret_, const std::string& strIn, const char sep) {
-  if (strIn.empty())
+int Split(std::vector<std::string>& ret_, const std::string& strIn, const char sep) {
+  if (strIn.empty()) {
     return 0;
+  }
 
   std::string tmp;
   std::string::size_type pos_begin = strIn.find_first_not_of(sep);
@@ -198,12 +201,14 @@ int UtilAll::Split(std::vector<std::string>& ret_, const std::string& strIn, con
       tmp.clear();
     }
   }
+
   return ret_.size();
 }
 
-int UtilAll::Split(std::vector<std::string>& ret_, const std::string& strIn, const std::string& sep) {
-  if (strIn.empty())
+int Split(std::vector<std::string>& ret_, const std::string& strIn, const std::string& sep) {
+  if (strIn.empty()) {
     return 0;
+  }
 
   std::string tmp;
   std::string::size_type pos_begin = strIn.find_first_not_of(sep);
@@ -224,14 +229,15 @@ int UtilAll::Split(std::vector<std::string>& ret_, const std::string& strIn, con
       tmp.clear();
     }
   }
+
   return ret_.size();
 }
 
-std::string UtilAll::getHomeDirectory() {
+std::string getHomeDirectory() {
 #ifndef WIN32
-  char* home_env = std::getenv("HOME");
+  const char* home_env = std::getenv("HOME");
   std::string home_dir;
-  if (home_env == NULL) {
+  if (home_env == nullptr) {
     home_dir.append(getpwuid(getuid())->pw_dir);
   } else {
     home_dir.append(home_env);
@@ -242,7 +248,9 @@ std::string UtilAll::getHomeDirectory() {
   return home_dir;
 }
 
-static bool createDirectoryInner(const std::string& dir) {
+namespace {
+
+bool createDirectoryImpl(const std::string& dir) {
   if (dir.empty()) {
     std::cerr << "directory is empty" << std::endl;
     return false;
@@ -258,7 +266,9 @@ static bool createDirectoryInner(const std::string& dir) {
   return true;
 }
 
-void UtilAll::createDirectory(std::string const& dir) {
+}  // namespace
+
+void createDirectory(std::string const& dir) {
   if (dir.empty()) {
     return;
   }
@@ -267,20 +277,19 @@ void UtilAll::createDirectory(std::string const& dir) {
   }
   for (size_t i = 0; i < dir.size(); i++) {
     if (i != 0 && dir[i] == FILE_SEPARATOR) {
-      createDirectoryInner(dir.substr(0, i));
+      createDirectoryImpl(dir.substr(0, i));
     }
   }
   if (dir[dir.size() - 1] != FILE_SEPARATOR) {
-    createDirectoryInner(dir);
+    createDirectoryImpl(dir);
   }
-  return;
 }
 
-bool UtilAll::existDirectory(std::string const& dir) {
+bool existDirectory(std::string const& dir) {
   return access(dir.c_str(), F_OK) == 0;
 }
 
-int UtilAll::getProcessId() {
+int getProcessId() {
 #ifndef WIN32
   return getpid();
 #else
@@ -288,7 +297,7 @@ int UtilAll::getProcessId() {
 #endif
 }
 
-std::string UtilAll::getProcessName() {
+std::string getProcessName() {
 #ifndef WIN32
   char buf[PATH_MAX] = {0};
   char procpath[PATH_MAX] = {0};
@@ -321,23 +330,23 @@ std::string UtilAll::getProcessName() {
 #endif
 }
 
-int64_t UtilAll::currentTimeMillis() {
+int64_t currentTimeMillis() {
   auto since_epoch =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
   return static_cast<int64_t>(since_epoch.count());
 }
 
-int64_t UtilAll::currentTimeSeconds() {
+int64_t currentTimeSeconds() {
   auto since_epoch =
       std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
   return static_cast<int64_t>(since_epoch.count());
 }
 
-bool UtilAll::deflate(const std::string& input, std::string& out, int level) {
+bool deflate(const std::string& input, std::string& out, int level) {
   return deflate(ByteArray((char*)input.data(), input.size()), out, level);
 }
 
-bool UtilAll::deflate(const ByteArray& in, std::string& out, int level) {
+bool deflate(const ByteArray& in, std::string& out, int level) {
   int ret;
   unsigned have;
   z_stream strm;
@@ -374,11 +383,11 @@ bool UtilAll::deflate(const ByteArray& in, std::string& out, int level) {
   return true;
 }
 
-bool UtilAll::inflate(const std::string& input, std::string& out) {
+bool inflate(const std::string& input, std::string& out) {
   return inflate(ByteArray((char*)input.data(), input.size()), out);
 }
 
-bool UtilAll::inflate(const ByteArray& in, std::string& out) {
+bool inflate(const ByteArray& in, std::string& out) {
   int ret;
   unsigned have;
   z_stream strm;
@@ -422,7 +431,7 @@ bool UtilAll::inflate(const ByteArray& in, std::string& out) {
   return ret == Z_STREAM_END;
 }
 
-bool UtilAll::ReplaceFile(const std::string& from_path, const std::string& to_path) {
+bool ReplaceFile(const std::string& from_path, const std::string& to_path) {
 #ifdef WIN32
   // Try a simple move first.  It will only succeed when |to_path| doesn't
   // already exist.
@@ -444,4 +453,5 @@ bool UtilAll::ReplaceFile(const std::string& from_path, const std::string& to_pa
 #endif
 }
 
+}  // namespace UtilAll
 }  // namespace rocketmq

@@ -17,6 +17,8 @@
 #ifndef ROCKETMQ_COMMON_UTILALL_H_
 #define ROCKETMQ_COMMON_UTILALL_H_
 
+#include <cctype>  // std::tolower
+
 #include <exception>  // std::exception
 #include <mutex>      // std::timed_mutex
 #include <string>     // std::string
@@ -79,84 +81,83 @@ inline void deleteAndZero(T& pointer) {
 typedef pid_t DWORD;
 #endif
 
-class UtilAll {
- public:
-  static bool try_lock_for(std::timed_mutex& mutex, long timeout);
+namespace UtilAll {
 
-  static bool stob(std::string const& s) {
-    return s.size() == 4 && (s[0] == 't' || s[0] == 'T') && (s[1] == 'r' || s[1] == 'R') &&
-           (s[2] == 'u' || s[2] == 'U') && (s[3] == 'e' || s[3] == 'E');
-  }
+bool try_lock_for(std::timed_mutex& mutex, uint64_t timeout);
 
-  template <typename T>
-  static std::string to_string(T value);
+inline bool stob(std::string const& s) {
+  return s.size() == 4 && std::tolower(s[0]) == 't' && std::tolower(s[1]) == 'r' && std::tolower(s[2]) == 'u' &&
+         std::tolower(s[3]) == 'e';
+}
 
-  static int32_t hash_code(const std::string& str);
+int32_t hash_code(const std::string& str);
 
-  static std::string bytes2string(const char* bytes, size_t len);
-  static void string2bytes(char* dest, const std::string& src);
+std::string bytes2string(const char* bytes, size_t len);
+void string2bytes(char* dest, const std::string& src);
 
-  static bool isRetryTopic(const std::string& resource);
-  static bool isDLQTopic(const std::string& resource);
+bool isRetryTopic(const std::string& resource);
+bool isDLQTopic(const std::string& resource);
 
-  static std::string getRetryTopic(const std::string& consumerGroup);
-  static std::string getDLQTopic(const std::string& consumerGroup);
+std::string getRetryTopic(const std::string& consumerGroup);
+std::string getDLQTopic(const std::string& consumerGroup);
 
-  static std::string getReplyTopic(const std::string& clusterName);
+std::string getReplyTopic(const std::string& clusterName);
 
-  static void Trim(std::string& str);
-  static bool isBlank(const std::string& str);
+void Trim(std::string& str);
+bool isBlank(const std::string& str);
 
-  static bool SplitURL(const std::string& serverURL, std::string& addr, short& nPort);
-  static int Split(std::vector<std::string>& ret_, const std::string& strIn, const char sep);
-  static int Split(std::vector<std::string>& ret_, const std::string& strIn, const std::string& sep);
+bool SplitURL(const std::string& serverURL, std::string& addr, short& nPort);
+int Split(std::vector<std::string>& ret_, const std::string& strIn, const char sep);
+int Split(std::vector<std::string>& ret_, const std::string& strIn, const std::string& sep);
 
-  static std::string getHomeDirectory();
-  static void createDirectory(std::string const& dir);
-  static bool existDirectory(std::string const& dir);
+std::string getHomeDirectory();
+void createDirectory(std::string const& dir);
+bool existDirectory(std::string const& dir);
 
-  static pid_t getProcessId();
-  static std::string getProcessName();
+pid_t getProcessId();
+std::string getProcessName();
 
-  static int64_t currentTimeMillis();
-  static int64_t currentTimeSeconds();
+int64_t currentTimeMillis();
+int64_t currentTimeSeconds();
 
-  static bool deflate(const std::string& input, std::string& out, int level);
-  static bool deflate(const ByteArray& in, std::string& out, int level);
-  static bool inflate(const std::string& input, std::string& out);
-  static bool inflate(const ByteArray& in, std::string& out);
+bool deflate(const std::string& input, std::string& out, int level);
+bool deflate(const ByteArray& in, std::string& out, int level);
+bool inflate(const std::string& input, std::string& out);
+bool inflate(const ByteArray& in, std::string& out);
 
-  // Renames file |from_path| to |to_path|. Both paths must be on the same
-  // volume, or the function will fail. Destination file will be created
-  // if it doesn't exist. Prefer this function over Move when dealing with
-  // temporary files. On Windows it preserves attributes of the target file.
-  // Returns true on success.
-  // Returns false on failure..
-  static bool ReplaceFile(const std::string& from_path, const std::string& to_path);
-};
+// Renames file |from_path| to |to_path|. Both paths must be on the same
+// volume, or the function will fail. Destination file will be created
+// if it doesn't exist. Prefer this function over Move when dealing with
+// temporary files. On Windows it preserves attributes of the target file.
+// Returns true on success.
+// Returns false on failure..
+bool ReplaceFile(const std::string& from_path, const std::string& to_path);
 
 template <typename T>
-inline std::string UtilAll::to_string(T value) {
+std::string to_string(T value);
+
+template <typename T>
+inline std::string to_string(T value) {
   return std::to_string(value);
 }
 
 template <>
-inline std::string UtilAll::to_string<bool>(bool value) {
+inline std::string to_string<bool>(bool value) {
   return value ? "true" : "false";
 }
 
 template <>
-inline std::string UtilAll::to_string<char*>(char* value) {
+inline std::string to_string<char*>(char* value) {
   return std::string(value);
 }
 
 template <>
-inline std::string UtilAll::to_string<ByteArrayRef>(ByteArrayRef value) {
+inline std::string to_string<ByteArrayRef>(ByteArrayRef value) {
   return batos(std::move(value));
 }
 
 template <>
-inline std::string UtilAll::to_string<std::exception_ptr>(std::exception_ptr eptr) {
+inline std::string to_string<std::exception_ptr>(std::exception_ptr eptr) {
   try {
     if (eptr) {
       std::rethrow_exception(eptr);
@@ -167,6 +168,7 @@ inline std::string UtilAll::to_string<std::exception_ptr>(std::exception_ptr ept
   return null;
 }
 
+}  // namespace UtilAll
 }  // namespace rocketmq
 
 #endif  // ROCKETMQ_COMMON_UTILALL_H_
