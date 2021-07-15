@@ -16,9 +16,9 @@
  */
 #include "PullCallback.h"
 
-#include <algorithm>
 #include <exception>
 #include <memory>
+#include <utility>  // std::move
 
 #include "log/Logging.h"
 

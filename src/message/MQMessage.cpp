@@ -16,10 +16,10 @@
  */
 #include "MQMessage.h"
 
-#include <algorithm>  // std::move
+#include <utility>  // std::move
 
-#include "UtilAll.h"  // null
 #include "MessageImpl.h"
+#include "UtilAll.h"  // null
 
 namespace rocketmq {
 

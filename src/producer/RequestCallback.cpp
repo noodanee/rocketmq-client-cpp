@@ -16,8 +16,8 @@
  */
 #include "RequestCallback.h"
 
-#include <algorithm>
 #include <exception>
+#include <utility>  // std::move
 
 #include "Logging.h"
 

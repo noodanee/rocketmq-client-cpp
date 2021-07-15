@@ -16,8 +16,8 @@
  */
 #include "MessageImpl.h"
 
-#include <algorithm>  // std::move
-#include <sstream>    // std::stringstream
+#include <sstream>  // std::stringstream
+#include <utility>  // std::move
 
 #include "MQMessageConst.h"
 #include "MessageSysFlag.h"

@@ -17,7 +17,7 @@
 #ifndef ROCKETMQ_MESSAGE_MESSAGEACCESSOR_HPP_
 #define ROCKETMQ_MESSAGE_MESSAGEACCESSOR_HPP_
 
-#include <algorithm>
+#include <utility>  // std::move
 
 #include "MQMessageConst.h"
 #include "Message.h"

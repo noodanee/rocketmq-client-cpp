@@ -19,9 +19,9 @@
 
 #include <cstdlib>  // std::memcpy
 
-#include <algorithm>  // std::move
 #include <memory>     // std::unique_ptr
 #include <typeindex>  // std::type_index
+#include <utility>    // std::move
 
 #include "ByteBuffer.hpp"
 

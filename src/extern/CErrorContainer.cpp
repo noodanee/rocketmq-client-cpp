@@ -16,7 +16,7 @@
  */
 #include "CErrorContainer.h"
 
-#include <algorithm>  // std::move
+#include <utility>  // std::move
 
 namespace rocketmq {
 

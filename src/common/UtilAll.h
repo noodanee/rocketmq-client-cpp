@@ -17,10 +17,10 @@
 #ifndef ROCKETMQ_COMMON_UTILALL_H_
 #define ROCKETMQ_COMMON_UTILALL_H_
 
-#include <algorithm>  // std::move
 #include <exception>  // std::exception
 #include <mutex>      // std::timed_mutex
 #include <string>     // std::string
+#include <utility>    // std::move
 #include <vector>     // std::vector
 
 #include "ByteArray.h"

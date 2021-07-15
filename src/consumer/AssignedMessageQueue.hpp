@@ -17,9 +17,10 @@
 #ifndef ROCKETMQ_CONSUMER_ASSIGNEDMESSAGEQUEUE_H_
 #define ROCKETMQ_CONSUMER_ASSIGNEDMESSAGEQUEUE_H_
 
-#include <algorithm>  // std::move, std::binary_search
+#include <algorithm>  // std::binary_search
 #include <memory>
-#include <mutex>  // std::mutex
+#include <mutex>    // std::mutex
+#include <utility>  // std::move
 
 #include "MessageQueue.hpp"
 #include "ProcessQueue.h"

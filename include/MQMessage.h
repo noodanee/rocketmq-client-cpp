@@ -17,10 +17,10 @@
 #ifndef ROCKETMQ_MQMESSAGE_H_
 #define ROCKETMQ_MQMESSAGE_H_
 
-#include <algorithm>  // std::move
+#include <utility>  // std::move
 
-#include "Message.h"
 #include "MQMessageConst.h"
+#include "Message.h"
 
 namespace rocketmq {
 

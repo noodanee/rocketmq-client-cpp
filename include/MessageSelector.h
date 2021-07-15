@@ -17,7 +17,7 @@
 #ifndef ROCKETMQ_MESSAGESELECTOR_H_
 #define ROCKETMQ_MESSAGESELECTOR_H_
 
-#include <algorithm>  // std::move
+#include <utility>  // std::move
 
 #include "ExpressionType.h"
 

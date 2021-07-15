@@ -16,7 +16,7 @@
  */
 #include "RequestResponseFuture.h"
 
-#include <algorithm>
+#include <utility>  // std::move
 
 #include "Logging.h"
 #include "UtilAll.h"

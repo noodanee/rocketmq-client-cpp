@@ -16,7 +16,7 @@
  */
 #include "ByteBuffer.hpp"
 
-#include <algorithm>  // std::move
+#include <utility>  // std::move
 
 #include "DefaultByteBuffer.hpp"
 

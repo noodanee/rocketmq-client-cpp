@@ -17,7 +17,9 @@
 #ifndef ROCKETMQ_MESSAGE_MESSAGEBATCH_H_
 #define ROCKETMQ_MESSAGE_MESSAGEBATCH_H_
 
-#include <algorithm>
+#include <memory>   // std::shared_ptr
+#include <utility>  // std::move
+#include <vector>   // std::vector
 
 #include "MessageImpl.h"
 

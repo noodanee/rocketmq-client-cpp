@@ -16,9 +16,9 @@
  */
 #include "MessageDecoder.h"
 
-#include <algorithm>  // std::move
 #include <exception>  // std::exception
 #include <sstream>    // std::stringstream
+#include <utility>    // std::move
 
 #ifndef WIN32
 #include <arpa/inet.h>   // htons

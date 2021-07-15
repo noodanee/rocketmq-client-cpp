@@ -18,9 +18,9 @@
 
 #include <cstring>  // std::memcpy
 
-#include <algorithm>  // std::move
-#include <stdexcept>  //
-#include <string>     // std::string
+#include <stdexcept>
+#include <string>   // std::string
+#include <utility>  // std::move
 
 namespace rocketmq {
 
