@@ -89,7 +89,7 @@ std::string MQClientInstance::getNamesrvAddr() const {
 }
 
 TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std::string& topic,
-                                                                      TopicRouteDataPtr route) {
+                                                                      const TopicRouteDataPtr& route) {
   auto info = std::make_shared<TopicPublishInfo>();
   info->setTopicRouteData(route);
 
@@ -527,7 +527,7 @@ TopicRouteDataPtr MQClientInstance::getTopicRouteData(const std::string& topic) 
 
 void MQClientInstance::addTopicRouteData(const std::string& topic, TopicRouteDataPtr topicRouteData) {
   std::lock_guard<std::mutex> lock(topic_route_table_mutex_);
-  topic_route_table_[topic] = topicRouteData;
+  topic_route_table_[topic] = std::move(topicRouteData);
 }
 
 bool MQClientInstance::registerConsumer(const std::string& group, MQConsumerInner* consumer) {
@@ -670,7 +670,7 @@ void MQClientInstance::getTopicListFromTopicPublishInfo(std::set<std::string>& t
 }
 
 void MQClientInstance::updateProducerTopicPublishInfo(const std::string& topic, TopicPublishInfoPtr publishInfo) {
-  addTopicInfoToTable(topic, publishInfo);
+  addTopicInfoToTable(topic, std::move(publishInfo));
 }
 
 MQConsumerInner* MQClientInstance::selectConsumer(const std::string& group) {
@@ -727,7 +727,7 @@ void MQClientInstance::updateConsumerTopicSubscribeInfo(const std::string& topic
 
 void MQClientInstance::addTopicInfoToTable(const std::string& topic, TopicPublishInfoPtr topicPublishInfo) {
   std::lock_guard<std::mutex> lock(topic_publish_info_table_mutex_);
-  topic_publish_info_table_[topic] = topicPublishInfo;
+  topic_publish_info_table_[topic] = std::move(topicPublishInfo);
 }
 
 void MQClientInstance::eraseTopicInfoFromTable(const std::string& topic) {

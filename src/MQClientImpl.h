@@ -17,6 +17,8 @@
 #ifndef ROCKETMQ_MQCLIENTIMPL_H_
 #define ROCKETMQ_MQCLIENTIMPL_H_
 
+#include <utility>  // std::move
+
 #include "MQAdmin.h"
 #include "MQClientConfig.h"
 #include "MQClientInstance.h"
@@ -26,7 +28,8 @@ namespace rocketmq {
 
 class MQClientImpl : public MQAdmin {
  public:
-  MQClientImpl(MQClientConfigPtr config, RPCHookPtr rpcHook) : client_config_(config), rpc_hook_(rpcHook) {}
+  MQClientImpl(MQClientConfigPtr config, RPCHookPtr rpcHook)
+      : client_config_(std::move(config)), rpc_hook_(std::move(rpcHook)) {}
 
  public:  // MQAdmin
   void createTopic(const std::string& key, const std::string& newTopic, int queueNum) override;

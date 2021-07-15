@@ -17,9 +17,10 @@
 #ifndef ROCKETMQ_PRODUCER_TOPICPUBLISHINFO_HPP_
 #define ROCKETMQ_PRODUCER_TOPICPUBLISHINFO_HPP_
 
-#include <atomic>  // std::atomic
-#include <memory>  // std::shared_ptr
-#include <mutex>   // std::mutex
+#include <atomic>   // std::atomic
+#include <memory>   // std::shared_ptr
+#include <mutex>    // std::mutex
+#include <utility>  // std::move
 
 #include "MQException.h"
 #include "MessageQueue.hpp"
@@ -90,7 +91,7 @@ class TopicPublishInfo {
     return -1;
   }
 
-  void setTopicRouteData(TopicRouteDataPtr topicRouteData) { topic_route_data_ = topicRouteData; }
+  void setTopicRouteData(TopicRouteDataPtr topicRouteData) { topic_route_data_ = std::move(topicRouteData); }
 
  private:
   bool order_topic_{false};

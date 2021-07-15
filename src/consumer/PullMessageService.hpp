@@ -68,12 +68,12 @@ class PullMessageService {
   std::string getServiceName() { return "PullMessageService"; }
 
  private:
-  void pullMessage(PullRequestPtr pullRequest) {
-    MQConsumerInner* consumer = client_instance_->selectConsumer(pullRequest->consumer_group());
+  void pullMessage(PullRequestPtr pull_request) {
+    MQConsumerInner* consumer = client_instance_->selectConsumer(pull_request->consumer_group());
     if (consumer != nullptr) {
-      consumer->pullMessage(pullRequest);
+      consumer->pullMessage(std::move(pull_request));
     } else {
-      LOG_WARN_NEW("No matched consumer for the PullRequest {}, drop it", pullRequest->toString());
+      LOG_WARN_NEW("No matched consumer for the PullRequest {}, drop it", pull_request->toString());
     }
   }
 
