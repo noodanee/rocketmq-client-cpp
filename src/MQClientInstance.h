@@ -51,8 +51,8 @@ using MQClientInstancePtr = std::shared_ptr<MQClientInstance>;
 
 class MQClientInstance {
  public:
-  MQClientInstance(const MQClientConfig& clientConfig, const std::string& clientId);
-  MQClientInstance(const MQClientConfig& clientConfig, const std::string& clientId, RPCHookPtr rpcHook);
+  MQClientInstance(const MQClientConfig& clientConfig, std::string clientId);
+  MQClientInstance(const MQClientConfig& clientConfig, std::string clientId, RPCHookPtr rpcHook);
   virtual ~MQClientInstance();
 
   static TopicPublishInfoPtr topicRouteData2TopicPublishInfo(const std::string& topic, TopicRouteDataPtr route);

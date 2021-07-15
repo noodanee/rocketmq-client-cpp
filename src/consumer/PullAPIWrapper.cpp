@@ -31,8 +31,8 @@
 
 namespace rocketmq {
 
-PullAPIWrapper::PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group)
-    : client_instance_(client_instance), consumer_group_(consumer_group) {}
+PullAPIWrapper::PullAPIWrapper(MQClientInstance* client_instance, std::string consumer_group)
+    : client_instance_(client_instance), consumer_group_(std::move(consumer_group)) {}
 
 std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue& message_queue,
                                                               const std::string& expression,

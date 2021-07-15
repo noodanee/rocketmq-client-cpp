@@ -25,8 +25,8 @@
 
 namespace rocketmq {
 
-RemoteBrokerOffsetStore::RemoteBrokerOffsetStore(MQClientInstance* instance, const std::string& groupName)
-    : client_instance_(instance), group_name_(groupName) {}
+RemoteBrokerOffsetStore::RemoteBrokerOffsetStore(MQClientInstance* instance, std::string groupName)
+    : client_instance_(instance), group_name_(std::move(groupName)) {}
 
 RemoteBrokerOffsetStore::~RemoteBrokerOffsetStore() {
   client_instance_ = nullptr;

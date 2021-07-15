@@ -25,7 +25,8 @@ namespace rocketmq {
 
 class ROCKETMQCLIENT_API MessageSelector {
  private:
-  MessageSelector(const std::string& type, const std::string& expression) : type_(type), expression_(expression) {}
+  MessageSelector(std::string type, std::string expression)
+      : type_(std::move(type)), expression_(std::move(expression)) {}
 
  public:
   virtual ~MessageSelector() = default;

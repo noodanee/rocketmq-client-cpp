@@ -18,6 +18,7 @@
 #define ROCKETMQ_LOGGERCONFIG_H_
 
 #include <string>
+#include <utility>  // std::move
 
 namespace rocketmq {
 
@@ -33,10 +34,10 @@ enum LogLevel {
 
 class LoggerConfig {
  public:
-  LoggerConfig(const std::string& name, const std::string& path)
-      : LoggerConfig(name, LOG_LEVEL_INFO, path, 1024 * 1024 * 100, 3) {}
-  LoggerConfig(const std::string& name, LogLevel level, const std::string& path, int file_size, int file_count)
-      : name_(name), level_(level), path_(path), file_size_(file_size), file_count_(file_count) {}
+  LoggerConfig(std::string name, std::string path)
+      : LoggerConfig(std::move(name), LOG_LEVEL_DEBUG, std::move(path), 1024 * 1024 * 100, 3) {}
+  LoggerConfig(std::string name, LogLevel level, std::string path, int file_size, int file_count)
+      : name_(std::move(name)), level_(level), path_(std::move(path)), file_size_(file_size), file_count_(file_count) {}
 
  public:
   const std::string& name() const { return name_; }

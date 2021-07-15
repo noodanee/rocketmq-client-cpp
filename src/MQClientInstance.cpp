@@ -17,6 +17,7 @@
 #include "MQClientInstance.h"
 
 #include <typeindex>
+#include <utility>  // std::move
 
 #include "ClientRemotingProcessor.h"
 #include "Logging.h"
@@ -39,11 +40,11 @@ namespace rocketmq {
 
 static const long LOCK_TIMEOUT_MILLIS = 3000L;
 
-MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std::string& clientId)
-    : MQClientInstance(clientConfig, clientId, nullptr) {}
+MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, std::string clientId)
+    : MQClientInstance(clientConfig, std::move(clientId), nullptr) {}
 
-MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std::string& clientId, RPCHookPtr rpcHook)
-    : client_id_(clientId),
+MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, std::string clientId, RPCHookPtr rpcHook)
+    : client_id_(std::move(clientId)),
       rebalance_service_(MakeUnique<RebalanceService>(this)),
       pull_message_service_(MakeUnique<PullMessageService>(this)),
       scheduled_executor_service_("MQClient", false) {

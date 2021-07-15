@@ -33,7 +33,7 @@ class PullAPIWrapper {
   using PullCallback = std::function<void(ResultState<std::unique_ptr<PullResultExt>>) /* noexcept */>;
 
  public:
-  PullAPIWrapper(MQClientInstance* client_instance, const std::string& consumer_group);
+  PullAPIWrapper(MQClientInstance* client_instance, std::string consumer_group);
 
   std::unique_ptr<PullResultExt> PullKernelImpl(const MessageQueue& message_queue,
                                                 const std::string& expression,

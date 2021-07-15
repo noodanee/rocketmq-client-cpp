@@ -27,7 +27,7 @@ namespace rocketmq {
 
 class RemoteBrokerOffsetStore : public OffsetStore {
  public:
-  RemoteBrokerOffsetStore(MQClientInstance* instance, const std::string& groupName);
+  RemoteBrokerOffsetStore(MQClientInstance* instance, std::string groupName);
   virtual ~RemoteBrokerOffsetStore();
 
   void load() override;
