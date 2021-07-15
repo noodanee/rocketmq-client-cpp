@@ -111,31 +111,6 @@ struct TopicRouteData {
     return topic_route_data;
   }
 
-  /**
-   * Selects a (preferably master) broker address from the registered list.
-   * If the master's address cannot be found, a slave broker address is selected in a random manner.
-   *
-   * @return Broker address.
-   */
-  std::string SelectBrokerAddr() {
-    auto broker_data_size = broker_datas.size();
-    if (broker_data_size > 0) {
-      auto broker_data_index = std::rand() % broker_data_size;
-      const auto& broker_data = broker_datas[broker_data_index];
-      const auto& broker_addrs = broker_data.broker_addrs;
-      auto it = broker_addrs.find(MASTER_ID);
-      if (it == broker_addrs.end()) {
-        auto broker_addr_size = broker_addrs.size();
-        auto broker_addr_index = std::rand() % broker_addr_size;
-        for (it = broker_addrs.begin(); broker_addr_index > 0; --broker_addr_index) {
-          it++;
-        }
-      }
-      return it->second;
-    }
-    return null;
-  }
-
   bool operator==(const TopicRouteData& other) const {
     return broker_datas == other.broker_datas && order_topic_conf == other.order_topic_conf &&
            queue_datas == other.queue_datas;

@@ -892,12 +892,42 @@ void MQClientInstance::findConsumerIds(const std::string& topic,
   }
 }
 
+namespace {
+
+/**
+ * @brief Selects a (preferably master) broker address from the registered list.
+ *
+ * @note If the master's address cannot be found, a slave broker address is selected in a random manner.
+ *
+ * @return Broker address.
+ */
+std::string SelectBrokerAddr(const TopicRouteData& topic_route_data) {
+  auto broker_data_size = topic_route_data.broker_datas.size();
+  if (broker_data_size > 0) {
+    auto broker_data_index = std::rand() % broker_data_size;
+    const auto& broker_data = topic_route_data.broker_datas[broker_data_index];
+    const auto& broker_addrs = broker_data.broker_addrs;
+    auto it = broker_addrs.find(MASTER_ID);
+    if (it == broker_addrs.end()) {
+      auto broker_addr_size = broker_addrs.size();
+      auto broker_addr_index = std::rand() % broker_addr_size;
+      for (it = broker_addrs.begin(); broker_addr_index > 0; --broker_addr_index) {
+        it++;
+      }
+    }
+    return it->second;
+  }
+  return std::string();
+}
+
+}  // namespace
+
 std::string MQClientInstance::findBrokerAddrByTopic(const std::string& topic) {
   auto topicRouteData = getTopicRouteData(topic);
   if (topicRouteData != nullptr) {
-    return topicRouteData->SelectBrokerAddr();
+    return SelectBrokerAddr(*topicRouteData);
   }
-  return "";
+  return std::string();
 }
 
 void MQClientInstance::resetOffset(const std::string& group,
