@@ -32,6 +32,7 @@
 #include "RebalanceService.h"
 #include "TcpRemotingClient.h"
 #include "UtilAll.h"
+#include "consumer/TopicSubscribeInfo.hpp"
 #include "producer/TopicPublishInfo.hpp"
 #include "protocol/body/ConsumerRunningInfo.hpp"
 #include "utility/MakeUnique.hpp"
@@ -86,21 +87,6 @@ std::string MQClientInstance::getNamesrvAddr() const {
     oss << addr << ";";
   }
   return oss.str();
-}
-
-std::vector<MessageQueue> MQClientInstance::topicRouteData2TopicSubscribeInfo(const std::string& topic,
-                                                                              TopicRouteDataPtr route) {
-  std::vector<MessageQueue> mqList;
-  const auto& queueDatas = route->queue_datas;
-  for (const auto& qd : queueDatas) {
-    if (PermName::isReadable(qd.perm)) {
-      for (int i = 0; i < qd.read_queue_nums; i++) {
-        MessageQueue mq(topic, qd.broker_name, i);
-        mqList.push_back(mq);
-      }
-    }
-  }
-  return mqList;
 }
 
 void MQClientInstance::start() {
@@ -387,7 +373,7 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
 
           // update subscribe info
           if (getConsumerTableSize() > 0) {
-            std::vector<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
+            std::vector<MessageQueue> subscribeInfo = MakeTopicSubscribeInfo(topic, *topicRouteData);
             updateConsumerTopicSubscribeInfo(topic, subscribeInfo);
           }
 

@@ -44,6 +44,7 @@
 #include "SocketUtil.h"
 #include "UtilAll.h"
 #include "Validators.h"
+#include "consumer/TopicSubscribeInfo.hpp"
 #include "protocol/body/ConsumerRunningInfo.hpp"
 #include "utility/MakeUnique.hpp"
 
@@ -216,8 +217,7 @@ void DefaultMQPushConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChanged(
     const auto& topic = it.first;
     auto topic_route_data = client_instance_->getTopicRouteData(topic);
     if (topic_route_data != nullptr) {
-      std::vector<MessageQueue> subscribeInfo =
-          MQClientInstance::topicRouteData2TopicSubscribeInfo(topic, topic_route_data);
+      auto subscribeInfo = MakeTopicSubscribeInfo(topic, *topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);
     } else {
       bool ret = client_instance_->updateTopicRouteInfoFromNameServer(topic);

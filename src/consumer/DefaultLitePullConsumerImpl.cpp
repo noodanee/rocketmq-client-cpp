@@ -43,6 +43,7 @@
 #include "RemoteBrokerOffsetStore.h"
 #include "UtilAll.h"
 #include "Validators.h"
+#include "consumer/TopicSubscribeInfo.hpp"
 #include "utility/MakeUnique.hpp"
 
 static const long PULL_TIME_DELAY_MILLS_WHEN_PAUSE = 1000;
@@ -273,8 +274,7 @@ void DefaultLitePullConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChange
     const auto& topic = it.first;
     auto topic_route_data = client_instance_->getTopicRouteData(topic);
     if (topic_route_data != nullptr) {
-      std::vector<MessageQueue> subscribeInfo =
-          MQClientInstance::topicRouteData2TopicSubscribeInfo(topic, topic_route_data);
+      auto subscribeInfo = MakeTopicSubscribeInfo(topic, *topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);
     } else {
       bool ret = client_instance_->updateTopicRouteInfoFromNameServer(topic);

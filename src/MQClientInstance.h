@@ -55,8 +55,6 @@ class MQClientInstance {
   MQClientInstance(const MQClientConfig& clientConfig, std::string clientId, RPCHookPtr rpcHook);
   virtual ~MQClientInstance();
 
-  static std::vector<MessageQueue> topicRouteData2TopicSubscribeInfo(const std::string& topic, TopicRouteDataPtr route);
-
   const std::string& getClientId() const;
   std::string getNamesrvAddr() const;
 
