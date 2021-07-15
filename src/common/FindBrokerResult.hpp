@@ -14,28 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMER_FINDBROKERRESULT_HPP_
-#define ROCKETMQ_CONSUMER_FINDBROKERRESULT_HPP_
+#ifndef ROCKETMQ_COMMON_FINDBROKERRESULT_HPP_
+#define ROCKETMQ_COMMON_FINDBROKERRESULT_HPP_
 
-#include <string>  // std::string
+#include <string>   // std::string
+#include <utility>  // std::move
 
 namespace rocketmq {
 
-class FindBrokerResult {
- public:
-  FindBrokerResult(const std::string& sbrokerAddr, bool bslave) : broker_addr_(sbrokerAddr), slave_(bslave) {}
+struct FindBrokerResult {
+  std::string broker_addr;
+  bool slave{false};
 
-  const std::string& broker_addr() const { return broker_addr_; }
-  void set_borker_addr(const std::string& broker_addr) { broker_addr_ = broker_addr; }
+  FindBrokerResult() = default;
+  FindBrokerResult(std::string broker_addr, bool slave) : broker_addr(std::move(broker_addr)), slave(slave) {}
 
-  bool slave() const { return slave_; }
-  void set_slave(bool slave) { slave_ = slave; }
-
- private:
-  std::string broker_addr_;
-  bool slave_;
+  explicit operator bool() const noexcept { return !broker_addr.empty(); }
 };
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_CONSUMER_FINDBROKERRESULT_HPP_
+#endif  // ROCKETMQ_COMMON_FINDBROKERRESULT_HPP_

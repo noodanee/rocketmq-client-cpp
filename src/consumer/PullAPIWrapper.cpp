@@ -55,7 +55,7 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
   }
 
   if (find_broker_result != nullptr) {
-    if (find_broker_result->slave()) {
+    if (find_broker_result->slave) {
       system_flag = PullSysFlag::clearCommitOffsetFlag(system_flag);
     }
 
@@ -71,7 +71,7 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
     request_header->subscription = expression;
     request_header->subscription_version = version;
 
-    return client_instance_->getMQClientAPIImpl()->PullMessage(find_broker_result->broker_addr(),
+    return client_instance_->getMQClientAPIImpl()->PullMessage(find_broker_result->broker_addr,
                                                                std::move(request_header), timeout_millis,
                                                                communication_mode, std::move(pull_callback));
   }

@@ -158,7 +158,7 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq
   if (findBrokerResult != nullptr) {
     try {
       return client_instance_->getMQClientAPIImpl()->UpdateConsumerOffsetOneway(
-          findBrokerResult->broker_addr(), group_name_, mq.topic(), mq.queue_id(), offset);
+          findBrokerResult->broker_addr, group_name_, mq.topic(), mq.queue_id(), offset);
     } catch (MQException& e) {
       LOG_ERROR(e.what());
     }
@@ -176,7 +176,7 @@ int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MessageQueue
   }
 
   if (findBrokerResult != nullptr) {
-    return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult->broker_addr(), group_name_,
+    return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult->broker_addr, group_name_,
                                                                        mq.topic(), mq.queue_id(), 1000 * 5);
   }
 

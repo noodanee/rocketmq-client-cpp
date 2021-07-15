@@ -36,7 +36,7 @@ bool RebalancePushImpl::lock(const MessageQueue& mq) {
       LOG_DEBUG_NEW("try to lock mq:{}", mq.ToString());
 
       std::vector<MessageQueue> lockedMq = client_instance_->getMQClientAPIImpl()->LockBatchMQ(
-          findBrokerResult->broker_addr(), consumer_group_, client_instance_->getClientId(), {mq}, 1000);
+          findBrokerResult->broker_addr, consumer_group_, client_instance_->getClientId(), {mq}, 1000);
 
       bool lockOK = false;
       if (!lockedMq.empty()) {
@@ -84,7 +84,7 @@ void RebalancePushImpl::lockAll() {
         LOG_INFO_NEW("try to lock:{} mqs of broker:{}", mqs.size(), brokerName);
 
         std::vector<MessageQueue> lockOKMQVec = client_instance_->getMQClientAPIImpl()->LockBatchMQ(
-            findBrokerResult->broker_addr(), consumer_group_, client_instance_->getClientId(), mqs, 1000);
+            findBrokerResult->broker_addr, consumer_group_, client_instance_->getClientId(), mqs, 1000);
 
         std::set<MessageQueue> lockOKMQSet;
         for (const auto& mq : lockOKMQVec) {
@@ -124,7 +124,7 @@ void RebalancePushImpl::unlock(const MessageQueue& mq, const bool oneway) {
       client_instance_->findBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true));
   if (findBrokerResult) {
     try {
-      client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult->broker_addr(), consumer_group_,
+      client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult->broker_addr, consumer_group_,
                                                             client_instance_->getClientId(), {mq}, 1000, oneway);
 
       ProcessQueuePtr processQueue = getProcessQueue(mq);
@@ -158,7 +158,7 @@ void RebalancePushImpl::unlockAll(const bool oneway) {
         client_instance_->findBrokerAddressInSubscribe(brokerName, MASTER_ID, true));
     if (findBrokerResult) {
       try {
-        client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult->broker_addr(), consumer_group_,
+        client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult->broker_addr, consumer_group_,
                                                               client_instance_->getClientId(), mqs, 1000, oneway);
         for (const auto& mq : mqs) {
           ProcessQueuePtr processQueue = getProcessQueue(mq);
