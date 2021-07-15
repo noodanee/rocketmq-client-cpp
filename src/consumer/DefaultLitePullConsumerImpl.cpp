@@ -43,6 +43,7 @@
 #include "RemoteBrokerOffsetStore.h"
 #include "UtilAll.h"
 #include "Validators.h"
+#include "utility/MakeUnique.hpp"
 
 static const long PULL_TIME_DELAY_MILLS_WHEN_PAUSE = 1000;
 static const long PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL = 50;
@@ -129,33 +130,17 @@ void DefaultLitePullConsumerImpl::start() {
       }
 
       // init pull_api_wrapper_
-#if __cplusplus >= 201402L
-      pull_api_wrapper_ = std::make_unique<PullAPIWrapper>(client_instance_.get(), client_config_->group_name());
-#else
-      pull_api_wrapper_ =
-          std::unique_ptr<PullAPIWrapper>(new PullAPIWrapper(client_instance_.get(), client_config_->group_name()));
-#endif
+      pull_api_wrapper_ = MakeUnique<PullAPIWrapper>(client_instance_.get(), client_config_->group_name());
 
       // TODO: registerFilterMessageHook
 
       // init offset_store_
       switch (config().message_model()) {
         case MessageModel::BROADCASTING:
-#if __cplusplus >= 201402L
-          offset_store_ = std::make_unique<LocalFileOffsetStore>(client_instance_.get(), client_config_->group_name());
-#else
-          offset_store_ = std::unique_ptr<LocalFileOffsetStore>(
-              new LocalFileOffsetStore(client_instance_.get(), client_config_->group_name()));
-#endif
+          offset_store_ = MakeUnique<LocalFileOffsetStore>(client_instance_.get(), client_config_->group_name());
           break;
         case MessageModel::CLUSTERING:
-#if __cplusplus >= 201402L
-          offset_store_ =
-              std::make_unique<RemoteBrokerOffsetStore>(client_instance_.get(), client_config_->group_name());
-#else
-          offset_store_ = std::unique_ptr<RemoteBrokerOffsetStore>(
-              new RemoteBrokerOffsetStore(client_instance_.get(), client_config_->group_name()));
-#endif
+          offset_store_ = MakeUnique<RemoteBrokerOffsetStore>(client_instance_.get(), client_config_->group_name());
           break;
       }
       offset_store_->load();
@@ -355,12 +340,7 @@ void DefaultLitePullConsumerImpl::Subscribe(const std::string& topic, const std:
     set_subscription_type(SubscriptionType::kSubscribe);
     rebalance_impl_->setSubscriptionData(topic, FilterAPI::buildSubscriptionData(topic, expression));
 
-#if __cplusplus >= 201402L
-    message_queue_listener_ = std::make_unique<MessageQueueListenerImpl>(shared_from_this());
-#else
-    message_queue_listener_ =
-        std::unique_ptr<MessageQueueListenerImpl>(new MessageQueueListenerImpl(shared_from_this()));
-#endif
+    message_queue_listener_ = MakeUnique<MessageQueueListenerImpl>(shared_from_this());
     assigned_message_queue_->set_rebalance_impl(rebalance_impl_.get());
 
     if (service_state_ == ServiceState::kRunning) {

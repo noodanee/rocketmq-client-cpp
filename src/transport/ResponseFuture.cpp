@@ -23,6 +23,7 @@
 #include "RemotingCommand.h"
 #include "UtilAll.h"
 #include "concurrent/executor.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
 
@@ -37,11 +38,7 @@ ResponseFuture::ResponseFuture(int request_code,
       request_callback_(std::move(request_callback)),
       executor_(std::move(executor)) {
   if (nullptr == request_callback) {
-#if __cplusplus >= 201402L
-    count_down_latch_ = std::make_unique<latch>(1);
-#else
-    count_down_latch_ = std::unique_ptr<latch>(new latch(1));
-#endif
+    count_down_latch_ = MakeUnique<latch>(1);
   }
 }
 

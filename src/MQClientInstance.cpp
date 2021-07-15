@@ -33,6 +33,7 @@
 #include "TopicPublishInfo.hpp"
 #include "UtilAll.h"
 #include "protocol/body/ConsumerRunningInfo.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace rocketmq {
 
@@ -43,15 +44,15 @@ MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std
 
 MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std::string& clientId, RPCHookPtr rpcHook)
     : client_id_(clientId),
-      rebalance_service_(new RebalanceService(this)),
-      pull_message_service_(new PullMessageService(this)),
+      rebalance_service_(MakeUnique<RebalanceService>(this)),
+      pull_message_service_(MakeUnique<PullMessageService>(this)),
       scheduled_executor_service_("MQClient", false) {
   // default Topic register
   TopicPublishInfoPtr defaultTopicInfo(new TopicPublishInfo());
   topic_publish_info_table_[AUTO_CREATE_TOPIC_KEY_TOPIC] = defaultTopicInfo;
 
-  client_remoting_processor_.reset(new ClientRemotingProcessor(this));
-  mq_client_api_impl_.reset(new MQClientAPIImpl(client_remoting_processor_.get(), rpcHook, clientConfig));
+  client_remoting_processor_ = MakeUnique<ClientRemotingProcessor>(this);
+  mq_client_api_impl_ = MakeUnique<MQClientAPIImpl>(client_remoting_processor_.get(), std::move(rpcHook), clientConfig);
 
   std::string namesrvAddr = clientConfig.namesrv_addr();
   if (!namesrvAddr.empty()) {
@@ -59,7 +60,7 @@ MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std
     LOG_INFO_NEW("user specified name server address: {}", namesrvAddr);
   }
 
-  mq_admin_impl_.reset(new MQAdminImpl(this));
+  mq_admin_impl_ = MakeUnique<MQAdminImpl>(this);
 
   service_state_ = ServiceState::kCreateJust;
   LOG_DEBUG_NEW("MQClientInstance construct");
@@ -786,7 +787,7 @@ std::unique_ptr<FindBrokerResult> MQClientInstance::findBrokerAddressInAdmin(con
 
   brokerTable.clear();
   if (found) {
-    return std::unique_ptr<FindBrokerResult>(new FindBrokerResult(brokerAddr, slave));
+    return MakeUnique<FindBrokerResult>(brokerAddr, slave);
   }
 
   return nullptr;

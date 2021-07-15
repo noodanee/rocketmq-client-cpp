@@ -94,13 +94,8 @@ void DefaultMQProducerImpl::start() {
       }
 
       if (nullptr == async_send_executor_) {
-#if __cplusplus >= 201402L
         async_send_executor_ =
-            std::make_unique<thread_pool_executor>("AsyncSendThread", config().async_send_thread_nums(), false);
-#else
-        async_send_executor_ = std::unique_ptr<thread_pool_executor>{
-            new thread_pool_executor("AsyncSendThread", config().async_send_thread_nums(), false)};
-#endif
+            MakeUnique<thread_pool_executor>("AsyncSendThread", config().async_send_thread_nums(), false);
       }
       async_send_executor_->startup();
 
@@ -581,11 +576,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
 
 void DefaultMQProducerImpl::InitialTransactionEnv() {
   if (nullptr == check_transaction_executor_) {
-#if __cplusplus >= 201402L
-    check_transaction_executor_ = std::make_unique<thread_pool_executor>(1, false);
-#else
-    check_transaction_executor_ = std::unique_ptr<thread_pool_executor>{new thread_pool_executor(1, false)};
-#endif
+    check_transaction_executor_ = MakeUnique<thread_pool_executor>(1, false);
   }
   check_transaction_executor_->startup();
 }

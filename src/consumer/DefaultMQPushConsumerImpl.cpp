@@ -45,6 +45,7 @@
 #include "UtilAll.h"
 #include "Validators.h"
 #include "protocol/body/ConsumerRunningInfo.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace {
 
@@ -104,16 +105,16 @@ void DefaultMQPushConsumerImpl::start() {
       }
 
       // init pull_api_wrapper_
-      pull_api_wrapper_.reset(new PullAPIWrapper(client_instance_.get(), client_config_->group_name()));
+      pull_api_wrapper_ = MakeUnique<PullAPIWrapper>(client_instance_.get(), client_config_->group_name());
       // TODO: registerFilterMessageHook
 
       // init offset_store_
       switch (config().message_model()) {
         case MessageModel::BROADCASTING:
-          offset_store_.reset(new LocalFileOffsetStore(client_instance_.get(), client_config_->group_name()));
+          offset_store_ = MakeUnique<LocalFileOffsetStore>(client_instance_.get(), client_config_->group_name());
           break;
         case MessageModel::CLUSTERING:
-          offset_store_.reset(new RemoteBrokerOffsetStore(client_instance_.get(), client_config_->group_name()));
+          offset_store_ = MakeUnique<RemoteBrokerOffsetStore>(client_instance_.get(), client_config_->group_name());
           break;
       }
       offset_store_->load();
@@ -121,13 +122,13 @@ void DefaultMQPushConsumerImpl::start() {
       // checkConfig() guarantee message_listener_ is not nullptr
       if (consume_orderly_) {
         LOG_INFO_NEW("start orderly consume service: {}", client_config_->group_name());
-        consume_service_.reset(
-            new ConsumeMessageOrderlyService(this, config().consume_thread_nums(), std::move(message_listener_)));
+        consume_service_ = MakeUnique<ConsumeMessageOrderlyService>(this, config().consume_thread_nums(),
+                                                                    std::move(message_listener_));
       } else {
         LOG_INFO_NEW("start concurrently consume service: {}", client_config_->group_name());
         consume_orderly_ = false;
-        consume_service_.reset(
-            new ConsumeMessageConcurrentlyService(this, config().consume_thread_nums(), std::move(message_listener_)));
+        consume_service_ = MakeUnique<ConsumeMessageConcurrentlyService>(this, config().consume_thread_nums(),
+                                                                         std::move(message_listener_));
       }
       consume_service_->start();
 

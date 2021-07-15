@@ -25,6 +25,7 @@
 #include "Logging.h"
 #include "UtilAll.h"
 #include "concurrent/executor.hpp"
+#include "utility/MakeUnique.hpp"
 
 namespace {
 
@@ -503,11 +504,7 @@ TcpTransportPtr TcpRemotingClient::CreateTransport(const std::string& address) {
       };
 
       // create new transport, then connect server
-#if __cplusplus >= 201402L
-      auto information = std::make_unique<ResponseFutureInfo>();
-#else
-      auto information = std::unique_ptr<ResponseFutureInfo>(new ResponseFutureInfo());
-#endif
+      auto information = MakeUnique<ResponseFutureInfo>();
       channel = TcpTransport::CreateTransport(read_callback, close_callback, std::move(information));
       TcpConnectStatus status = channel->Connect(address, 0);  // use non-block
       if (status != TcpConnectStatus::kConnecting) {
@@ -657,20 +654,12 @@ void ProcessRequestCommand(std::unique_ptr<RemotingCommand> request_command,
       LOG_ERROR_NEW("process request exception. {}", e.what());
 
       // send SYSTEM_ERROR response
-#if __cplusplus >= 201402L
-      response = std::make_unique<RemotingCommand>(SYSTEM_ERROR, e.what(), nullptr);
-#else
-      response = std::unique_ptr<RemotingCommand>{new RemotingCommand(SYSTEM_ERROR, e.what(), nullptr)};
-#endif
+      response = MakeUnique<RemotingCommand>(SYSTEM_ERROR, e.what(), nullptr);
     }
   } else {
     // send REQUEST_CODE_NOT_SUPPORTED response
     std::string error = "request type " + UtilAll::to_string(request_command->code()) + " not supported";
-#if __cplusplus >= 201402L
-    response = std::make_unique<RemotingCommand>(REQUEST_CODE_NOT_SUPPORTED, error, nullptr);
-#else
-    response = std::unique_ptr<RemotingCommand>{new RemotingCommand(REQUEST_CODE_NOT_SUPPORTED, error, nullptr)};
-#endif
+    response = MakeUnique<RemotingCommand>(REQUEST_CODE_NOT_SUPPORTED, error, nullptr);
 
     LOG_ERROR_NEW("{}: {}", channel->peer_address(), error);
   }
