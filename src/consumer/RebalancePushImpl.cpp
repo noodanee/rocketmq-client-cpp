@@ -73,7 +73,7 @@ void RebalancePushImpl::lockAll() {
     const std::string& brokerName = it.first;
     const std::vector<MessageQueue>& mqs = it.second;
 
-    if (mqs.size() == 0) {
+    if (mqs.empty()) {
       continue;
     }
 
@@ -150,7 +150,7 @@ void RebalancePushImpl::unlockAll(const bool oneway) {
     const std::string& brokerName = it.first;
     const std::vector<MessageQueue>& mqs = it.second;
 
-    if (mqs.size() == 0) {
+    if (mqs.empty()) {
       continue;
     }
 

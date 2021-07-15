@@ -323,7 +323,7 @@ void MQClientInstance::cleanOfflineBroker() {
       }
     }
 
-    if (offlineBrokers.size() > 0) {
+    if (!offlineBrokers.empty()) {
       resetBrokerAddrTable(std::move(updatedTable));
 
       std::lock_guard<std::mutex> lock(topic_broker_addr_table_mutex_);
