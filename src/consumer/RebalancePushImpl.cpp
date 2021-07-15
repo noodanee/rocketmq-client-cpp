@@ -257,7 +257,7 @@ bool RebalancePushImpl::updateProcessQueueTableInRebalance(const std::string& to
       }
 
       removeDirtyOffset(mq);
-      pq.reset(new ProcessQueue(mq));
+      pq = std::make_shared<ProcessQueue>(mq);
       int64_t nextOffset = computePullFromWhere(mq);
       if (nextOffset >= 0) {
         auto pre = putProcessQueueIfAbsent(mq, pq);

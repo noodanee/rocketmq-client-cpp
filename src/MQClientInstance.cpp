@@ -48,8 +48,7 @@ MQClientInstance::MQClientInstance(const MQClientConfig& clientConfig, const std
       pull_message_service_(MakeUnique<PullMessageService>(this)),
       scheduled_executor_service_("MQClient", false) {
   // default Topic register
-  TopicPublishInfoPtr defaultTopicInfo(new TopicPublishInfo());
-  topic_publish_info_table_[AUTO_CREATE_TOPIC_KEY_TOPIC] = defaultTopicInfo;
+  topic_publish_info_table_[AUTO_CREATE_TOPIC_KEY_TOPIC] = std::make_shared<TopicPublishInfo>();
 
   client_remoting_processor_ = MakeUnique<ClientRemotingProcessor>(this);
   mq_client_api_impl_ = MakeUnique<MQClientAPIImpl>(client_remoting_processor_.get(), std::move(rpcHook), clientConfig);
