@@ -31,8 +31,8 @@
 #include "RebalancePushImpl.h"
 #include "RebalanceService.h"
 #include "TcpRemotingClient.h"
-#include "TopicPublishInfo.hpp"
 #include "UtilAll.h"
+#include "producer/TopicPublishInfo.hpp"
 #include "protocol/body/ConsumerRunningInfo.hpp"
 #include "utility/MakeUnique.hpp"
 
@@ -86,70 +86,6 @@ std::string MQClientInstance::getNamesrvAddr() const {
     oss << addr << ";";
   }
   return oss.str();
-}
-
-TopicPublishInfoPtr MQClientInstance::topicRouteData2TopicPublishInfo(const std::string& topic,
-                                                                      const TopicRouteDataPtr& route) {
-  auto info = std::make_shared<TopicPublishInfo>();
-  info->setTopicRouteData(route);
-
-  auto& mqList = const_cast<TopicPublishInfo::QueuesVec&>(info->getMessageQueueList());
-
-  std::string orderTopicConf = route->order_topic_conf;
-  if (!orderTopicConf.empty()) {  // order msg
-    // "broker-a:8";"broker-b:8"
-    std::vector<std::string> brokers;
-    UtilAll::Split(brokers, orderTopicConf, ';');
-    for (const auto& broker : brokers) {
-      std::vector<std::string> item;
-      UtilAll::Split(item, broker, ':');
-      int nums = atoi(item[1].c_str());
-      for (int i = 0; i < nums; i++) {
-        mqList.emplace_back(topic, item[0], i);
-      }
-    }
-    info->setOrderTopic(true);
-  } else {  // no order msg
-    const auto& qds = route->queue_datas;
-    for (const auto& qd : qds) {
-      if (PermName::isWriteable(qd.perm)) {
-        const BrokerData* brokerData = nullptr;
-        for (const auto& bd : route->broker_datas) {
-          if (bd.broker_name == qd.broker_name) {
-            brokerData = &bd;
-            break;
-          }
-        }
-
-        if (nullptr == brokerData) {
-          LOG_WARN_NEW("MQClientInstance: broker:{} of topic:{} have not data", qd.broker_name, topic);
-          continue;
-        }
-
-        if (brokerData->broker_addrs.find(MASTER_ID) == brokerData->broker_addrs.end()) {
-          LOG_WARN_NEW("MQClientInstance: broker:{} of topic:{} have not master node", qd.broker_name, topic);
-          continue;
-        }
-
-        for (int i = 0; i < qd.write_queue_nums; i++) {
-          mqList.emplace_back(topic, qd.broker_name, i);
-        }
-      }
-    }
-
-    // sort, make brokerName is staggered.
-    std::sort(mqList.begin(), mqList.end(), [](const MessageQueue& a, const MessageQueue& b) {
-      auto result = a.queue_id() - b.queue_id();
-      if (result == 0) {
-        result = a.broker_name().compare(b.broker_name());
-      }
-      return result < 0;
-    });
-
-    info->setOrderTopic(false);
-  }
-
-  return info;
 }
 
 std::vector<MessageQueue> MQClientInstance::topicRouteData2TopicSubscribeInfo(const std::string& topic,
@@ -445,7 +381,7 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
 
           // update publish info
           {
-            auto publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
+            auto publishInfo = std::make_shared<TopicPublishInfo>(topic, topicRouteData);
             updateProducerTopicPublishInfo(topic, std::move(publishInfo));
           }
 
