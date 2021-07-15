@@ -35,9 +35,8 @@ class MessageQueueLock {
     const auto& it = mq_lock_table_.find(mq);
     if (it != mq_lock_table_.end()) {
       return it->second;
-    } else {
-      return mq_lock_table_[mq] = std::make_shared<std::mutex>();
     }
+    return mq_lock_table_[mq] = std::make_shared<std::mutex>();
   }
 
  private:

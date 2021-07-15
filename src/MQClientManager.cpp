@@ -39,13 +39,13 @@ MQClientInstancePtr MQClientManager::getOrCreateMQClientInstance(const MQClientC
   const auto& it = instance_table_.find(clientId);
   if (it != instance_table_.end()) {
     return it->second;
-  } else {
-    // Clone clientConfig in Java, but we don't now.
-    auto instance = std::make_shared<MQClientInstance>(clientConfig, clientId, rpcHook);
-    instance_table_[clientId] = instance;
-    LOG_INFO_NEW("Created new MQClientInstance for clientId:[{}]", clientId);
-    return instance;
   }
+
+  // Clone clientConfig in Java, but we don't now.
+  auto instance = std::make_shared<MQClientInstance>(clientConfig, clientId, rpcHook);
+  instance_table_[clientId] = instance;
+  LOG_INFO_NEW("Created new MQClientInstance for clientId:[{}]", clientId);
+  return instance;
 }
 
 void MQClientManager::removeMQClientInstance(const std::string& clientId) {

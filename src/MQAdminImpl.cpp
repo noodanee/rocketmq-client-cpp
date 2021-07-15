@@ -30,12 +30,11 @@ void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vec
         client_instance_->getMQClientAPIImpl()->GetTopicRouteInfoFromNameServer(topic, 1000 * 3));
     if (topicRouteData != nullptr) {
       mqs = client_instance_->topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
-      if (!mqs.empty()) {
-        return;
-      } else {
+      if (mqs.empty()) {
         THROW_MQEXCEPTION(MQClientException,
                           "Can not find Message Queue for this topic, " + topic + " Namesrv return empty", -1);
       }
+      return;
     }
   } catch (const std::exception& e) {
     THROW_MQEXCEPTION(MQClientException, "Can not find Message Queue for this topic, " + topic, -1);

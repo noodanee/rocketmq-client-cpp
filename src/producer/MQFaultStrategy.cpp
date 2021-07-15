@@ -44,9 +44,9 @@ const MessageQueue& MQFaultStrategy::SelectOneMessageQueue(const TopicPublishInf
         message_queue.set_queue_id(topic_publish_info->getSendWhichQueue().fetch_add(1) % write_queue_nums);
       }
       return message_queue;
-    } else {
-      latency_fault_tolerance_.Remove(not_best_broker);
     }
+
+    latency_fault_tolerance_.Remove(not_best_broker);
 
     return topic_publish_info->selectOneMessageQueue();
   }

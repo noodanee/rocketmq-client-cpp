@@ -460,10 +460,9 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
 
         LOG_DEBUG_NEW("updateTopicRouteInfoFromNameServer end:{}", topic);
         return true;
-      } else {
-        LOG_WARN_NEW("updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}",
-                     topic);
       }
+
+      LOG_WARN_NEW("updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}", topic);
     } catch (const std::exception& e) {
       if (!UtilAll::isRetryTopic(topic) && topic != AUTO_CREATE_TOPIC_KEY_TOPIC) {
         LOG_WARN_NEW("updateTopicRouteInfoFromNameServer Exception, {}", e.what());
@@ -686,10 +685,9 @@ bool MQClientInstance::addConsumerToTable(const std::string& consumerName, MQCon
   std::lock_guard<std::mutex> lock(consumer_table_mutex_);
   if (consumer_table_.find(consumerName) != consumer_table_.end()) {
     return false;
-  } else {
-    consumer_table_[consumerName] = consumer;
-    return true;
   }
+  consumer_table_[consumerName] = consumer;
+  return true;
 }
 
 void MQClientInstance::eraseConsumerFromTable(const std::string& consumerName) {
@@ -761,11 +759,11 @@ TopicPublishInfoPtr MQClientInstance::tryToFindTopicPublishInfo(const std::strin
 
   if (nullptr != topicPublishInfo && topicPublishInfo->ok()) {
     return topicPublishInfo;
-  } else {
-    LOG_INFO_NEW("updateTopicRouteInfoFromNameServer with default");
-    updateTopicRouteInfoFromNameServer(topic, true);
-    return getTopicPublishInfoFromTable(topic);
   }
+
+  LOG_INFO_NEW("updateTopicRouteInfoFromNameServer with default");
+  updateTopicRouteInfoFromNameServer(topic, true);
+  return getTopicPublishInfoFromTable(topic);
 }
 
 std::unique_ptr<FindBrokerResult> MQClientInstance::findBrokerAddressInAdmin(const std::string& brokerName) {

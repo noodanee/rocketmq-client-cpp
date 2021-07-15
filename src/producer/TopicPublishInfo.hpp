@@ -59,18 +59,18 @@ class TopicPublishInfo {
           THROW_MQEXCEPTION(MQClientException, "messageQueueList is empty", -1);
         }
         return message_queue_list_[0];
-      } else {
-        // NOTE: If it possible, mq in same broker is nonadjacent.
-        auto index = send_which_queue_.fetch_add(1);
-        for (size_t i = 0; i < 2; i++) {
-          auto pos = index++ % message_queue_list_.size();
-          auto& mq = message_queue_list_[pos];
-          if (mq.broker_name() != lastBrokerName) {
-            return mq;
-          }
-        }
-        return message_queue_list_[(index - 2) % message_queue_list_.size()];
       }
+
+      // NOTE: If it possible, mq in same broker is nonadjacent.
+      auto index = send_which_queue_.fetch_add(1);
+      for (size_t i = 0; i < 2; i++) {
+        auto pos = index++ % message_queue_list_.size();
+        auto& mq = message_queue_list_[pos];
+        if (mq.broker_name() != lastBrokerName) {
+          return mq;
+        }
+      }
+      return message_queue_list_[(index - 2) % message_queue_list_.size()];
     }
     return selectOneMessageQueue();
   }
