@@ -65,7 +65,7 @@ class TopicPublishInfo {
       auto index = send_which_queue_.fetch_add(1);
       for (size_t i = 0; i < 2; i++) {
         auto pos = index++ % message_queue_list_.size();
-        auto& mq = message_queue_list_[pos];
+        const auto& mq = message_queue_list_[pos];
         if (mq.broker_name() != lastBrokerName) {
           return mq;
         }
