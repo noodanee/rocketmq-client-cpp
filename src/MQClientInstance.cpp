@@ -37,6 +37,7 @@
 #include "protocol/body/ConsumerRunningInfo.hpp"
 #include "utility/MakeUnique.hpp"
 #include "utility/MapAccessor.hpp"
+#include "utility/SetAccessor.hpp"
 
 namespace rocketmq {
 
@@ -207,7 +208,7 @@ void MQClientInstance::updateTopicRouteInfoFromNameServer() {
   getTopicListFromConsumerSubscription(topicList);
 
   // Producer
-  getTopicListFromTopicPublishInfo(topicList);
+  SetAccessor::Merge(topicList, MapAccessor::KeySet(topic_publish_info_table_, topic_publish_info_table_mutex_));
 
   // update
   if (!topicList.empty()) {
@@ -376,10 +377,9 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
           }
 
           // update publish info
-          {
-            auto publishInfo = std::make_shared<TopicPublishInfo>(topic, topicRouteData);
-            updateProducerTopicPublishInfo(topic, std::move(publishInfo));
-          }
+          MapAccessor::InsertOrAssign(topic_publish_info_table_, topic,
+                                      std::make_shared<TopicPublishInfo>(topic, topicRouteData),
+                                      topic_publish_info_table_mutex_);
 
           // update subscribe info
           if (getConsumerTableSize() > 0) {
@@ -576,17 +576,6 @@ int MQClientInstance::getProducerTableSize() {
   return producer_table_.size();
 }
 
-void MQClientInstance::getTopicListFromTopicPublishInfo(std::set<std::string>& topicList) {
-  std::lock_guard<std::mutex> lock(topic_publish_info_table_mutex_);
-  for (const auto& it : topic_publish_info_table_) {
-    topicList.insert(it.first);
-  }
-}
-
-void MQClientInstance::updateProducerTopicPublishInfo(const std::string& topic, TopicPublishInfoPtr publishInfo) {
-  addTopicInfoToTable(topic, std::move(publishInfo));
-}
-
 MQConsumerInner* MQClientInstance::selectConsumer(const std::string& group) {
   std::lock_guard<std::mutex> lock(consumer_table_mutex_);
   const auto& it = consumer_table_.find(group);
@@ -638,47 +627,22 @@ void MQClientInstance::updateConsumerTopicSubscribeInfo(const std::string& topic
   }
 }
 
-void MQClientInstance::addTopicInfoToTable(const std::string& topic, TopicPublishInfoPtr topicPublishInfo) {
-  std::lock_guard<std::mutex> lock(topic_publish_info_table_mutex_);
-  topic_publish_info_table_[topic] = std::move(topicPublishInfo);
-}
-
-void MQClientInstance::eraseTopicInfoFromTable(const std::string& topic) {
-  std::lock_guard<std::mutex> lock(topic_publish_info_table_mutex_);
-  const auto& it = topic_publish_info_table_.find(topic);
-  if (it != topic_publish_info_table_.end()) {
-    topic_publish_info_table_.erase(it);
-  }
-}
-
-TopicPublishInfoPtr MQClientInstance::getTopicPublishInfoFromTable(const std::string& topic) {
-  std::lock_guard<std::mutex> lock(topic_publish_info_table_mutex_);
-  const auto& it = topic_publish_info_table_.find(topic);
-  if (it != topic_publish_info_table_.end()) {
-    return it->second;
-  }
-  return nullptr;
-}
-
-bool MQClientInstance::isTopicInfoValidInTable(const std::string& topic) {
-  std::lock_guard<std::mutex> lock(topic_publish_info_table_mutex_);
-  return topic_publish_info_table_.find(topic) != topic_publish_info_table_.end();
-}
-
 TopicPublishInfoPtr MQClientInstance::tryToFindTopicPublishInfo(const std::string& topic) {
-  auto topicPublishInfo = getTopicPublishInfoFromTable(topic);
-  if (nullptr == topicPublishInfo) {
+  auto topicPublishInfo =
+      MapAccessor::GetOrDefault(topic_publish_info_table_, topic, nullptr, topic_publish_info_table_mutex_);
+  if (!topicPublishInfo) {
     updateTopicRouteInfoFromNameServer(topic);
-    topicPublishInfo = getTopicPublishInfoFromTable(topic);
+    topicPublishInfo =
+        MapAccessor::GetOrDefault(topic_publish_info_table_, topic, nullptr, topic_publish_info_table_mutex_);
   }
 
-  if (nullptr != topicPublishInfo && topicPublishInfo->ok()) {
+  if (topicPublishInfo && topicPublishInfo->ok()) {
     return topicPublishInfo;
   }
 
   LOG_INFO_NEW("updateTopicRouteInfoFromNameServer with default");
   updateTopicRouteInfoFromNameServer(topic, true);
-  return getTopicPublishInfoFromTable(topic);
+  return MapAccessor::GetOrDefault(topic_publish_info_table_, topic, nullptr, topic_publish_info_table_mutex_);
 }
 
 FindBrokerResult MQClientInstance::FindBrokerAddressInAdmin(const std::string& broker_name) {

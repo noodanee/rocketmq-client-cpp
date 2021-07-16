@@ -139,14 +139,6 @@ class MQClientInstance {
   bool addProducerToTable(const std::string& producerName, MQProducerInner* producer);
   void eraseProducerFromTable(const std::string& producerName);
   int getProducerTableSize();
-  void getTopicListFromTopicPublishInfo(std::set<std::string>& topicList);
-  void updateProducerTopicPublishInfo(const std::string& topic, TopicPublishInfoPtr publishInfo);
-
-  // topicPublishInfo related operation
-  void addTopicInfoToTable(const std::string& topic, TopicPublishInfoPtr pTopicPublishInfo);
-  void eraseTopicInfoFromTable(const std::string& topic);
-  TopicPublishInfoPtr getTopicPublishInfoFromTable(const std::string& topic);
-  bool isTopicInfoValidInTable(const std::string& topic);
 
  private:
   std::string client_id_;
@@ -171,8 +163,7 @@ class MQClientInstance {
   std::mutex broker_address_table_mutex_;
 
   // topic -> TopicPublishInfo
-  using TPMAP = std::map<std::string, TopicPublishInfoPtr>;
-  TPMAP topic_publish_info_table_;
+  std::map<std::string, TopicPublishInfoPtr> topic_publish_info_table_;
   std::mutex topic_publish_info_table_mutex_;
 
   // topic -> <broker, time>
