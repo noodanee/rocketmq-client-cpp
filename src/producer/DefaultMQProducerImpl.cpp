@@ -84,7 +84,7 @@ void DefaultMQProducerImpl::start() {
 
       MQClientImpl::start();
 
-      bool registerOK = client_instance_->registerProducer(config().group_name(), this);
+      bool registerOK = client_instance_->RegisterProducer(config().group_name(), this);
       if (!registerOK) {
         service_state_ = ServiceState::kCreateJust;
         THROW_MQEXCEPTION(
@@ -124,7 +124,7 @@ void DefaultMQProducerImpl::shutdown() {
 
       async_send_executor_->shutdown();
 
-      client_instance_->unregisterProducer(config().group_name());
+      client_instance_->UnregisterProducer(config().group_name());
       client_instance_->shutdown();
 
       service_state_ = ServiceState::kShutdownAlready;

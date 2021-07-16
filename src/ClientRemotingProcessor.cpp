@@ -83,7 +83,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::checkTransactionState(
       }
       const auto& group = messageExt->getProperty(MQMessageConst::PROPERTY_PRODUCER_GROUP);
       if (!group.empty()) {
-        auto* producer = client_instance_->selectProducer(group);
+        auto* producer = client_instance_->SelectProducer(group);
         if (producer != nullptr) {
           producer->checkTransactionState(addr, messageExt, requestHeader);
         } else {

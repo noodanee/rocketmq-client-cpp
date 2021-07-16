@@ -62,8 +62,8 @@ class MQClientInstance {
   void shutdown();
   bool isRunning();
 
-  bool registerProducer(const std::string& group, MQProducerInner* producer);
-  void unregisterProducer(const std::string& group);
+  bool RegisterProducer(const std::string& group, MQProducerInner* producer);
+  void UnregisterProducer(const std::string& group);
 
   bool registerConsumer(const std::string& group, MQConsumerInner* consumer);
   void unregisterConsumer(const std::string& group);
@@ -76,7 +76,7 @@ class MQClientInstance {
   void rebalanceImmediately();
   void doRebalance();
 
-  MQProducerInner* selectProducer(const std::string& group);
+  MQProducerInner* SelectProducer(const std::string& producer_group);
   MQConsumerInner* selectConsumer(const std::string& group);
 
   FindBrokerResult FindBrokerAddressInAdmin(const std::string& broker_name);
@@ -135,18 +135,12 @@ class MQClientInstance {
   void getTopicListFromConsumerSubscription(std::set<std::string>& topicList);
   void updateConsumerTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue> subscribeInfo);
 
-  // producer related operation
-  bool addProducerToTable(const std::string& producerName, MQProducerInner* producer);
-  void eraseProducerFromTable(const std::string& producerName);
-  int getProducerTableSize();
-
  private:
   std::string client_id_;
   volatile ServiceState service_state_;
 
   // group -> MQProducer
-  using MQPMAP = std::map<std::string, MQProducerInner*>;
-  MQPMAP producer_table_;
+  std::map<std::string, MQProducerInner*> producer_table_;
   std::mutex producer_table_mutex_;
 
   // group -> MQConsumer

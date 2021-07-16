@@ -128,7 +128,7 @@ void MQClientInstance::shutdown() {
     return;
   }
 
-  if (getProducerTableSize() != 0) {
+  if (MapAccessor::Size(producer_table_, producer_table_mutex_) > 0) {
     return;
   }
 
@@ -496,12 +496,12 @@ void MQClientInstance::unregisterClient(const std::string& producerGroup, const 
   }
 }
 
-bool MQClientInstance::registerProducer(const std::string& group, MQProducerInner* producer) {
+bool MQClientInstance::RegisterProducer(const std::string& group, MQProducerInner* producer) {
   if (group.empty()) {
     return false;
   }
 
-  if (!addProducerToTable(group, producer)) {
+  if (!MapAccessor::Insert(producer_table_, group, producer, producer_table_mutex_)) {
     LOG_WARN_NEW("the consumer group[{}] exist already.", group);
     return false;
   }
@@ -510,8 +510,8 @@ bool MQClientInstance::registerProducer(const std::string& group, MQProducerInne
   return true;
 }
 
-void MQClientInstance::unregisterProducer(const std::string& group) {
-  eraseProducerFromTable(group);
+void MQClientInstance::UnregisterProducer(const std::string& group) {
+  MapAccessor::Erase(producer_table_, group, producer_table_mutex_);
   unregisterClientWithLock(group, null);
 }
 
@@ -544,36 +544,8 @@ void MQClientInstance::doRebalanceByConsumerGroup(const std::string& consumerGro
   }
 }
 
-MQProducerInner* MQClientInstance::selectProducer(const std::string& producerName) {
-  std::lock_guard<std::mutex> lock(producer_table_mutex_);
-  const auto& it = producer_table_.find(producerName);
-  if (it != producer_table_.end()) {
-    return it->second;
-  }
-  return nullptr;
-}
-
-bool MQClientInstance::addProducerToTable(const std::string& producerName, MQProducerInner* producer) {
-  std::lock_guard<std::mutex> lock(producer_table_mutex_);
-  if (producer_table_.find(producerName) != producer_table_.end()) {
-    return false;
-  } else {
-    producer_table_[producerName] = producer;
-    return true;
-  }
-}
-
-void MQClientInstance::eraseProducerFromTable(const std::string& producerName) {
-  std::lock_guard<std::mutex> lock(producer_table_mutex_);
-  const auto& it = producer_table_.find(producerName);
-  if (it != producer_table_.end()) {
-    producer_table_.erase(it);
-  }
-}
-
-int MQClientInstance::getProducerTableSize() {
-  std::lock_guard<std::mutex> lock(producer_table_mutex_);
-  return producer_table_.size();
+MQProducerInner* MQClientInstance::SelectProducer(const std::string& producer_group) {
+  return MapAccessor::GetOrDefault(producer_table_, producer_group, nullptr, producer_table_mutex_);
 }
 
 MQConsumerInner* MQClientInstance::selectConsumer(const std::string& group) {
