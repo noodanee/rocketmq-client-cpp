@@ -149,7 +149,7 @@ void DefaultLitePullConsumerImpl::start() {
       scheduled_executor_service_.startup();
 
       // register consumer
-      bool registerOK = client_instance_->registerConsumer(client_config_->group_name(), this);
+      bool registerOK = client_instance_->RegisterConsumer(client_config_->group_name(), this);
       if (!registerOK) {
         service_state_ = ServiceState::kCreateJust;
         THROW_MQEXCEPTION(MQClientException,
@@ -291,7 +291,7 @@ void DefaultLitePullConsumerImpl::shutdown() {
       break;
     case ServiceState::kRunning:
       persistConsumerOffset();
-      client_instance_->unregisterConsumer(client_config_->group_name());
+      client_instance_->UnregisterConsumer(client_config_->group_name());
       scheduled_executor_service_.shutdown();
       client_instance_->shutdown();
       rebalance_impl_->shutdown();

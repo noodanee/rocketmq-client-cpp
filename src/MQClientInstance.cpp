@@ -124,7 +124,7 @@ void MQClientInstance::start() {
 }
 
 void MQClientInstance::shutdown() {
-  if (getConsumerTableSize() != 0) {
+  if (MapAccessor::Size(consumer_table_, consumer_table_mutex_) > 0) {
     return;
   }
 
@@ -382,9 +382,12 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
                                       topic_publish_info_table_mutex_);
 
           // update subscribe info
-          if (getConsumerTableSize() > 0) {
+          std::lock_guard<std::mutex> lock(consumer_table_mutex_);
+          if (!consumer_table_.empty()) {
             std::vector<MessageQueue> subscribeInfo = MakeTopicSubscribeInfo(topic, *topicRouteData);
-            updateConsumerTopicSubscribeInfo(topic, subscribeInfo);
+            for (auto& it : consumer_table_) {
+              it.second->updateTopicSubscribeInfo(topic, subscribeInfo);
+            }
           }
 
           MapAccessor::InsertOrAssign(topic_route_table_, topic, topicRouteData, topic_route_table_mutex_);
@@ -444,12 +447,12 @@ TopicRouteDataPtr MQClientInstance::GetTopicRouteData(const std::string& topic) 
   return MapAccessor::GetOrDefault(topic_route_table_, topic, nullptr, topic_route_table_mutex_);
 }
 
-bool MQClientInstance::registerConsumer(const std::string& group, MQConsumerInner* consumer) {
+bool MQClientInstance::RegisterConsumer(const std::string& group, MQConsumerInner* consumer) {
   if (group.empty()) {
     return false;
   }
 
-  if (!addConsumerToTable(group, consumer)) {
+  if (!MapAccessor::Insert(consumer_table_, group, consumer, consumer_table_mutex_)) {
     LOG_WARN_NEW("the consumer group[{}] exist already.", group);
     return false;
   }
@@ -458,8 +461,8 @@ bool MQClientInstance::registerConsumer(const std::string& group, MQConsumerInne
   return true;
 }
 
-void MQClientInstance::unregisterConsumer(const std::string& group) {
-  eraseConsumerFromTable(group);
+void MQClientInstance::UnregisterConsumer(const std::string& group) {
+  MapAccessor::Erase(consumer_table_, group, consumer_table_mutex_);
   unregisterClientWithLock(null, group);
 }
 
@@ -521,8 +524,8 @@ void MQClientInstance::rebalanceImmediately() {
 
 void MQClientInstance::doRebalance() {
   LOG_INFO_NEW("the client instance:{} start doRebalance", client_id_);
-  if (getConsumerTableSize() > 0) {
-    std::lock_guard<std::mutex> lock(consumer_table_mutex_);
+  std::lock_guard<std::mutex> lock(consumer_table_mutex_);
+  if (!consumer_table_.empty()) {
     for (auto& it : consumer_table_) {
       it.second->doRebalance();
     }
@@ -548,37 +551,8 @@ MQProducerInner* MQClientInstance::SelectProducer(const std::string& producer_gr
   return MapAccessor::GetOrDefault(producer_table_, producer_group, nullptr, producer_table_mutex_);
 }
 
-MQConsumerInner* MQClientInstance::selectConsumer(const std::string& group) {
-  std::lock_guard<std::mutex> lock(consumer_table_mutex_);
-  const auto& it = consumer_table_.find(group);
-  if (it != consumer_table_.end()) {
-    return it->second;
-  }
-  return nullptr;
-}
-
-bool MQClientInstance::addConsumerToTable(const std::string& consumerName, MQConsumerInner* consumer) {
-  std::lock_guard<std::mutex> lock(consumer_table_mutex_);
-  if (consumer_table_.find(consumerName) != consumer_table_.end()) {
-    return false;
-  }
-  consumer_table_[consumerName] = consumer;
-  return true;
-}
-
-void MQClientInstance::eraseConsumerFromTable(const std::string& consumerName) {
-  std::lock_guard<std::mutex> lock(consumer_table_mutex_);
-  const auto& it = consumer_table_.find(consumerName);
-  if (it != consumer_table_.end()) {
-    consumer_table_.erase(it);  // do not need free consumer, as it was allocated by user
-  } else {
-    LOG_WARN_NEW("could not find consumer:{} from table", consumerName);
-  }
-}
-
-int MQClientInstance::getConsumerTableSize() {
-  std::lock_guard<std::mutex> lock(consumer_table_mutex_);
-  return consumer_table_.size();
+MQConsumerInner* MQClientInstance::SelectConsumer(const std::string& consumer_group) {
+  return MapAccessor::GetOrDefault(consumer_table_, consumer_group, nullptr, consumer_table_mutex_);
 }
 
 void MQClientInstance::getTopicListFromConsumerSubscription(std::set<std::string>& topicList) {
@@ -588,14 +562,6 @@ void MQClientInstance::getTopicListFromConsumerSubscription(std::set<std::string
     for (const auto& sd : result) {
       topicList.insert(sd.topic);
     }
-  }
-}
-
-void MQClientInstance::updateConsumerTopicSubscribeInfo(const std::string& topic,
-                                                        std::vector<MessageQueue> subscribeInfo) {
-  std::lock_guard<std::mutex> lock(consumer_table_mutex_);
-  for (auto& it : consumer_table_) {
-    it.second->updateTopicSubscribeInfo(topic, subscribeInfo);
   }
 }
 
@@ -749,7 +715,7 @@ void MQClientInstance::resetOffset(const std::string& group,
                                    const std::map<MessageQueue, int64_t>& offsetTable) {
   DefaultMQPushConsumerImpl* consumer = nullptr;
   try {
-    auto* impl = selectConsumer(group);
+    auto* impl = SelectConsumer(group);
     if (impl != nullptr && std::type_index(typeid(*impl)) == std::type_index(typeid(DefaultMQPushConsumerImpl))) {
       consumer = static_cast<DefaultMQPushConsumerImpl*>(impl);
     } else {
@@ -792,7 +758,7 @@ void MQClientInstance::resetOffset(const std::string& group,
 }
 
 std::unique_ptr<ConsumerRunningInfo> MQClientInstance::consumerRunningInfo(const std::string& consumerGroup) {
-  auto* consumer = selectConsumer(consumerGroup);
+  auto* consumer = SelectConsumer(consumerGroup);
   if (consumer != nullptr) {
     std::unique_ptr<ConsumerRunningInfo> runningInfo(consumer->consumerRunningInfo());
     if (runningInfo != nullptr) {

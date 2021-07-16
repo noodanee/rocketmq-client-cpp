@@ -65,8 +65,8 @@ class MQClientInstance {
   bool RegisterProducer(const std::string& group, MQProducerInner* producer);
   void UnregisterProducer(const std::string& group);
 
-  bool registerConsumer(const std::string& group, MQConsumerInner* consumer);
-  void unregisterConsumer(const std::string& group);
+  bool RegisterConsumer(const std::string& group, MQConsumerInner* consumer);
+  void UnregisterConsumer(const std::string& group);
 
   void updateTopicRouteInfoFromNameServer();
   bool updateTopicRouteInfoFromNameServer(const std::string& topic, bool isDefault = false);
@@ -77,7 +77,7 @@ class MQClientInstance {
   void doRebalance();
 
   MQProducerInner* SelectProducer(const std::string& producer_group);
-  MQConsumerInner* selectConsumer(const std::string& group);
+  MQConsumerInner* SelectConsumer(const std::string& consumer_group);
 
   FindBrokerResult FindBrokerAddressInAdmin(const std::string& broker_name);
   std::string FindBrokerAddressInPublish(const std::string& broker_name);
@@ -129,11 +129,7 @@ class MQClientInstance {
   void doRebalanceByConsumerGroup(const std::string& consumerGroup);
 
   // consumer related operation
-  bool addConsumerToTable(const std::string& consumerName, MQConsumerInner* consumer);
-  void eraseConsumerFromTable(const std::string& consumerName);
-  int getConsumerTableSize();
   void getTopicListFromConsumerSubscription(std::set<std::string>& topicList);
-  void updateConsumerTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue> subscribeInfo);
 
  private:
   std::string client_id_;
@@ -144,8 +140,7 @@ class MQClientInstance {
   std::mutex producer_table_mutex_;
 
   // group -> MQConsumer
-  using MQCMAP = std::map<std::string, MQConsumerInner*>;
-  MQCMAP consumer_table_;
+  std::map<std::string, MQConsumerInner*> consumer_table_;
   std::mutex consumer_table_mutex_;
 
   // Topic -> TopicRouteData

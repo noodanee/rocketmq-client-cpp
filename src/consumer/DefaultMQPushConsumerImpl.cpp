@@ -134,7 +134,7 @@ void DefaultMQPushConsumerImpl::start() {
       consume_service_->start();
 
       // register consumer
-      bool registerOK = client_instance_->registerConsumer(client_config_->group_name(), this);
+      bool registerOK = client_instance_->RegisterConsumer(client_config_->group_name(), this);
       if (!registerOK) {
         service_state_ = ServiceState::kCreateJust;
         consume_service_->shutdown();
@@ -233,7 +233,7 @@ void DefaultMQPushConsumerImpl::shutdown() {
     case ServiceState::kRunning: {
       consume_service_->shutdown();
       persistConsumerOffset();
-      client_instance_->unregisterConsumer(client_config_->group_name());
+      client_instance_->UnregisterConsumer(client_config_->group_name());
       client_instance_->shutdown();
       rebalance_impl_->shutdown();
       service_state_ = ServiceState::kShutdownAlready;

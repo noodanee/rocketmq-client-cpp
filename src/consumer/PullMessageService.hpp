@@ -69,7 +69,7 @@ class PullMessageService {
 
  private:
   void pullMessage(PullRequestPtr pull_request) {
-    MQConsumerInner* consumer = client_instance_->selectConsumer(pull_request->consumer_group());
+    MQConsumerInner* consumer = client_instance_->SelectConsumer(pull_request->consumer_group());
     if (consumer != nullptr) {
       consumer->pullMessage(std::move(pull_request));
     } else {
