@@ -21,6 +21,7 @@
 #include "MQClientConfigProxy.h"
 #include "MQException.h"
 #include "UtilAll.h"
+#include "logging/Logging.hpp"
 
 namespace rocketmq {
 

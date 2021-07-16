@@ -22,6 +22,7 @@
 #include "MQClientAPIImpl.h"
 #include "OffsetStore.h"
 #include "UtilAll.h"
+#include "common/FindBrokerResult.hpp"
 
 namespace rocketmq {
 
@@ -34,8 +35,8 @@ bool RebalancePushImpl::lock(const MessageQueue& mq) {
     try {
       LOG_DEBUG_NEW("try to lock mq:{}", mq.ToString());
 
-      std::vector<MessageQueue> lockedMq = client_instance_->getMQClientAPIImpl()->LockBatchMQ(
-          findBrokerResult.broker_addr, consumer_group_, client_instance_->getClientId(), {mq}, 1000);
+      std::vector<MessageQueue> lockedMq = client_instance_->GetMQClientAPIImpl()->LockBatchMQ(
+          findBrokerResult.broker_addr, consumer_group_, client_instance_->GetClientId(), {mq}, 1000);
 
       bool lockOK = false;
       if (!lockedMq.empty()) {
@@ -81,8 +82,8 @@ void RebalancePushImpl::lockAll() {
       try {
         LOG_INFO_NEW("try to lock:{} mqs of broker:{}", mqs.size(), brokerName);
 
-        std::vector<MessageQueue> lockOKMQVec = client_instance_->getMQClientAPIImpl()->LockBatchMQ(
-            findBrokerResult.broker_addr, consumer_group_, client_instance_->getClientId(), mqs, 1000);
+        std::vector<MessageQueue> lockOKMQVec = client_instance_->GetMQClientAPIImpl()->LockBatchMQ(
+            findBrokerResult.broker_addr, consumer_group_, client_instance_->GetClientId(), mqs, 1000);
 
         std::set<MessageQueue> lockOKMQSet;
         for (const auto& mq : lockOKMQVec) {
@@ -121,8 +122,8 @@ void RebalancePushImpl::unlock(const MessageQueue& mq, const bool oneway) {
   auto findBrokerResult = client_instance_->FindBrokerAddressInSubscribe(mq.broker_name(), MASTER_ID, true);
   if (findBrokerResult) {
     try {
-      client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult.broker_addr, consumer_group_,
-                                                            client_instance_->getClientId(), {mq}, 1000, oneway);
+      client_instance_->GetMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult.broker_addr, consumer_group_,
+                                                            client_instance_->GetClientId(), {mq}, 1000, oneway);
 
       ProcessQueuePtr processQueue = getProcessQueue(mq);
       if (processQueue != nullptr) {
@@ -130,7 +131,7 @@ void RebalancePushImpl::unlock(const MessageQueue& mq, const bool oneway) {
       }
 
       LOG_WARN_NEW("unlock messageQueue. group:{}, clientId:{}, mq:{}", consumer_group_,
-                   client_instance_->getClientId(), mq.ToString());
+                   client_instance_->GetClientId(), mq.ToString());
     } catch (MQException& e) {
       LOG_ERROR_NEW("unlockBatchMQ exception, mq:{}", mq.ToString());
     }
@@ -154,8 +155,8 @@ void RebalancePushImpl::unlockAll(const bool oneway) {
     auto findBrokerResult = client_instance_->FindBrokerAddressInSubscribe(brokerName, MASTER_ID, true);
     if (findBrokerResult) {
       try {
-        client_instance_->getMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult.broker_addr, consumer_group_,
-                                                              client_instance_->getClientId(), mqs, 1000, oneway);
+        client_instance_->GetMQClientAPIImpl()->UnlockBatchMQ(findBrokerResult.broker_addr, consumer_group_,
+                                                              client_instance_->GetClientId(), mqs, 1000, oneway);
         for (const auto& mq : mqs) {
           ProcessQueuePtr processQueue = getProcessQueue(mq);
           if (processQueue != nullptr) {

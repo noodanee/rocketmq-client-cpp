@@ -17,125 +17,139 @@
 #ifndef ROCKETMQ_MQCLIENTINSTANCE_H_
 #define ROCKETMQ_MQCLIENTINSTANCE_H_
 
+#include <cstddef>  // size_t
+#include <cstdint>  // int64_t
+
+#include <map>
 #include <memory>
 #include <mutex>
 #include <set>
+#include <string>
 #include <utility>
 
-#include "FindBrokerResult.hpp"
-#include "MQClientConfig.h"
-#include "MQConsumerInner.h"
-#include "MQException.h"
-#include "MQProducerInner.h"
-#include "MessageQueue.hpp"
 #include "ServiceState.h"
-#include "TopicPublishInfo.hpp"
 #include "concurrent/executor.hpp"
-#include "protocol/body/ConsumerRunningInfo.hpp"
-#include "protocol/body/HeartbeatData.hpp"
-#include "protocol/body/TopicRouteData.hpp"
 
 namespace rocketmq {
 
 class RPCHook;
 using RPCHookPtr = std::shared_ptr<RPCHook>;
 
+class MQClientConfig;
 class MQClientAPIImpl;
 class MQAdminImpl;
+class MQConsumerInner;
+class MQProducerInner;
 class ClientRemotingProcessor;
 class RebalanceService;
 class PullMessageService;
+class MessageQueue;
+
+struct ConsumerRunningInfo;
+struct FindBrokerResult;
+struct HeartbeatData;
+
+struct TopicRouteData;
+using TopicRouteDataPtr = std::shared_ptr<TopicRouteData>;
+
+class TopicPublishInfo;
+using TopicPublishInfoPtr = std::shared_ptr<const TopicPublishInfo>;
 
 class MQClientInstance;
 using MQClientInstancePtr = std::shared_ptr<MQClientInstance>;
 
 class MQClientInstance {
  public:
-  MQClientInstance(const MQClientConfig& clientConfig, std::string clientId);
-  MQClientInstance(const MQClientConfig& clientConfig, std::string clientId, RPCHookPtr rpcHook);
-  virtual ~MQClientInstance();
+  MQClientInstance(const MQClientConfig& client_config, std::string client_id);
+  MQClientInstance(const MQClientConfig& client_config, std::string client_id, RPCHookPtr rpc_hook);
+  ~MQClientInstance();
 
-  const std::string& getClientId() const;
-  std::string getNamesrvAddr() const;
+  // disable copy
+  MQClientInstance(MQClientInstance&) = delete;
+  MQClientInstance& operator=(MQClientInstance&) = delete;
 
-  void start();
-  void shutdown();
-  bool isRunning();
+  // disable move
+  MQClientInstance(MQClientInstance&&) = delete;
+  MQClientInstance& operator=(MQClientInstance&&) = delete;
+
+  const std::string& GetClientId() const { return client_id_; }
+  bool Running() const { return service_state_ == ServiceState::kRunning; }
+
+  std::string GetNamesrvAddress() const;
+
+  void Start();
+  void Shutdown();
 
   bool RegisterProducer(const std::string& group, MQProducerInner* producer);
-  void UnregisterProducer(const std::string& group);
-
   bool RegisterConsumer(const std::string& group, MQConsumerInner* consumer);
+
+  void UnregisterProducer(const std::string& group);
   void UnregisterConsumer(const std::string& group);
-
-  void updateTopicRouteInfoFromNameServer();
-  bool updateTopicRouteInfoFromNameServer(const std::string& topic, bool isDefault = false);
-
-  void sendHeartbeatToAllBrokerWithLock();
-
-  void rebalanceImmediately();
-  void doRebalance();
 
   MQProducerInner* SelectProducer(const std::string& producer_group);
   MQConsumerInner* SelectConsumer(const std::string& consumer_group);
 
-  FindBrokerResult FindBrokerAddressInAdmin(const std::string& broker_name);
+  void UpdateTopicRouteInfoFromNameServer();
+  bool UpdateTopicRouteInfoFromNameServer(const std::string& topic, bool is_default = false);
+
+  TopicRouteDataPtr GetTopicRouteData(const std::string& topic);
+
   std::string FindBrokerAddressInPublish(const std::string& broker_name);
   FindBrokerResult FindBrokerAddressInSubscribe(const std::string& broker_name, int broker_id, bool only_this_broker);
+  FindBrokerResult FindBrokerAddressInAdmin(const std::string& broker_name);
 
-  FindBrokerResult FindBrokerAddressInAdmin(const MessageQueue& message_queue);
   std::string FindBrokerAddressInPublish(const MessageQueue& message_queue);
   FindBrokerResult FindBrokerAddressInSubscribe(const MessageQueue& message_queue,
                                                 int broker_id,
                                                 bool only_this_broker);
+  FindBrokerResult FindBrokerAddressInAdmin(const MessageQueue& message_queue);
 
-  void findConsumerIds(const std::string& topic, const std::string& group, std::vector<std::string>& cids);
+  std::string FindBrokerAddrByTopic(const std::string& topic);
 
-  std::string findBrokerAddrByTopic(const std::string& topic);
+  TopicPublishInfoPtr FindTopicPublishInfo(const std::string& topic);
 
-  void resetOffset(const std::string& group,
+  void SendHeartbeatToAllBrokerWithLock();
+
+  void RebalanceImmediately();
+  void DoRebalance();
+
+  std::vector<std::string> FindConsumerIds(const std::string& topic, const std::string& group);
+
+  void ResetOffset(const std::string& group,
                    const std::string& topic,
-                   const std::map<MessageQueue, int64_t>& offsetTable);
+                   const std::map<MessageQueue, int64_t>& offset_table);
 
-  std::unique_ptr<ConsumerRunningInfo> consumerRunningInfo(const std::string& consumerGroup);
-
- public:
-  TopicPublishInfoPtr tryToFindTopicPublishInfo(const std::string& topic);
-
-  TopicRouteDataPtr GetTopicRouteData(const std::string& topic);
+  std::unique_ptr<ConsumerRunningInfo> ConsumerRunningInfo(const std::string& consumer_group);
 
  public:
-  MQClientAPIImpl* getMQClientAPIImpl() const { return mq_client_api_impl_.get(); }
-  MQAdminImpl* getMQAdminImpl() const { return mq_admin_impl_.get(); }
-  PullMessageService* getPullMessageService() const { return pull_message_service_.get(); }
+  MQClientAPIImpl* GetMQClientAPIImpl() const { return mq_client_api_impl_.get(); }
+  MQAdminImpl* GetMQAdminImpl() const { return mq_admin_impl_.get(); }
+  PullMessageService* GetPullMessageService() const { return pull_message_service_.get(); }
 
  private:
-  void unregisterClientWithLock(const std::string& producerGroup, const std::string& consumerGroup);
-  void unregisterClient(const std::string& producerGroup, const std::string& consumerGroup);
-
-  void cleanOfflineBroker();
-  bool isBrokerAddrExistInTopicRouteTable(const std::string& addr);
+  void UnregisterClientWithLock(const std::string& producer_group, const std::string& consumer_group);
+  void UnregisterClient(const std::string& producer_group, const std::string& consumer_group);
 
   // scheduled task
-  void startScheduledTask();
-  void updateTopicRouteInfoPeriodically();
-  void sendHeartbeatToAllBrokerPeriodically();
-  void persistAllConsumerOffsetPeriodically();
+  void StartScheduledTask();
+  void UpdateTopicRouteInfoPeriodically();
+  void SendHeartbeatToAllBrokerPeriodically();
+  void PersistAllConsumerOffsetPeriodically();
+
+  // route
+  void GetTopicListFromConsumerSubscription(std::set<std::string>& topic_list);
 
   // heartbeat
-  void sendHeartbeatToAllBroker();
-  std::unique_ptr<HeartbeatData> prepareHeartbeatData();
-  void insertConsumerInfoToHeartBeatData(HeartbeatData* pHeartbeatData);
-  void insertProducerInfoToHeartBeatData(HeartbeatData* pHeartbeatData);
+  void CleanOfflineBroker();
+  bool IsBrokerAddrExist(const std::string& addr);
+  void SendHeartbeatToAllBroker();
+  HeartbeatData PrepareHeartbeatData();
 
   // offset
-  void persistAllConsumerOffset();
+  void PersistAllConsumerOffset();
 
   // rebalance
-  void doRebalanceByConsumerGroup(const std::string& consumerGroup);
-
-  // consumer related operation
-  void getTopicListFromConsumerSubscription(std::set<std::string>& topicList);
+  void DoRebalanceByConsumerGroup(const std::string& consumer_group);
 
  private:
   std::string client_id_;

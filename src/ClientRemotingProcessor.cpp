@@ -25,6 +25,7 @@
 #include "MessageSysFlag.h"
 #include "RequestFutureTable.h"
 #include "SocketUtil.h"
+#include "producer/MQProducerInner.h"
 #include "protocol/body/ConsumerRunningInfo.hpp"
 #include "protocol/body/ResetOffsetBody.hpp"
 #include "protocol/header/CheckTransactionStateRequestHeader.hpp"
@@ -105,7 +106,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::checkTransactionState(
 std::unique_ptr<RemotingCommand> ClientRemotingProcessor::notifyConsumerIdsChanged(RemotingCommand* request) {
   auto* requestHeader = request->DecodeHeader<NotifyConsumerIdsChangedRequestHeader>();
   LOG_INFO_NEW("notifyConsumerIdsChanged, group:{}", requestHeader->consumer_group);
-  client_instance_->rebalanceImmediately();
+  client_instance_->RebalanceImmediately();
   return nullptr;
 }
 
@@ -115,7 +116,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::resetOffset(RemotingCo
   if (requestBody != nullptr && requestBody->size() > 0) {
     std::unique_ptr<ResetOffsetBody> body(ResetOffsetBody::Decode(*requestBody));
     if (body != nullptr) {
-      client_instance_->resetOffset(responseHeader->group, responseHeader->topic, body->offset_table);
+      client_instance_->ResetOffset(responseHeader->group, responseHeader->topic, body->offset_table);
     } else {
       LOG_ERROR("resetOffset failed as received data could not be unserialized");
     }
@@ -130,8 +131,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::getConsumerRunningInfo
 
   auto response = MakeUnique<RemotingCommand>(MQResponseCode::SYSTEM_ERROR, "not set any response code", nullptr);
 
-  std::unique_ptr<ConsumerRunningInfo> runningInfo(
-      client_instance_->consumerRunningInfo(requestHeader->consumer_group));
+  auto runningInfo = client_instance_->ConsumerRunningInfo(requestHeader->consumer_group);
   if (runningInfo != nullptr) {
     if (requestHeader->jstack_enable) {
       /*string jstack = UtilAll::jstack();

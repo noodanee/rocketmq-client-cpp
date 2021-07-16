@@ -26,6 +26,7 @@
 
 #include "ByteBuffer.hpp"
 #include "ClientRemotingProcessor.h"
+#include "MQClientConfig.h"
 #include "MQClientInstance.h"
 #include "MessageBatch.h"
 #include "MessageClientIDSetter.h"
@@ -37,6 +38,7 @@
 #include "TcpRemotingClient.h"
 #include "protocol/body/ConsumeQueueSet.hpp"
 #include "protocol/body/ConsumerList.hpp"
+#include "protocol/body/HeartbeatData.hpp"
 #include "protocol/body/LockBatchResult.hpp"
 #include "protocol/header/ConsumerSendMsgBackRequestHeader.hpp"
 #include "protocol/header/CreateTopicRequestHeader.hpp"

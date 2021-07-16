@@ -22,6 +22,7 @@
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
 #include "UtilAll.h"
+#include "common/FindBrokerResult.hpp"
 
 namespace rocketmq {
 
@@ -90,7 +91,7 @@ void RemoteBrokerOffsetStore::persist(const MessageQueue& mq) {
     try {
       updateConsumeOffsetToBroker(mq, offset);
       LOG_INFO_NEW("[persist] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", group_name_,
-                   client_instance_->getClientId(), mq.ToString(), offset);
+                   client_instance_->GetClientId(), mq.ToString(), offset);
     } catch (MQException& e) {
       LOG_ERROR("updateConsumeOffsetToBroker error");
     }
@@ -120,7 +121,7 @@ void RemoteBrokerOffsetStore::persistAll(std::vector<MessageQueue>& mqs) {
         try {
           updateConsumeOffsetToBroker(mq, offset);
           LOG_INFO_NEW("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", group_name_,
-                       client_instance_->getClientId(), mq.ToString(), offset);
+                       client_instance_->GetClientId(), mq.ToString(), offset);
         } catch (std::exception& e) {
           LOG_ERROR_NEW("updateConsumeOffsetToBroker exception, {} {}", mq.ToString(), e.what());
         }
@@ -152,7 +153,7 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq
 
   if (findBrokerResult) {
     try {
-      return client_instance_->getMQClientAPIImpl()->UpdateConsumerOffsetOneway(
+      return client_instance_->GetMQClientAPIImpl()->UpdateConsumerOffsetOneway(
           findBrokerResult.broker_addr, group_name_, mq.topic(), mq.queue_id(), offset);
     } catch (MQException& e) {
       LOG_ERROR(e.what());
@@ -166,7 +167,7 @@ int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MessageQueue
   auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq);
 
   if (findBrokerResult) {
-    return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult.broker_addr, group_name_,
+    return client_instance_->GetMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult.broker_addr, group_name_,
                                                                        mq.topic(), mq.queue_id(), 1000 * 5);
   }
 

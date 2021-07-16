@@ -17,6 +17,7 @@
 #include "MQClientManager.h"
 
 #include "Logging.h"
+#include "MQClientConfig.h"
 
 namespace rocketmq {
 

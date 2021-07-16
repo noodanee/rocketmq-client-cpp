@@ -99,7 +99,7 @@ void DefaultMQProducerImpl::start() {
       }
       async_send_executor_->startup();
 
-      client_instance_->start();
+      client_instance_->Start();
 
       LOG_INFO_NEW("the producer [{}] start OK.", config().group_name());
       service_state_ = ServiceState::kRunning;
@@ -114,7 +114,7 @@ void DefaultMQProducerImpl::start() {
       break;
   }
 
-  client_instance_->sendHeartbeatToAllBrokerWithLock();
+  client_instance_->SendHeartbeatToAllBrokerWithLock();
 }
 
 void DefaultMQProducerImpl::shutdown() {
@@ -125,7 +125,7 @@ void DefaultMQProducerImpl::shutdown() {
       async_send_executor_->shutdown();
 
       client_instance_->UnregisterProducer(config().group_name());
-      client_instance_->shutdown();
+      client_instance_->Shutdown();
 
       service_state_ = ServiceState::kShutdownAlready;
       break;
@@ -138,7 +138,7 @@ void DefaultMQProducerImpl::shutdown() {
 }
 
 std::vector<MessageQueue> DefaultMQProducerImpl::FetchPublishMessageQueues(const std::string& topic) {
-  auto topicPublishInfo = client_instance_->tryToFindTopicPublishInfo(topic);
+  auto topicPublishInfo = client_instance_->FindTopicPublishInfo(topic);
   if (topicPublishInfo != nullptr) {
     return topicPublishInfo->getMessageQueueList();
   }
@@ -307,7 +307,7 @@ inline void Preprocess(Message& message, const std::string& topic, DefaultMQProd
 }
 
 inline TopicPublishInfoPtr TryToFindTopicPublishInfo(const std::string& topic, MQClientInstance& client_instance) {
-  auto topic_publish_info = client_instance.tryToFindTopicPublishInfo(topic);
+  auto topic_publish_info = client_instance.FindTopicPublishInfo(topic);
   if (topic_publish_info == nullptr || !topic_publish_info->ok()) {
     THROW_MQEXCEPTION(MQClientException, "No route info of this topic: " + topic, -1);
   }
@@ -486,7 +486,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendSelectQueueImpl(const Mes
 
   int64_t begin_time = UtilAll::currentTimeMillis();
 
-  TopicPublishInfoPtr topic_publish_info = client_instance_->tryToFindTopicPublishInfo(message->topic());
+  TopicPublishInfoPtr topic_publish_info = client_instance_->FindTopicPublishInfo(message->topic());
   if (topic_publish_info != nullptr && topic_publish_info->ok()) {
     auto message_queue = selector(topic_publish_info->getMessageQueueList(), message);
 
@@ -556,7 +556,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
       }
 
       LOG_DEBUG_NEW("send to mq: {}", message_queue.ToString());
-      return client_instance_->getMQClientAPIImpl()->SendMessage(broker_addr, message_queue.broker_name(), message,
+      return client_instance_->GetMQClientAPIImpl()->SendMessage(broker_addr, message_queue.broker_name(), message,
                                                                  std::move(request_header), timeout, communication_mode,
                                                                  std::move(send_callback));
     } catch (MQException& e) {
@@ -726,7 +726,7 @@ void DefaultMQProducerImpl::CheckTransactionStateImpl(const std::string& address
   }
 
   try {
-    client_instance_->getMQClientAPIImpl()->EndTransactionOneway(address, std::move(request_header), remark);
+    client_instance_->GetMQClientAPIImpl()->EndTransactionOneway(address, std::move(request_header), remark);
   } catch (std::exception& e) {
     LOG_ERROR_NEW("endTransactionOneway exception: {}", e.what());
   }
@@ -764,7 +764,7 @@ void DefaultMQProducerImpl::EndTransaction(SendResult& send_result,
   std::string remark =
       local_exception ? ("executeLocalTransactionBranch exception: " + UtilAll::to_string(local_exception)) : null;
 
-  client_instance_->getMQClientAPIImpl()->EndTransactionOneway(broker_address, std::move(request_header), remark);
+  client_instance_->GetMQClientAPIImpl()->EndTransactionOneway(broker_address, std::move(request_header), remark);
 }
 
 //
@@ -832,14 +832,14 @@ const std::string& PrepareSendRequest(Message& message, int64_t timeout, MQClien
   MessageAccessor::putProperty(message, MQMessageConst::PROPERTY_CORRELATION_ID,
                                CorrelationIdUtil::createCorrelationId());
   MessageAccessor::putProperty(message, MQMessageConst::PROPERTY_MESSAGE_REPLY_TO_CLIENT,
-                               client_instance.getClientId());
+                               client_instance.GetClientId());
   MessageAccessor::putProperty(message, MQMessageConst::PROPERTY_MESSAGE_TTL, UtilAll::to_string(timeout));
 
   bool has_route_data = client_instance.GetTopicRouteData(message.topic()) != nullptr;
   if (!has_route_data) {
     int64_t begin_time = UtilAll::currentTimeMillis();
-    client_instance.tryToFindTopicPublishInfo(message.topic());
-    client_instance.sendHeartbeatToAllBrokerWithLock();
+    client_instance.FindTopicPublishInfo(message.topic());
+    client_instance.SendHeartbeatToAllBrokerWithLock();
     int64_t cost_time = UtilAll::currentTimeMillis() - begin_time;
     if (cost_time > 500) {
       LOG_WARN_NEW("prepare send request for <{}> cost {} ms", message.topic(), cost_time);

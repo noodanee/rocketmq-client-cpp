@@ -23,6 +23,8 @@
 
 namespace rocketmq {
 
+class MQMessageExt;
+
 class ClientRemotingProcessor : public RequestProcessor {
  public:
   ClientRemotingProcessor(MQClientInstance* clientInstance);

@@ -20,8 +20,10 @@
 
 #include "Logging.h"
 #include "MQClientInstance.h"
+#include "MQException.h"
 #include "UtilAll.h"
 #include "protocol/Serializer.hpp"
+#include "utility/JsonSerializer.h"
 
 namespace rocketmq {
 
@@ -29,7 +31,7 @@ LocalFileOffsetStore::LocalFileOffsetStore(MQClientInstance* instance, const std
     : client_instance_(instance), group_name_(groupName) {
   LOG_INFO("new LocalFileOffsetStore");
 
-  std::string clientId = instance->getClientId();
+  std::string clientId = instance->GetClientId();
   std::string homeDir(UtilAll::getHomeDirectory());
   std::string storeDir =
       homeDir + FILE_SEPARATOR + ".rocketmq_offsets" + FILE_SEPARATOR + clientId + FILE_SEPARATOR + groupName;

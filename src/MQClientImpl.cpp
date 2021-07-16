@@ -39,8 +39,8 @@ void MQClientImpl::start() {
     client_instance_ = MQClientManager::getInstance()->getOrCreateMQClientInstance(*client_config_, rpc_hook_);
   }
 
-  LOG_INFO_NEW("MQClientImpl start, clientId:{}, real nameservAddr:{}", client_instance_->getClientId(),
-               client_instance_->getNamesrvAddr());
+  LOG_INFO_NEW("MQClientImpl start, clientId:{}, real nameservAddr:{}", client_instance_->GetClientId(),
+               client_instance_->GetNamesrvAddress());
 }
 
 void MQClientImpl::shutdown() {
@@ -49,30 +49,30 @@ void MQClientImpl::shutdown() {
 
 void MQClientImpl::createTopic(const std::string& key, const std::string& newTopic, int queueNum) {
   try {
-    client_instance_->getMQAdminImpl()->createTopic(key, newTopic, queueNum);
+    client_instance_->GetMQAdminImpl()->createTopic(key, newTopic, queueNum);
   } catch (MQException& e) {
     LOG_ERROR(e.what());
   }
 }
 
 int64_t MQClientImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
-  return client_instance_->getMQAdminImpl()->searchOffset(mq, timestamp);
+  return client_instance_->GetMQAdminImpl()->searchOffset(mq, timestamp);
 }
 
 int64_t MQClientImpl::maxOffset(const MessageQueue& mq) {
-  return client_instance_->getMQAdminImpl()->maxOffset(mq);
+  return client_instance_->GetMQAdminImpl()->maxOffset(mq);
 }
 
 int64_t MQClientImpl::minOffset(const MessageQueue& mq) {
-  return client_instance_->getMQAdminImpl()->minOffset(mq);
+  return client_instance_->GetMQAdminImpl()->minOffset(mq);
 }
 
 int64_t MQClientImpl::earliestMsgStoreTime(const MessageQueue& mq) {
-  return client_instance_->getMQAdminImpl()->earliestMsgStoreTime(mq);
+  return client_instance_->GetMQAdminImpl()->earliestMsgStoreTime(mq);
 }
 
 MQMessageExt MQClientImpl::viewMessage(const std::string& msgId) {
-  return client_instance_->getMQAdminImpl()->viewMessage(msgId);
+  return client_instance_->GetMQAdminImpl()->viewMessage(msgId);
 }
 
 QueryResult MQClientImpl::queryMessage(const std::string& topic,
@@ -80,7 +80,7 @@ QueryResult MQClientImpl::queryMessage(const std::string& topic,
                                        int maxNum,
                                        int64_t begin,
                                        int64_t end) {
-  return client_instance_->getMQAdminImpl()->queryMessage(topic, key, maxNum, begin, end);
+  return client_instance_->GetMQAdminImpl()->queryMessage(topic, key, maxNum, begin, end);
 }
 
 bool MQClientImpl::isServiceStateOk() {

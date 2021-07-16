@@ -37,7 +37,7 @@ class PullMessageService {
   void shutdown() { scheduled_executor_service_.shutdown(); }
 
   void executePullRequestLater(PullRequestPtr pull_request, long delay_millis) {
-    if (client_instance_->isRunning()) {
+    if (client_instance_->Running()) {
       scheduled_executor_service_.schedule(
 #if __cplusplus >= 201402L
           [this, pull_request = std::move(pull_request)]

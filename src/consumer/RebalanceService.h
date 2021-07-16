@@ -32,7 +32,7 @@ class RebalanceService : public ServiceThread {
 
     while (!isStopped()) {
       waitForRunning(20000);
-      client_instance_->doRebalance();
+      client_instance_->DoRebalance();
     }
 
     LOG_INFO_NEW("{} service end", getServiceName());

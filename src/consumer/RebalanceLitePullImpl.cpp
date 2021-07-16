@@ -19,6 +19,7 @@
 #include "AllocateMQAveragely.h"
 #include "OffsetStore.h"
 #include "UtilAll.h"
+#include "logging/Logging.hpp"
 
 namespace rocketmq {
 

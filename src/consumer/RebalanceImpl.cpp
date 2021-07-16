@@ -19,6 +19,7 @@
 #include "ConsumeType.h"
 #include "MQClientInstance.h"
 #include "OffsetStore.h"
+#include "logging/Logging.hpp"
 
 namespace rocketmq {
 
@@ -71,8 +72,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
         return;
       }
 
-      std::vector<std::string> cidAll;
-      client_instance_->findConsumerIds(topic, consumer_group_, cidAll);
+      auto cidAll = client_instance_->FindConsumerIds(topic, consumer_group_);
 
       if (cidAll.empty()) {
         LOG_WARN_NEW("doRebalance, {} {}, get consumer id list failed", consumer_group_, topic);
@@ -87,7 +87,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
       // allocate mqs
       std::vector<MessageQueue> allocateResult;
       try {
-        allocateResult = allocate_mq_strategy_(client_instance_->getClientId(), mqAll, cidAll);
+        allocateResult = allocate_mq_strategy_(client_instance_->GetClientId(), mqAll, cidAll);
       } catch (MQException& e) {
         LOG_ERROR_NEW("encounter exception when invoke AllocateMQStrategy: {}", e.what());
         return;
@@ -99,7 +99,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
         LOG_INFO_NEW(
             "rebalanced result changed. group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, "
             "rebalanceResultSize={}, rebalanceResultSet:",
-            consumer_group_, topic, client_instance_->getClientId(), mqAll.size(), cidAll.size(),
+            consumer_group_, topic, client_instance_->GetClientId(), mqAll.size(), cidAll.size(),
             allocateResult.size());
         for (auto& mq : allocateResult) {
           LOG_INFO_NEW("allocate mq:{}", mq.ToString());

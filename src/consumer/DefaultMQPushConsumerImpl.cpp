@@ -144,7 +144,7 @@ void DefaultMQPushConsumerImpl::start() {
                           -1);
       }
 
-      client_instance_->start();
+      client_instance_->Start();
 
       LOG_INFO_NEW("the consumer [{}] start OK", client_config_->group_name());
       service_state_ = ServiceState::kRunning;
@@ -160,8 +160,8 @@ void DefaultMQPushConsumerImpl::start() {
   }
 
   UpdateTopicSubscribeInfoWhenSubscriptionChanged();
-  client_instance_->sendHeartbeatToAllBrokerWithLock();
-  client_instance_->rebalanceImmediately();
+  client_instance_->SendHeartbeatToAllBrokerWithLock();
+  client_instance_->RebalanceImmediately();
 }
 
 void DefaultMQPushConsumerImpl::CheckConfig() {
@@ -220,7 +220,7 @@ void DefaultMQPushConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChanged(
       auto subscribeInfo = MakeTopicSubscribeInfo(topic, *topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);
     } else {
-      bool ret = client_instance_->updateTopicRouteInfoFromNameServer(topic);
+      bool ret = client_instance_->UpdateTopicRouteInfoFromNameServer(topic);
       if (!ret) {
         LOG_WARN_NEW("The topic[{}] not exist, or its route data not changed", topic);
       }
@@ -234,7 +234,7 @@ void DefaultMQPushConsumerImpl::shutdown() {
       consume_service_->shutdown();
       persistConsumerOffset();
       client_instance_->UnregisterConsumer(client_config_->group_name());
-      client_instance_->shutdown();
+      client_instance_->Shutdown();
       rebalance_impl_->shutdown();
       service_state_ = ServiceState::kShutdownAlready;
       LOG_INFO_NEW("the consumer [{}] shutdown OK", client_config_->group_name());
@@ -292,11 +292,11 @@ void DefaultMQPushConsumerImpl::doRebalance() {
 }
 
 void DefaultMQPushConsumerImpl::ExecutePullRequestLater(PullRequestPtr pull_request, long delay) {
-  client_instance_->getPullMessageService()->executePullRequestLater(pull_request, delay);
+  client_instance_->GetPullMessageService()->executePullRequestLater(pull_request, delay);
 }
 
 void DefaultMQPushConsumerImpl::ExecutePullRequestImmediately(PullRequestPtr pull_request) {
-  client_instance_->getPullMessageService()->executePullRequestImmediately(pull_request);
+  client_instance_->GetPullMessageService()->executePullRequestImmediately(pull_request);
 }
 
 void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
@@ -475,7 +475,7 @@ void DefaultMQPushConsumerImpl::CorrectTagsOffset(PullRequestPtr pull_request) {
 }
 
 void DefaultMQPushConsumerImpl::ExecuteTaskLater(Task task, long delay) {
-  client_instance_->getPullMessageService()->executeTaskLater(std::move(task), delay);
+  client_instance_->GetPullMessageService()->executeTaskLater(std::move(task), delay);
 }
 
 void DefaultMQPushConsumerImpl::ResetRetryAndNamespace(const std::vector<MessageExtPtr>& messages) {
@@ -508,7 +508,7 @@ bool DefaultMQPushConsumerImpl::SendMessageBack(MessageExtPtr message,
     std::string broker_addr =
         broker_name.empty() ? message->store_host_string() : client_instance_->FindBrokerAddressInPublish(broker_name);
 
-    client_instance_->getMQClientAPIImpl()->ConsumerSendMessageBack(broker_addr, message, config().group_name(),
+    client_instance_->GetMQClientAPIImpl()->ConsumerSendMessageBack(broker_addr, message, config().group_name(),
                                                                     delay_level, config().max_reconsume_times(), 5000);
     return true;
   } catch (const std::exception& e) {

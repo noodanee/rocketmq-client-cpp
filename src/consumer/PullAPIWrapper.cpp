@@ -26,6 +26,7 @@
 #include "MessageDecoder.h"
 #include "PullResultExt.hpp"
 #include "PullSysFlag.h"
+#include "common/FindBrokerResult.hpp"
 #include "protocol/header/PullMessageRequestHeader.hpp"
 #include "utility/MakeUnique.hpp"
 
@@ -66,7 +67,7 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
     request_header->subscription = expression;
     request_header->subscription_version = version;
 
-    return client_instance_->getMQClientAPIImpl()->PullMessage(find_broker_result.broker_addr,
+    return client_instance_->GetMQClientAPIImpl()->PullMessage(find_broker_result.broker_addr,
                                                                std::move(request_header), timeout_millis,
                                                                communication_mode, std::move(pull_callback));
   }

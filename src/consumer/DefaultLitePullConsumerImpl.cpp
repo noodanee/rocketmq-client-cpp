@@ -44,6 +44,7 @@
 #include "UtilAll.h"
 #include "Validators.h"
 #include "consumer/TopicSubscribeInfo.hpp"
+#include "protocol/body/ConsumerRunningInfo.hpp"
 #include "utility/MakeUnique.hpp"
 
 static const long PULL_TIME_DELAY_MILLS_WHEN_PAUSE = 1000;
@@ -158,7 +159,7 @@ void DefaultLitePullConsumerImpl::start() {
                           -1);
       }
 
-      client_instance_->start();
+      client_instance_->Start();
 
       StartScheduleTask();
 
@@ -277,7 +278,7 @@ void DefaultLitePullConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChange
       auto subscribeInfo = MakeTopicSubscribeInfo(topic, *topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);
     } else {
-      bool ret = client_instance_->updateTopicRouteInfoFromNameServer(topic);
+      bool ret = client_instance_->UpdateTopicRouteInfoFromNameServer(topic);
       if (!ret) {
         LOG_WARN_NEW("The topic[{}] not exist, or its route data not changed", topic);
       }
@@ -293,7 +294,7 @@ void DefaultLitePullConsumerImpl::shutdown() {
       persistConsumerOffset();
       client_instance_->UnregisterConsumer(client_config_->group_name());
       scheduled_executor_service_.shutdown();
-      client_instance_->shutdown();
+      client_instance_->Shutdown();
       rebalance_impl_->shutdown();
       service_state_ = ServiceState::kShutdownAlready;
       LOG_INFO_NEW("the consumer [{}] shutdown OK", client_config_->group_name());
@@ -344,7 +345,7 @@ void DefaultLitePullConsumerImpl::Subscribe(const std::string& topic, const std:
     assigned_message_queue_->set_rebalance_impl(rebalance_impl_.get());
 
     if (service_state_ == ServiceState::kRunning) {
-      client_instance_->sendHeartbeatToAllBrokerWithLock();
+      client_instance_->SendHeartbeatToAllBrokerWithLock();
       UpdateTopicSubscribeInfoWhenSubscriptionChanged();
     }
   } catch (std::exception& e) {
@@ -400,11 +401,11 @@ void DefaultLitePullConsumerImpl::DispatchAssigndPullRequest(std::vector<PullReq
 }
 
 void DefaultLitePullConsumerImpl::ExecutePullRequestLater(PullRequestPtr pull_request, long delay) {
-  client_instance_->getPullMessageService()->executePullRequestLater(std::move(pull_request), delay);
+  client_instance_->GetPullMessageService()->executePullRequestLater(std::move(pull_request), delay);
 }
 
 void DefaultLitePullConsumerImpl::ExecutePullRequestImmediately(PullRequestPtr pull_request) {
-  client_instance_->getPullMessageService()->executePullRequestImmediately(std::move(pull_request));
+  client_instance_->GetPullMessageService()->executePullRequestImmediately(std::move(pull_request));
 }
 
 void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
@@ -630,7 +631,7 @@ void DefaultLitePullConsumerImpl::persistConsumerOffset() {
 std::vector<MessageQueue> DefaultLitePullConsumerImpl::FetchMessageQueues(const std::string& topic) {
   std::vector<MessageQueue> result;
   if (isServiceStateOk()) {
-    client_instance_->getMQAdminImpl()->fetchSubscribeMessageQueues(topic, result);
+    client_instance_->GetMQAdminImpl()->fetchSubscribeMessageQueues(topic, result);
     ParseMessageQueues(result);
   }
   return result;
