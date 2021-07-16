@@ -272,7 +272,7 @@ void DefaultLitePullConsumerImpl::UpdateTopicSubscribeInfoWhenSubscriptionChange
   auto& subscription_table = rebalance_impl_->getSubscriptionInner();
   for (const auto& it : subscription_table) {
     const auto& topic = it.first;
-    auto topic_route_data = client_instance_->getTopicRouteData(topic);
+    auto topic_route_data = client_instance_->GetTopicRouteData(topic);
     if (topic_route_data != nullptr) {
       auto subscribeInfo = MakeTopicSubscribeInfo(topic, *topic_route_data);
       updateTopicSubscribeInfo(topic, subscribeInfo);

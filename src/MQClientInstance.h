@@ -96,7 +96,7 @@ class MQClientInstance {
  public:
   TopicPublishInfoPtr tryToFindTopicPublishInfo(const std::string& topic);
 
-  TopicRouteDataPtr getTopicRouteData(const std::string& topic);
+  TopicRouteDataPtr GetTopicRouteData(const std::string& topic);
 
  public:
   MQClientAPIImpl* getMQClientAPIImpl() const { return mq_client_api_impl_.get(); }
@@ -115,10 +115,6 @@ class MQClientInstance {
   void updateTopicRouteInfoPeriodically();
   void sendHeartbeatToAllBrokerPeriodically();
   void persistAllConsumerOffsetPeriodically();
-
-  // topic route
-  bool topicRouteDataIsChange(TopicRouteData* old, TopicRouteData* now);
-  void addTopicRouteData(const std::string& topic, TopicRouteDataPtr topicRouteData);
 
   // heartbeat
   void sendHeartbeatToAllBroker();
@@ -167,8 +163,7 @@ class MQClientInstance {
   std::mutex consumer_table_mutex_;
 
   // Topic -> TopicRouteData
-  using TRDMAP = std::map<std::string, TopicRouteDataPtr>;
-  TRDMAP topic_route_table_;
+  std::map<std::string, TopicRouteDataPtr> topic_route_table_;
   std::mutex topic_route_table_mutex_;
 
   // broker_name -> { broker_id : address }

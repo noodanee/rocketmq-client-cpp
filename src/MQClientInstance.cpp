@@ -330,6 +330,14 @@ void MQClientInstance::sendHeartbeatToAllBroker() {
   }
 }
 
+namespace {
+
+bool IsTopicRouteDataChanged(TopicRouteData* old_data, TopicRouteData* now_data) {
+  return old_data == nullptr || now_data == nullptr || !(*old_data == *now_data);
+}
+
+}  // namespace
+
 bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& topic, bool isDefault) {
   if (UtilAll::try_lock_for(lock_namesrv_, LOCK_TIMEOUT_MILLIS)) {
     std::lock_guard<std::timed_mutex> lock(lock_namesrv_, std::adopt_lock);
@@ -353,8 +361,8 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
       }
       if (topicRouteData != nullptr) {
         LOG_INFO_NEW("updateTopicRouteInfoFromNameServer has data");
-        auto old = getTopicRouteData(topic);
-        bool changed = topicRouteDataIsChange(old.get(), topicRouteData.get());
+        auto old = GetTopicRouteData(topic);
+        bool changed = IsTopicRouteDataChanged(old.get(), topicRouteData.get());
 
         if (changed) {
           LOG_INFO_NEW("updateTopicRouteInfoFromNameServer changed:{}", topic);
@@ -379,7 +387,7 @@ bool MQClientInstance::updateTopicRouteInfoFromNameServer(const std::string& top
             updateConsumerTopicSubscribeInfo(topic, subscribeInfo);
           }
 
-          addTopicRouteData(topic, topicRouteData);
+          MapAccessor::InsertOrAssign(topic_route_table_, topic, topicRouteData, topic_route_table_mutex_);
         }
 
         LOG_DEBUG_NEW("updateTopicRouteInfoFromNameServer end:{}", topic);
@@ -432,25 +440,8 @@ void MQClientInstance::insertProducerInfoToHeartBeatData(HeartbeatData* heartbea
   }
 }
 
-bool MQClientInstance::topicRouteDataIsChange(TopicRouteData* olddata, TopicRouteData* nowdata) {
-  if (olddata == nullptr || nowdata == nullptr) {
-    return true;
-  }
-  return !(*olddata == *nowdata);
-}
-
-TopicRouteDataPtr MQClientInstance::getTopicRouteData(const std::string& topic) {
-  std::lock_guard<std::mutex> lock(topic_route_table_mutex_);
-  const auto& it = topic_route_table_.find(topic);
-  if (it != topic_route_table_.end()) {
-    return it->second;
-  }
-  return nullptr;
-}
-
-void MQClientInstance::addTopicRouteData(const std::string& topic, TopicRouteDataPtr topicRouteData) {
-  std::lock_guard<std::mutex> lock(topic_route_table_mutex_);
-  topic_route_table_[topic] = std::move(topicRouteData);
+TopicRouteDataPtr MQClientInstance::GetTopicRouteData(const std::string& topic) {
+  return MapAccessor::GetOrDefault(topic_route_table_, topic, nullptr, topic_route_table_mutex_);
 }
 
 bool MQClientInstance::registerConsumer(const std::string& group, MQConsumerInner* consumer) {
@@ -811,7 +802,7 @@ std::string SelectBrokerAddr(const TopicRouteData& topic_route_data) {
 }  // namespace
 
 std::string MQClientInstance::findBrokerAddrByTopic(const std::string& topic) {
-  auto topicRouteData = getTopicRouteData(topic);
+  auto topicRouteData = GetTopicRouteData(topic);
   if (topicRouteData != nullptr) {
     return SelectBrokerAddr(*topicRouteData);
   }

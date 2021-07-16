@@ -839,7 +839,7 @@ const std::string& PrepareSendRequest(Message& message, int64_t timeout, MQClien
                                client_instance.getClientId());
   MessageAccessor::putProperty(message, MQMessageConst::PROPERTY_MESSAGE_TTL, UtilAll::to_string(timeout));
 
-  bool has_route_data = client_instance.getTopicRouteData(message.topic()) != nullptr;
+  bool has_route_data = client_instance.GetTopicRouteData(message.topic()) != nullptr;
   if (!has_route_data) {
     int64_t begin_time = UtilAll::currentTimeMillis();
     client_instance.tryToFindTopicPublishInfo(message.topic());
