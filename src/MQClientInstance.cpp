@@ -20,6 +20,7 @@
 #include <utility>  // std::move
 
 #include "ClientRemotingProcessor.h"
+#include "FindBrokerResult.hpp"
 #include "Logging.h"
 #include "MQAdminImpl.h"
 #include "MQClientAPIImpl.h"
@@ -628,6 +629,35 @@ FindBrokerResult MQClientInstance::FindBrokerAddressInSubscribe(const std::strin
     }
   }
   return {};
+}
+
+FindBrokerResult MQClientInstance::FindBrokerAddressInAdmin(const MessageQueue& message_queue) {
+  auto find_broker_result = FindBrokerAddressInAdmin(message_queue.broker_name());
+  if (!find_broker_result) {
+    updateTopicRouteInfoFromNameServer(message_queue.topic());
+    find_broker_result = FindBrokerAddressInAdmin(message_queue.broker_name());
+  }
+  return find_broker_result;
+}
+
+std::string MQClientInstance::FindBrokerAddressInPublish(const MessageQueue& message_queue) {
+  auto broker_address = FindBrokerAddressInPublish(message_queue.broker_name());
+  if (broker_address.empty()) {
+    updateTopicRouteInfoFromNameServer(message_queue.topic());
+    broker_address = FindBrokerAddressInPublish(message_queue.broker_name());
+  }
+  return broker_address;
+}
+
+FindBrokerResult MQClientInstance::FindBrokerAddressInSubscribe(const MessageQueue& message_queue,
+                                                                int broker_id,
+                                                                bool only_this_broker) {
+  auto find_broker_result = FindBrokerAddressInSubscribe(message_queue.broker_name(), broker_id, only_this_broker);
+  if (!find_broker_result) {
+    updateTopicRouteInfoFromNameServer(message_queue.topic());
+    find_broker_result = FindBrokerAddressInSubscribe(message_queue.broker_name(), broker_id, only_this_broker);
+  }
+  return find_broker_result;
 }
 
 void MQClientInstance::findConsumerIds(const std::string& topic,

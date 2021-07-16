@@ -148,12 +148,7 @@ void RemoteBrokerOffsetStore::removeOffset(const MessageQueue& mq) {
 }
 
 void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq, int64_t offset) {
-  auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
-
-  if (!findBrokerResult) {
-    client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
-  }
+  auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq);
 
   if (findBrokerResult) {
     try {
@@ -168,12 +163,7 @@ void RemoteBrokerOffsetStore::updateConsumeOffsetToBroker(const MessageQueue& mq
 }
 
 int64_t RemoteBrokerOffsetStore::fetchConsumeOffsetFromBroker(const MessageQueue& mq) {
-  auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
-
-  if (!findBrokerResult) {
-    client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq.broker_name());
-  }
+  auto findBrokerResult = client_instance_->FindBrokerAddressInAdmin(mq);
 
   if (findBrokerResult) {
     return client_instance_->getMQClientAPIImpl()->QueryConsumerOffset(findBrokerResult.broker_addr, group_name_,

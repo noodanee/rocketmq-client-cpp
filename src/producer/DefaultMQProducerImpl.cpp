@@ -508,11 +508,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
                                                                   int64_t timeout) {
   int64_t begin_time = UtilAll::currentTimeMillis();
 
-  std::string broker_addr = client_instance_->FindBrokerAddressInPublish(message_queue.broker_name());
-  if (broker_addr.empty()) {
-    client_instance_->tryToFindTopicPublishInfo(message_queue.topic());
-    broker_addr = client_instance_->FindBrokerAddressInPublish(message_queue.broker_name());
-  }
+  auto broker_addr = client_instance_->FindBrokerAddressInPublish(message_queue);
 
   if (!broker_addr.empty()) {
     try {

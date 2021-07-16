@@ -45,11 +45,7 @@ void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vec
 }
 
 int64_t MQAdminImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
-  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  if (brokerAddr.empty()) {
-    client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  }
+  auto brokerAddr = client_instance_->FindBrokerAddressInPublish(mq);
 
   if (!brokerAddr.empty()) {
     try {
@@ -59,15 +55,12 @@ int64_t MQAdminImpl::searchOffset(const MessageQueue& mq, int64_t timestamp) {
       THROW_MQEXCEPTION(MQClientException, "Invoke Broker exception", -1);
     }
   }
+
   THROW_MQEXCEPTION(MQClientException, "The broker is not exist", -1);
 }
 
 int64_t MQAdminImpl::maxOffset(const MessageQueue& mq) {
-  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  if (brokerAddr.empty()) {
-    client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  }
+  auto brokerAddr = client_instance_->FindBrokerAddressInPublish(mq);
 
   if (!brokerAddr.empty()) {
     try {
@@ -80,11 +73,7 @@ int64_t MQAdminImpl::maxOffset(const MessageQueue& mq) {
 }
 
 int64_t MQAdminImpl::minOffset(const MessageQueue& mq) {
-  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  if (brokerAddr.empty()) {
-    client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  }
+  auto brokerAddr = client_instance_->FindBrokerAddressInPublish(mq);
 
   if (!brokerAddr.empty()) {
     try {
@@ -98,11 +87,7 @@ int64_t MQAdminImpl::minOffset(const MessageQueue& mq) {
 }
 
 int64_t MQAdminImpl::earliestMsgStoreTime(const MessageQueue& mq) {
-  std::string brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  if (brokerAddr.empty()) {
-    client_instance_->updateTopicRouteInfoFromNameServer(mq.topic());
-    brokerAddr = client_instance_->FindBrokerAddressInPublish(mq.broker_name());
-  }
+  auto brokerAddr = client_instance_->FindBrokerAddressInPublish(mq);
 
   if (!brokerAddr.empty()) {
     try {

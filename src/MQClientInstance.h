@@ -83,6 +83,12 @@ class MQClientInstance {
   std::string FindBrokerAddressInPublish(const std::string& broker_name);
   FindBrokerResult FindBrokerAddressInSubscribe(const std::string& broker_name, int broker_id, bool only_this_broker);
 
+  FindBrokerResult FindBrokerAddressInAdmin(const MessageQueue& message_queue);
+  std::string FindBrokerAddressInPublish(const MessageQueue& message_queue);
+  FindBrokerResult FindBrokerAddressInSubscribe(const MessageQueue& message_queue,
+                                                int broker_id,
+                                                bool only_this_broker);
+
   void findConsumerIds(const std::string& topic, const std::string& group, std::vector<std::string>& cids);
 
   std::string findBrokerAddrByTopic(const std::string& topic);

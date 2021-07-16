@@ -46,13 +46,8 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
                                                               int timeout_millis,
                                                               CommunicationMode communication_mode,
                                                               PullCallback pull_callback) {
-  auto find_broker_result = client_instance_->FindBrokerAddressInSubscribe(
-      message_queue.broker_name(), RecalculatePullFromWhichNode(message_queue), false);
-  if (!find_broker_result) {
-    client_instance_->updateTopicRouteInfoFromNameServer(message_queue.topic());
-    find_broker_result = client_instance_->FindBrokerAddressInSubscribe(
-        message_queue.broker_name(), RecalculatePullFromWhichNode(message_queue), false);
-  }
+  auto find_broker_result =
+      client_instance_->FindBrokerAddressInSubscribe(message_queue, RecalculatePullFromWhichNode(message_queue), false);
 
   if (find_broker_result) {
     if (find_broker_result.slave) {
