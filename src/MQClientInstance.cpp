@@ -717,8 +717,9 @@ void MQClientInstance::findConsumerIds(const std::string& topic,
     }
 
     if (!brokerAddr.empty()) {
-      std::lock_guard<std::mutex> lock(topic_broker_addr_table_mutex_);
-      topic_broker_addr_table_[topic] = std::make_pair(brokerAddr, UtilAll::currentTimeMillis());
+      MapAccessor::InsertOrAssign(topic_broker_addr_table_, topic,
+                                  std::make_pair(brokerAddr, UtilAll::currentTimeMillis()),
+                                  topic_broker_addr_table_mutex_);
     }
   }
 
@@ -728,9 +729,7 @@ void MQClientInstance::findConsumerIds(const std::string& topic,
       cids = mq_client_api_impl_->GetConsumerIdListByGroup(brokerAddr, group, 5000);
     } catch (const MQException& e) {
       LOG_ERROR_NEW("encounter exception when getConsumerIdList: {}", e.what());
-
-      std::lock_guard<std::mutex> lock(topic_broker_addr_table_mutex_);
-      topic_broker_addr_table_.erase(topic);
+      MapAccessor::Erase(topic_broker_addr_table_, topic, topic_broker_addr_table_mutex_);
     }
   }
 }

@@ -167,8 +167,7 @@ class MQClientInstance {
   std::mutex topic_publish_info_table_mutex_;
 
   // topic -> <broker, time>
-  using TBAMAP = std::map<std::string, std::pair<std::string, uint64_t>>;
-  TBAMAP topic_broker_addr_table_;
+  std::map<std::string, std::pair<std::string, uint64_t>> topic_broker_addr_table_;
   std::mutex topic_broker_addr_table_mutex_;
 
   std::timed_mutex lock_namesrv_;
