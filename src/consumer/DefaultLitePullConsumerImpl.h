@@ -120,7 +120,7 @@ class DefaultLitePullConsumerImpl final : public std::enable_shared_from_this<De
   std::vector<SubscriptionData> subscriptions() const override;
 
   // service discovery
-  void updateTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& info) override;
+  void updateTopicSubscribeInfo(const std::string& topic, const std::vector<MessageQueue>& info) override;
 
   // load balancing
   void doRebalance() override;

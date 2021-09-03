@@ -14,30 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_PRODUCER_TOPICSUBSCRIBEINFO_HPP_
-#define ROCKETMQ_PRODUCER_TOPICSUBSCRIBEINFO_HPP_
+#include "route/TopicRouteManager.hpp"
 
-#include <string>
-#include <vector>
+#include <mutex>   // std::lock_guard, std::mutex
+#include <string>  // std::string
 
-#include "MessageQueue.hpp"
-#include "common/PermName.h"
 #include "protocol/body/TopicRouteData.hpp"
 
 namespace rocketmq {
 
-std::vector<MessageQueue> MakeTopicSubscribeInfo(const std::string& topic, const TopicRouteData& route) {
-  std::vector<MessageQueue> message_queues;
-  for (const auto& queue_data : route.queue_datas) {
-    if (PermName::isReadable(queue_data.perm)) {
-      for (int i = 0; i < queue_data.read_queue_nums; i++) {
-        message_queues.emplace_back(topic, queue_data.broker_name, i);
+bool TopicRouteManager::ContainsBrokerAddress(const std::string& address) {
+  std::lock_guard<std::mutex> lock(topic_route_table_mutex_);
+  for (const auto& it : topic_route_table_) {
+    const auto& topic_route_data = it.second;
+    const auto& broker_datas = topic_route_data->broker_datas;
+    for (const auto& broker_data : broker_datas) {
+      for (const auto& it2 : broker_data.broker_addrs) {
+        if (it2.second == address) {
+          return true;
+        }
       }
     }
   }
-  return message_queues;
+  return false;
 }
 
 }  // namespace rocketmq
-
-#endif  // ROCKETMQ_PRODUCER_TOPICSUBSCRIBEINFO_HPP_

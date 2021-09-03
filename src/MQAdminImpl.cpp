@@ -19,7 +19,7 @@
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
 #include "TopicPublishInfo.hpp"
-#include "consumer/TopicSubscribeInfo.hpp"
+#include "route/TopicSubscribeInfo.hpp"
 
 namespace rocketmq {
 
@@ -30,7 +30,7 @@ void MQAdminImpl::fetchSubscribeMessageQueues(const std::string& topic, std::vec
     TopicRouteDataPtr topicRouteData(
         client_instance_->GetMQClientAPIImpl()->GetTopicRouteInfoFromNameServer(topic, 1000 * 3));
     if (topicRouteData != nullptr) {
-      mqs = MakeTopicSubscribeInfo(topic, *topicRouteData);
+      mqs = TopicSubscribeInfo(topic, topicRouteData).message_queues();
       if (mqs.empty()) {
         THROW_MQEXCEPTION(MQClientException,
                           "Can not find Message Queue for this topic, " + topic + " Namesrv return empty", -1);

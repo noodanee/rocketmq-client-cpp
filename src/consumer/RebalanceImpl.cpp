@@ -205,7 +205,7 @@ bool RebalanceImpl::getTopicSubscribeInfo(const std::string& topic, std::vector<
   return false;
 }
 
-void RebalanceImpl::setTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs) {
+void RebalanceImpl::setTopicSubscribeInfo(const std::string& topic, const std::vector<MessageQueue>& mqs) {
   if (subscription_inner_.find(topic) == subscription_inner_.end()) {
     return;
   }

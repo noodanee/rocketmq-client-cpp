@@ -39,7 +39,7 @@ class MQConsumerInner {
   virtual std::vector<SubscriptionData> subscriptions() const = 0;
 
   // service discovery
-  virtual void updateTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& info) = 0;
+  virtual void updateTopicSubscribeInfo(const std::string& topic, const std::vector<MessageQueue>& info) = 0;
 
   // load balancing
   virtual void doRebalance() = 0;

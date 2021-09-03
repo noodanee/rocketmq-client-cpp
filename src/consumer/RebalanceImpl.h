@@ -76,7 +76,7 @@ class RebalanceImpl {
   void setSubscriptionData(const std::string& topic, std::unique_ptr<SubscriptionData> sd) noexcept;
 
   bool getTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs);
-  void setTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs);
+  void setTopicSubscribeInfo(const std::string& topic, const std::vector<MessageQueue>& mqs);
 
  public:
   const std::string& consumer_group() const { return consumer_group_; }

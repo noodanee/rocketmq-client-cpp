@@ -44,6 +44,7 @@ class ClientRemotingProcessor;
 class RebalanceService;
 class PullMessageService;
 class MessageQueue;
+class TopicRouteManager;
 
 struct ConsumerRunningInfo;
 struct FindBrokerResult;
@@ -141,7 +142,6 @@ class MQClientInstance {
 
   // heartbeat
   void CleanOfflineBroker();
-  bool IsBrokerAddrExist(const std::string& addr);
   void SendHeartbeatToAllBroker();
   HeartbeatData PrepareHeartbeatData();
 
@@ -163,21 +163,15 @@ class MQClientInstance {
   std::map<std::string, MQConsumerInner*> consumer_table_;
   std::mutex consumer_table_mutex_;
 
-  // Topic -> TopicRouteData
-  std::map<std::string, TopicRouteDataPtr> topic_route_table_;
-  std::mutex topic_route_table_mutex_;
-
   // broker_name -> { broker_id : address }
   std::map<std::string, std::map<int, std::string>> broker_address_table_;
   std::mutex broker_address_table_mutex_;
 
-  // topic -> TopicPublishInfo
-  std::map<std::string, TopicPublishInfoPtr> topic_publish_info_table_;
-  std::mutex topic_publish_info_table_mutex_;
-
   // topic -> <broker, time>
   std::map<std::string, std::pair<std::string, uint64_t>> topic_broker_addr_table_;
   std::mutex topic_broker_addr_table_mutex_;
+
+  std::unique_ptr<TopicRouteManager> topic_route_manager_;
 
   std::timed_mutex lock_namesrv_;
   std::timed_mutex lock_heartbeat_;

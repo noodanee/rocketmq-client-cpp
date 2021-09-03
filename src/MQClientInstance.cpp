@@ -33,11 +33,12 @@
 #include "consumer/PullMessageService.hpp"
 #include "consumer/RebalancePushImpl.h"
 #include "consumer/RebalanceService.h"
-#include "consumer/TopicSubscribeInfo.hpp"
 #include "logging/Logging.hpp"
-#include "producer/TopicPublishInfo.hpp"
 #include "protocol/body/ConsumerRunningInfo.hpp"
 #include "protocol/body/HeartbeatData.hpp"
+#include "route/TopicPublishInfo.hpp"
+#include "route/TopicRouteManager.hpp"
+#include "route/TopicSubscribeInfo.hpp"
 #include "transport/TcpRemotingClient.h"
 #include "utility/MakeUnique.hpp"
 #include "utility/MapAccessor.hpp"
@@ -60,7 +61,7 @@ MQClientInstance::MQClientInstance(const MQClientConfig& client_config, std::str
       pull_message_service_(MakeUnique<PullMessageService>(this)),
       scheduled_executor_service_("MQClient", false) {
   // default Topic register
-  topic_publish_info_table_[AUTO_CREATE_TOPIC_KEY_TOPIC] = std::make_shared<TopicPublishInfo>();
+  topic_route_manager_->PutTopicPublishInfo(AUTO_CREATE_TOPIC_KEY_TOPIC, std::make_shared<TopicPublishInfo>());
 
   client_remoting_processor_ = MakeUnique<ClientRemotingProcessor>(this);
   mq_client_api_impl_ =
@@ -261,7 +262,7 @@ void MQClientInstance::UpdateTopicRouteInfoFromNameServer() {
   GetTopicListFromConsumerSubscription(topicList);
 
   // Producer
-  SetAccessor::Merge(topicList, MapAccessor::KeySet(topic_publish_info_table_, topic_publish_info_table_mutex_));
+  SetAccessor::Merge(topicList, topic_route_manager_->TopicInPublish());
 
   // update
   if (!topicList.empty()) {
@@ -325,7 +326,7 @@ bool MQClientInstance::UpdateTopicRouteInfoFromNameServer(const std::string& top
     }
 
     LOG_INFO_NEW("updateTopicRouteInfoFromNameServer has data");
-    auto old = GetTopicRouteData(topic);
+    auto old = topic_route_manager_->GetTopicRouteData(topic);
     if (IsTopicRouteDataChanged(old.get(), topic_route_data.get())) {
       LOG_INFO_NEW("updateTopicRouteInfoFromNameServer changed:{}", topic);
 
@@ -338,22 +339,21 @@ bool MQClientInstance::UpdateTopicRouteInfoFromNameServer(const std::string& top
       }
 
       // update publish info
-      MapAccessor::InsertOrAssign(topic_publish_info_table_, topic,
-                                  std::make_shared<TopicPublishInfo>(topic, topic_route_data),
-                                  topic_publish_info_table_mutex_);
+      topic_route_manager_->PutTopicPublishInfo(topic, std::make_shared<TopicPublishInfo>(topic, topic_route_data));
 
       // update subscribe info
+      auto subscribe_info = std::make_shared<TopicSubscribeInfo>(topic, topic_route_data);
+      const auto& message_queues = subscribe_info->message_queues();
       {
         std::lock_guard<std::mutex> lock(consumer_table_mutex_);
         if (!consumer_table_.empty()) {
-          std::vector<MessageQueue> subscribeInfo = MakeTopicSubscribeInfo(topic, *topic_route_data);
           for (auto& it : consumer_table_) {
-            it.second->updateTopicSubscribeInfo(topic, subscribeInfo);
+            it.second->updateTopicSubscribeInfo(topic, message_queues);
           }
         }
       }
 
-      MapAccessor::InsertOrAssign(topic_route_table_, topic, topic_route_data, topic_route_table_mutex_);
+      topic_route_manager_->PutTopicRouteData(topic, std::move(topic_route_data));
     }
 
     LOG_DEBUG_NEW("updateTopicRouteInfoFromNameServer end:{}", topic);
@@ -368,7 +368,7 @@ bool MQClientInstance::UpdateTopicRouteInfoFromNameServer(const std::string& top
 }
 
 TopicRouteDataPtr MQClientInstance::GetTopicRouteData(const std::string& topic) {
-  return MapAccessor::GetOrDefault(topic_route_table_, topic, nullptr, topic_route_table_mutex_);
+  return topic_route_manager_->GetTopicRouteData(topic);
 }
 
 std::string MQClientInstance::FindBrokerAddressInPublish(const std::string& broker_name) {
@@ -478,7 +478,7 @@ std::string SelectBrokerAddr(const TopicRouteData& topic_route_data) {
 }  // namespace
 
 std::string MQClientInstance::FindBrokerAddrByTopic(const std::string& topic) {
-  auto topic_route_data = GetTopicRouteData(topic);
+  auto topic_route_data = topic_route_manager_->GetTopicRouteData(topic);
   if (topic_route_data != nullptr) {
     return SelectBrokerAddr(*topic_route_data);
   }
@@ -486,12 +486,10 @@ std::string MQClientInstance::FindBrokerAddrByTopic(const std::string& topic) {
 }
 
 TopicPublishInfoPtr MQClientInstance::FindTopicPublishInfo(const std::string& topic) {
-  auto topic_publish_info =
-      MapAccessor::GetOrDefault(topic_publish_info_table_, topic, nullptr, topic_publish_info_table_mutex_);
+  auto topic_publish_info = topic_route_manager_->GetTopicPublishInfo(topic);
   if (!topic_publish_info) {
     UpdateTopicRouteInfoFromNameServer(topic);
-    topic_publish_info =
-        MapAccessor::GetOrDefault(topic_publish_info_table_, topic, nullptr, topic_publish_info_table_mutex_);
+    topic_publish_info = topic_route_manager_->GetTopicPublishInfo(topic);
   }
 
   if (topic_publish_info && topic_publish_info->ok()) {
@@ -500,7 +498,7 @@ TopicPublishInfoPtr MQClientInstance::FindTopicPublishInfo(const std::string& to
 
   LOG_INFO_NEW("updateTopicRouteInfoFromNameServer with default");
   UpdateTopicRouteInfoFromNameServer(topic, true);
-  return MapAccessor::GetOrDefault(topic_publish_info_table_, topic, nullptr, topic_publish_info_table_mutex_);
+  return topic_route_manager_->GetTopicPublishInfo(topic);
 }
 
 void MQClientInstance::SendHeartbeatToAllBrokerPeriodically() {
@@ -529,7 +527,7 @@ void MQClientInstance::CleanOfflineBroker() {
 
     for (auto it2 = clone_address_table.begin(); it2 != clone_address_table.end();) {
       const auto& address = it2->second;
-      if (!IsBrokerAddrExist(address)) {
+      if (!topic_route_manager_->ContainsBrokerAddress(address)) {
         offline_brokers.insert(address);
         it2 = clone_address_table.erase(it2);
         LOG_INFO_NEW("the broker addr[{} {}] is offline, remove it", broker_name, address);
@@ -558,22 +556,6 @@ void MQClientInstance::CleanOfflineBroker() {
       }
     }
   }
-}
-
-bool MQClientInstance::IsBrokerAddrExist(const std::string& address) {
-  std::lock_guard<std::mutex> lock(topic_route_table_mutex_);
-  for (const auto& it : topic_route_table_) {
-    const auto& topic_route_data = it.second;
-    const auto& broker_datas = topic_route_data->broker_datas;
-    for (const auto& broker_data : broker_datas) {
-      for (const auto& it2 : broker_data.broker_addrs) {
-        if (it2.second == address) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
 }
 
 void MQClientInstance::SendHeartbeatToAllBrokerWithLock() {
