@@ -642,8 +642,8 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
   try {
     EndTransaction(*send_result, local_transaction_state, local_exception);
   } catch (MQException& e) {
-    LOG_WARN_NEW("local transaction execute {}, but end broker transaction failed: {}", local_transaction_state,
-                 e.what());
+    LOG_WARN_NEW("local transaction execute {}, but end broker transaction failed: {}",
+                 ToString(local_transaction_state), e.what());
   }
 
   // FIXME: setTransactionId will cause OOM?

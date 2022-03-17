@@ -17,9 +17,24 @@
 #ifndef ROCKETMQ_COMMON_SERVICESTATE_H_
 #define ROCKETMQ_COMMON_SERVICESTATE_H_
 
+#include <string>
+
 namespace rocketmq {
 
 enum class ServiceState { kCreateJust, kRunning, kShutdownAlready, kStartFailed };
+
+inline std::string ToString(ServiceState service_state) {
+  switch (service_state) {
+    case ServiceState::kCreateJust:
+      return "CREATED_JUST";
+    case ServiceState::kRunning:
+      return "RUNNING";
+    case ServiceState::kShutdownAlready:
+      return "SHUTDOWN_ALREADY";
+    case ServiceState::kStartFailed:
+      return "START_FAILED";
+  }
+}
 
 }  // namespace rocketmq
 

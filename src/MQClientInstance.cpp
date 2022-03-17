@@ -113,11 +113,11 @@ void MQClientInstance::Start() {
       service_state_ = ServiceState::kRunning;
       break;
     case ServiceState::kRunning:
-      LOG_INFO_NEW("the client instance [{}] already running.", client_id_, service_state_);
+      LOG_INFO_NEW("the client instance [{}] already running.", client_id_);
       break;
     case ServiceState::kShutdownAlready:
     case ServiceState::kStartFailed:
-      LOG_INFO_NEW("the client instance [{}] start failed with fault state:{}", client_id_, service_state_);
+      LOG_INFO_NEW("the client instance [{}] start failed with fault state:{}", client_id_, ToString(service_state_));
       break;
     default:
       break;

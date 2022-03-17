@@ -29,6 +29,21 @@ namespace rocketmq {
 
 enum class TcpConnectStatus { kCreated, kConnecting, kConnected, kFailed, kClosed };
 
+inline std::string ToString(TcpConnectStatus tcp_connect_status) {
+  switch (tcp_connect_status) {
+    case TcpConnectStatus::kCreated:
+      return "CREATED";
+    case TcpConnectStatus::kConnecting:
+      return "CONNECTING";
+    case TcpConnectStatus::kConnected:
+      return "CONNECTED";
+    case TcpConnectStatus::kFailed:
+      return "FAILED";
+    case TcpConnectStatus::kClosed:
+      return "CLOSED";
+  }
+}
+
 class TcpTransport;
 using TcpTransportPtr = std::shared_ptr<TcpTransport>;
 
