@@ -15,8 +15,8 @@
 
 project(rocketmq-client)
 
-option(BUILD_ROCKETMQ_STATIC "build rocketmq-client static library" OFF)
-option(BUILD_ROCKETMQ_SHARED "build rocketmq-client shared library" ON)
+option(BUILD_STATIC_LIBS "build rocketmq-client static library" OFF)
+option(BUILD_SHARED_LIBS "build rocketmq-client shared library" ON)
 
 # source files
 file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/../src/*.c*)
@@ -42,7 +42,7 @@ foreach(dir ${LIB_DIRS})
 endforeach()
 
 # static
-if(BUILD_ROCKETMQ_STATIC)
+if(BUILD_STATIC_LIBS)
   add_library(rocketmq_static STATIC ${SRC_FILES})
   target_include_directories(
     rocketmq_static PUBLIC ${CMAKE_SOURCE_DIR}/include ${SUB_DIRS}
@@ -63,7 +63,7 @@ if(BUILD_ROCKETMQ_STATIC)
 endif()
 
 # shared
-if(BUILD_ROCKETMQ_SHARED)
+if(BUILD_SHARED_LIBS)
   add_library(rocketmq_shared SHARED ${SRC_FILES})
   target_include_directories(
     rocketmq_shared PUBLIC ${CMAKE_SOURCE_DIR}/include ${SUB_DIRS}
@@ -81,7 +81,7 @@ if(BUILD_ROCKETMQ_SHARED)
 endif()
 
 # install
-if(BUILD_ROCKETMQ_STATIC)
+if(BUILD_STATIC_LIBS)
   install(TARGETS rocketmq_static DESTINATION lib)
   install(
     FILES

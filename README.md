@@ -33,7 +33,7 @@ yum install -y spdlog-devel libevent-devel jsoncpp-devel zlib-devel
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
   -DLibevent_USE_STATIC_LIBS=OFF -DJSONCPP_USE_STATIC_LIBS=OFF \
-  -DBUILD_ROCKETMQ_STATIC=OFF -DBUILD_ROCKETMQ_SHARED=ON \
+  -DBUILD_STATIC_LIBS=OFF -DBUILD_SHARED_LIBS=ON \
   -DRUN_UNIT_TEST=OFF ..
 
 # build librocketmq.so
@@ -63,7 +63,7 @@ apt install -y libspdlog-dev libevent-dev libjsoncpp-dev zlib1g-dev
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
   -DLibevent_USE_STATIC_LIBS=OFF -DJSONCPP_USE_STATIC_LIBS=OFF \
-  -DBUILD_ROCKETMQ_STATIC=OFF -DBUILD_ROCKETMQ_SHARED=ON \
+  -DBUILD_STATIC_LIBS=OFF -DBUILD_SHARED_LIBS=ON \
   -DRUN_UNIT_TEST=OFF ..
 
 # build librocketmq.so
@@ -87,7 +87,7 @@ brew install spdlog libevent jsoncpp zlib
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
   -DLibevent_USE_STATIC_LIBS=OFF -DJSONCPP_USE_STATIC_LIBS=OFF \
-  -DBUILD_ROCKETMQ_STATIC=OFF -DBUILD_ROCKETMQ_SHARED=ON \
+  -DBUILD_STATIC_LIBS=OFF -DBUILD_SHARED_LIBS=ON \
   -DRUN_UNIT_TEST=OFF ..
 
 # build librocketmq.so

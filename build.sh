@@ -276,12 +276,12 @@ BuildJsonCPP() {
 BuildRocketMQClient() {
   echo "============start to build rocketmq client cpp.========="
   if [ $test -eq 0 ]; then
-    cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_ROCKETMQ_STATIC=ON -DBUILD_ROCKETMQ_SHARED=OFF
+    cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF
   else
     if [ $codecov -eq 1 ]; then
-      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_ROCKETMQ_STATIC=ON -DBUILD_ROCKETMQ_SHARED=OFF -DRUN_UNIT_TEST=ON -DCODE_COVERAGE=ON
+      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DRUN_UNIT_TEST=ON -DCODE_COVERAGE=ON
     else
-      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_ROCKETMQ_STATIC=ON -DBUILD_ROCKETMQ_SHARED=OFF -DRUN_UNIT_TEST=ON
+      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DRUN_UNIT_TEST=ON
     fi
   fi
   if [ $verbose -eq 0 ]; then
