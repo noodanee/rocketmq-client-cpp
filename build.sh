@@ -15,23 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -ex
 
 basepath=$(
   cd $(dirname "$0")
   pwd
 )
-
-function version_lt() {
-  test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$2"
-}
-
-cmake_version=$(cmake --version | head -n 1 | awk '{ print $3; }')
-if version_lt "${cmake_version}" "3.15"; then
-  # shellcheck source=build.compatible.sh
-  "${basepath}/build.compatible.sh"
-  exit 0
-fi
 
 down_dir="${basepath}/tmp_down_dir"
 build_dir="${basepath}/tmp_build_dir"
@@ -39,10 +28,12 @@ install_lib_dir="${basepath}/bin"
 fname_spdlog="spdlog*.zip"
 fname_libevent="libevent*.zip"
 fname_jsoncpp="jsoncpp*.zip"
+fname_zlib="zlib*.zip"
 fname_gtest="googletest*.tar.gz"
-fname_spdlog_down="v1.5.0.zip"
-fname_libevent_down="release-2.1.11-stable.zip"
-fname_jsoncpp_down="0.10.6.zip"
+fname_spdlog_down="v1.13.0.zip"
+fname_libevent_down="release-2.1.12-stable.zip"
+fname_jsoncpp_down="1.9.5.zip"
+fname_zlib_down="1.3.1.zip"
 fname_gtest_down="release-1.10.0.tar.gz"
 
 PrintParams() {
@@ -56,6 +47,7 @@ PrintParams() {
 need_build_spdlog=1
 need_build_jsoncpp=1
 need_build_libevent=1
+need_build_zlib=1
 test=0
 verbose=1
 codecov=0
@@ -72,6 +64,9 @@ pasres_arguments() {
       ;;
     noEvent)
       need_build_libevent=0
+      ;;
+    noZlib)
+      need_build_zlib=0
       ;;
     noVerbose)
       verbose=0
@@ -183,7 +178,7 @@ BuildSpdlog() {
   else
     wget "https://github.com/gabime/spdlog/archive/${fname_spdlog_down}" -O "${down_dir}/spdlog-${fname_spdlog_down}"
   fi
-  unzip -o ${down_dir}/${fname_spdlog} -d "${down_dir}" >"${down_dir}/unzipspdlog.txt" 2>&1
+  unzip -o ${down_dir}/${fname_spdlog} -d "${down_dir}"
 
   spdlog_dir=$(ls -d ${down_dir}/spdlog* | grep -v zip)
 
@@ -208,24 +203,15 @@ BuildLibevent() {
   else
     wget "https://github.com/libevent/libevent/archive/${fname_libevent_down}" -O "${down_dir}/libevent-${fname_libevent_down}"
   fi
-  unzip -o ${down_dir}/${fname_libevent} -d "${down_dir}" >"${down_dir}/unziplibevent.txt" 2>&1
+  unzip -o ${down_dir}/${fname_libevent} -d "${down_dir}"
 
   libevent_dir=$(ls -d ${down_dir}/libevent* | grep -v zip)
 
   echo "build libevent static #####################"
   pushd "${libevent_dir}"
   ./autogen.sh
-  if [ $verbose -eq 0 ]; then
-    ./configure --disable-openssl --enable-static=yes --enable-shared=no CFLAGS=-fPIC CPPFLAGS=-fPIC --prefix="${install_lib_dir}" >libeventconfig.txt 2>&1
-  else
-    ./configure --disable-openssl --enable-static=yes --enable-shared=no CFLAGS=-fPIC CPPFLAGS=-fPIC --prefix="${install_lib_dir}"
-  fi
-  if [ $verbose -eq 0 ]; then
-    echo "build libevent without detail log."
-    make -j $cpu_num >"${down_dir}/libeventbuild.txt" 2>&1
-  else
-    make -j $cpu_num
-  fi
+  ./configure --disable-openssl --enable-static=yes --enable-shared=no CFLAGS=-fPIC CPPFLAGS=-fPIC --prefix="${install_lib_dir}"
+  make -j $cpu_num
   make install
   popd
 
@@ -248,22 +234,13 @@ BuildJsonCPP() {
   else
     wget "https://github.com/open-source-parsers/jsoncpp/archive/${fname_jsoncpp_down}" -O "${down_dir}/jsoncpp-${fname_jsoncpp_down}"
   fi
-  unzip -o ${down_dir}/${fname_jsoncpp} -d "${down_dir}" >"${down_dir}/unzipjsoncpp.txt" 2>&1
+  unzip -o ${down_dir}/${fname_jsoncpp} -d "${down_dir}"
 
   jsoncpp_dir=$(ls -d ${down_dir}/jsoncpp* | grep -v zip)
 
   echo "build jsoncpp static ######################"
-  if [ $verbose -eq 0 ]; then
-    echo "build jsoncpp without detail log."
-    cmake -S "${jsoncpp_dir}" -B "${jsoncpp_dir}/build" -DCMAKE_CXX_FLAGS=-fPIC -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="${install_lib_dir}" >jsoncppbuild.txt 2>&1
-  else
-    cmake -S "${jsoncpp_dir}" -B "${jsoncpp_dir}/build" -DCMAKE_CXX_FLAGS=-fPIC -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="${install_lib_dir}"
-  fi
-  if [ $verbose -eq 0 ]; then
-    cmake --build "${jsoncpp_dir}/build" >"${down_dir}/jsoncppbuild.txt" 2>&1
-  else
-    cmake --build "${jsoncpp_dir}/build"
-  fi
+  cmake -S "${jsoncpp_dir}" -B "${jsoncpp_dir}/build" -DJSONCPP_WITH_POST_BUILD_UNITTEST=0 -DCMAKE_CXX_FLAGS=-fPIC -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="${install_lib_dir}"
+  cmake --build "${jsoncpp_dir}/build"
   cmake --install "${jsoncpp_dir}/build"
   if [ ! -f "${install_lib_dir}/lib/libjsoncpp.a" ]; then
     echo " ./bin/lib directory is not libjsoncpp.a"
@@ -273,23 +250,49 @@ BuildJsonCPP() {
   echo "build jsoncpp success."
 }
 
+BuildZlib() {
+  if [ $need_build_zlib -eq 0 ]; then
+    echo "no need build zlib lib"
+    return 0
+  fi
+
+  if [ -d "${basepath}/bin/include/zlib" ]; then
+    echo "zlib already exist no need build test"
+    return 0
+  fi
+
+  if [ -e ${down_dir}/${fname_zlib} ]; then
+    echo "${fname_zlib} is exist"
+  else
+    wget "https://github.com/madler/zlib/releases/download/v1.3.1/zlib131.zip" -O "${down_dir}/zlib-1.3.1.zip"
+  fi
+  unzip -o ${down_dir}/${fname_zlib} -d "${down_dir}"
+
+  zlib_dir=$(ls -d ${down_dir}/zlib* | grep -v zip)
+
+  echo "build zlib static ######################"
+  pushd "${zlib_dir}"
+  export CFLAGS="-fPIC"
+  ./configure --static --prefix="${install_lib_dir}"
+  make -j $cpu_num
+  make install
+  popd
+
+  echo "build zlib success."
+}
+
 BuildRocketMQClient() {
   echo "============start to build rocketmq client cpp.========="
   if [ $test -eq 0 ]; then
-    cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF
+    cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DZLIB_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF
   else
     if [ $codecov -eq 1 ]; then
-      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DRUN_UNIT_TEST=ON -DCODE_COVERAGE=ON
+      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DZLIB_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DRUN_UNIT_TEST=ON -DCODE_COVERAGE=ON
     else
-      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DRUN_UNIT_TEST=ON
+      cmake -S "${basepath}" -B "${build_dir}" -DLibevent_USE_STATIC_LIBS=ON -DJSONCPP_USE_STATIC_LIBS=ON -DZLIB_USE_STATIC_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DRUN_UNIT_TEST=ON
     fi
   fi
-  if [ $verbose -eq 0 ]; then
-    echo "build rocketmq without detail log."
-    cmake --build "${build_dir}" >"${build_dir}/buildclient.txt" 2>&1
-  else
-    cmake --build "${build_dir}"
-  fi
+  cmake --build "${build_dir}"
   #sudo cmake --install "${build_dir}"
 }
 
@@ -314,17 +317,8 @@ BuildGoogleTest() {
   gtest_dir=$(ls -d ${down_dir}/googletest* | grep -v tar)
 
   echo "build googletest static #####################"
-  if [ $verbose -eq 0 ]; then
-    echo "build googletest without detail log."
-    cmake -S "${gtest_dir}" -B "${gtest_dir}/build" -DCMAKE_CXX_FLAGS=-fPIC -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="${install_lib_dir}" >"${down_dir}/googletestbuild.txt" 2>&1
-  else
-    cmake -S "${gtest_dir}" -B "${gtest_dir}/build" -DCMAKE_CXX_FLAGS=-fPIC -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="${install_lib_dir}"
-  fi
-  if [ $verbose -eq 0 ]; then
-    cmake --build "${gtest_dir}/build" >"${down_dir}/gtestbuild.txt" 2>&1
-  else
-    cmake --build "${gtest_dir}/build"
-  fi
+  cmake -S "${gtest_dir}" -B "${gtest_dir}/build" -DCMAKE_CXX_FLAGS=-fPIC -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="${install_lib_dir}"
+  cmake --build "${gtest_dir}/build"
   cmake --install "${gtest_dir}/build"
 
   if [ ! -f "${install_lib_dir}/lib/libgtest.a" ]; then
@@ -353,6 +347,7 @@ Prepare
 BuildSpdlog
 BuildLibevent
 BuildJsonCPP
+BuildZlib
 BuildGoogleTest
 BuildRocketMQClient
 ExecutionTesting

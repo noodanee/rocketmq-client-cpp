@@ -46,15 +46,15 @@ if(BUILD_STATIC_LIBS)
   add_library(rocketmq_static STATIC ${SRC_FILES})
   target_include_directories(
     rocketmq_static PUBLIC ${CMAKE_SOURCE_DIR}/include ${SUB_DIRS}
-                           ${JSONCPP_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS})
+                           ${JSONCPP_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
   if(spdlog_FOUND)
     target_link_libraries(
       rocketmq_static PUBLIC ${deplibs} Signature ${JSONCPP_LIBRARIES}
-                             ${LIBEVENT_LIBRARIES} spdlog::spdlog)
+                             ${LIBEVENT_LIBRARIES} ${ZLIB_LIBRARIES} spdlog::spdlog)
   else(spdlog_FOUND)
     target_link_libraries(
       rocketmq_static PUBLIC ${deplibs} Signature ${JSONCPP_LIBRARIES}
-                             ${LIBEVENT_LIBRARIES})
+                             ${LIBEVENT_LIBRARIES} ${ZLIB_LIBRARIES})
   endif(spdlog_FOUND)
   # set_target_properties(rocketmq_static PROPERTIES OUTPUT_NAME "rocketmq")
 
@@ -67,15 +67,15 @@ if(BUILD_SHARED_LIBS)
   add_library(rocketmq_shared SHARED ${SRC_FILES})
   target_include_directories(
     rocketmq_shared PUBLIC ${CMAKE_SOURCE_DIR}/include ${SUB_DIRS}
-                           ${JSONCPP_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS})
+                           ${JSONCPP_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
   if(spdlog_FOUND)
     target_link_libraries(
       rocketmq_shared PUBLIC ${deplibs} Signature ${JSONCPP_LIBRARIES}
-                             ${LIBEVENT_LIBRARIES} spdlog::spdlog)
+                             ${LIBEVENT_LIBRARIES} ${ZLIB_LIBRARIES} spdlog::spdlog)
   else(spdlog_FOUND)
     target_link_libraries(
       rocketmq_shared PUBLIC ${deplibs} Signature ${JSONCPP_LIBRARIES}
-                             ${LIBEVENT_LIBRARIES})
+                             ${LIBEVENT_LIBRARIES} ${ZLIB_LIBRARIES})
   endif(spdlog_FOUND)
   set_target_properties(rocketmq_shared PROPERTIES OUTPUT_NAME "rocketmq")
 endif()

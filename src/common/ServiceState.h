@@ -23,7 +23,7 @@ namespace rocketmq {
 
 enum class ServiceState { kCreateJust, kRunning, kShutdownAlready, kStartFailed };
 
-inline std::string ToString(ServiceState service_state) {
+inline std::string toString(ServiceState service_state) {
   switch (service_state) {
     case ServiceState::kCreateJust:
       return "CREATED_JUST";

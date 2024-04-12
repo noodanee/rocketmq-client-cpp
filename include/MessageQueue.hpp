@@ -66,7 +66,7 @@ class ROCKETMQCLIENT_API MessageQueue {
     return queue_id_ - other.queue_id_;
   }
 
-  std::string ToString() const {
+  std::string toString() const {
     std::stringstream ss;
     ss << "MessageQueue [topic=" << topic_ << ", brokerName=" << broker_name_ << ", queueId=" << queue_id_ << "]";
     return ss.str();

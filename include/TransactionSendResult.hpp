@@ -23,7 +23,7 @@ namespace rocketmq {
 
 enum class LocalTransactionState { kCommitMessage, kRollbackMessage, kUnknown };
 
-inline std::string ToString(LocalTransactionState local_transaction_state) {
+inline std::string toString(LocalTransactionState local_transaction_state) {
   switch (local_transaction_state) {
     case LocalTransactionState::kCommitMessage:
       return "COMMIT_MESSAGE";

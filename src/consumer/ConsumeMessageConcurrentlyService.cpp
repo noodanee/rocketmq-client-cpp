@@ -61,13 +61,13 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
   const auto& messageQueue = processQueue->message_queue();
   if (processQueue->dropped()) {
     LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. group={} {}",
-                 consumer_->config().group_name(), messageQueue.ToString());
+                 consumer_->config().group_name(), messageQueue.toString());
     return;
   }
 
   // empty
   if (msgs.empty()) {
-    LOG_WARN_NEW("the msg of pull result is EMPTY, its mq:{}", messageQueue.ToString());
+    LOG_WARN_NEW("the msg of pull result is EMPTY, its mq:{}", messageQueue.toString());
     return;
   }
 
@@ -89,7 +89,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
   }
 
   if (processQueue->dropped()) {
-    LOG_WARN_NEW("processQueue is dropped without process consume result. messageQueue={}", messageQueue.ToString());
+    LOG_WARN_NEW("processQueue is dropped without process consume result. messageQueue={}", messageQueue.toString());
     return;
   }
 
@@ -122,7 +122,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
       int idx = ackIndex + 1;
       for (auto iter = msgs.begin() + idx; iter != msgs.end(); idx++) {
         LOG_WARN_NEW("consume fail, MQ is:{}, its msgId is:{}, index is:{}, reconsume times is:{}",
-                     messageQueue.ToString(), (*iter)->msg_id(), idx, (*iter)->reconsume_times());
+                     messageQueue.toString(), (*iter)->msg_id(), idx, (*iter)->reconsume_times());
         auto& msg = (*iter);
         bool result = consumer_->SendMessageBack(msg, 0, messageQueue.broker_name());
         if (!result) {

@@ -216,7 +216,7 @@ CommandCustomHeader* RemotingCommand::GetHeader() const {
   return header_.get();
 }
 
-std::string RemotingCommand::ToString() const {
+std::string RemotingCommand::toString() const {
   std::stringstream ss;
   ss << "code:" << code_ << ", opaque:" << opaque_ << ", flag:" << flag_ << ", body.size:" << body_->size();
   return ss.str();

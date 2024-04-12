@@ -20,7 +20,7 @@ namespace rocketmq {
 
 std::string PullRequest::toString() const {
   std::stringstream ss;
-  ss << "PullRequest [consumerGroup=" << consumer_group_ << ", messageQueue=" << message_queue().ToString()
+  ss << "PullRequest [consumerGroup=" << consumer_group_ << ", messageQueue=" << message_queue().toString()
      << ", nextOffset=" << next_offset() << "]";
   return ss.str();
 }

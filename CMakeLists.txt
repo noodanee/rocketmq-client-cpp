@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 # CMake complains if we don't have this.
 if(COMMAND cmake_policy)
@@ -69,9 +69,17 @@ option(JSONCPP_USE_STATIC_LIBS "only find jsoncpp static libs" OFF)
 if(NOT JSONCPP_ROOT)
   set(JSONCPP_ROOT ${CMAKE_SOURCE_DIR}/bin)
 endif()
-find_package(Jsoncpp 0.10.6 REQUIRED)
+find_package(Jsoncpp 1.9.5 REQUIRED)
 message(STATUS "** JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "** JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
+
+option(ZLIB_USE_STATIC_LIBS "only find zlib static libs" OFF)
+if(NOT ZLIB_ROOT)
+  set(ZLIB_ROOT ${CMAKE_SOURCE_DIR}/bin)
+endif()
+find_package(Zlib 1.3.1 REQUIRED)
+message(STATUS "** ZLIB_INCLUDE_DIRS: ${ZLIB_INCLUDE_DIRS}")
+message(STATUS "** ZLIB_LIBRARIES: ${ZLIB_LIBRARIES}")
 
 # Set compile options
 include(CheckCCompilerFlag)
@@ -110,7 +118,7 @@ if(WIN32)
     add_compile_options(/MTd)
   endif()
 else()
-  add_compile_options(-Wall -Wno-deprecated -fPIC -fno-strict-aliasing
+  add_compile_options(-Wall -Wno-deprecated -fPIC -fno-strict-aliasing -fpermissive
                       -Wno-unused-local-typedef -Wno-expansion-to-defined)
 
   if(CMAKE_BUILD_BITS EQUAL 32)
@@ -132,7 +140,7 @@ else()
   if(NOT APPLE)
     list(APPEND deplibs rt)
   endif()
-  list(APPEND deplibs z)
+#  list(APPEND deplibs z)
 
   option(CODE_COVERAGE "Enable coverage reporting" OFF)
   if(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

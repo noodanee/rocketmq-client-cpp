@@ -425,7 +425,7 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
 
   if (process_queue->paused()) {
     ExecutePullRequestLater(pull_request, PULL_TIME_DELAY_MILLS_WHEN_PAUSE);
-    LOG_DEBUG_NEW("Message Queue: {} has been paused!", message_queue.ToString());
+    LOG_DEBUG_NEW("Message Queue: {} has been paused!", message_queue.toString());
     return;
   }
 
@@ -538,7 +538,7 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
         consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
       } else {
         if (pull_result->pull_status() == PullStatus::kOffsetIllegal) {
-          LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->ToString());
+          LOG_WARN_NEW("The pull request offset illegal, {}", pull_result->toString());
         }
         consumer->ExecutePullRequestImmediately(pull_request);
       }
@@ -664,11 +664,11 @@ void DefaultLitePullConsumerImpl::Seek(const MessageQueue& message_queue, int64_
     if (subscription_type_ == SubscriptionType::kSubscribe) {
       THROW_MQEXCEPTION(
           MQClientException,
-          "The message queue is not in assigned list, may be rebalancing, message queue: " + message_queue.ToString(),
+          "The message queue is not in assigned list, may be rebalancing, message queue: " + message_queue.toString(),
           -1);
     }
     THROW_MQEXCEPTION(MQClientException,
-                      "The message queue is not in assigned list, message queue: " + message_queue.ToString(), -1);
+                      "The message queue is not in assigned list, message queue: " + message_queue.toString(), -1);
   }
   long min_offset = minOffset(message_queue);
   long max_offset = maxOffset(message_queue);

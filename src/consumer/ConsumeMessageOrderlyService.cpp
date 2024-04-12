@@ -110,7 +110,7 @@ void ConsumeMessageOrderlyService::tryLockLaterAndReconsume(ProcessQueuePtr proc
 void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) {
   const auto& messageQueue = processQueue->message_queue();
   if (processQueue->dropped()) {
-    LOG_WARN_NEW("run, the message queue not be able to consume, because it's dropped. {}", messageQueue.ToString());
+    LOG_WARN_NEW("run, the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
     return;
   }
 
@@ -122,18 +122,18 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
     auto beginTime = UtilAll::currentTimeMillis();
     for (bool continueConsume = true; continueConsume;) {
       if (processQueue->dropped()) {
-        LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.ToString());
+        LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
         break;
       }
 
       if (CLUSTERING == consumer_->messageModel() && !processQueue->locked()) {
-        LOG_WARN_NEW("the message queue not locked, so consume later, {}", messageQueue.ToString());
+        LOG_WARN_NEW("the message queue not locked, so consume later, {}", messageQueue.toString());
         tryLockLaterAndReconsume(processQueue, 10);
         break;
       }
 
       if (CLUSTERING == consumer_->messageModel() && processQueue->IsLockExpired()) {
-        LOG_WARN_NEW("the message queue lock expired, so consume later, {}", messageQueue.ToString());
+        LOG_WARN_NEW("the message queue lock expired, so consume later, {}", messageQueue.toString());
         tryLockLaterAndReconsume(processQueue, 10);
         break;
       }
@@ -154,7 +154,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
           std::lock_guard<std::timed_mutex> lock(processQueue->consume_mutex());
           if (processQueue->dropped()) {
             LOG_WARN_NEW("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
-                         messageQueue.ToString());
+                         messageQueue.toString());
             break;
           }
           status = message_listener_(msgs);
@@ -186,7 +186,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
     }
   } else {
     if (processQueue->dropped()) {
-      LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.ToString());
+      LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
       return;
     }
 

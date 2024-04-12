@@ -30,7 +30,7 @@ namespace rocketmq {
 
 enum class PullStatus { kFound, kNoNewMessage, kNoMatchedMessage, kNoLatestMessage, kOffsetIllegal };
 
-inline std::string ToString(PullStatus send_status) {
+inline std::string toString(PullStatus send_status) {
   switch (send_status) {
     case PullStatus::kFound:
       return "FOUND";
@@ -58,10 +58,10 @@ class PullResult {
         max_offset_(max_offset),
         found_message_list_(std::move(found_message_list)) {}
 
-  std::string ToString() const {
+  std::string toString() const {
     std::stringstream ss;
     ss << "PullResult [";
-    ss << " pullStatus=" << ::rocketmq::ToString(pull_status_);
+    ss << " pullStatus=" << ::rocketmq::toString(pull_status_);
     ss << ", nextBeginOffset=" << next_begin_offset_;
     ss << ", minOffset=" << min_offset_;
     ss << ", maxOffset=" << max_offset_;

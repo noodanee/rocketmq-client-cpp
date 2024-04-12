@@ -29,7 +29,7 @@ namespace rocketmq {
 
 enum class SendStatus { kSendOk, kSendFlushDiskTimeout, kSendFlushSlaveTimeout, kSendSlaveNotAvailable };
 
-inline std::string ToString(SendStatus send_status) {
+inline std::string toString(SendStatus send_status) {
   switch (send_status) {
     case SendStatus::kSendOk:
       return "SEND_OK";
@@ -57,15 +57,15 @@ class ROCKETMQCLIENT_API SendResult {
         queue_offset_(queue_offset),
         transaction_id_(std::move(transaction_id)) {}
 
-  std::string ToString() const {
+  std::string toString() const {
     std::stringstream ss;
     ss << "SendResult [";
-    ss << " sendStatus=" << ::rocketmq::ToString(send_status_);
+    ss << " sendStatus=" << ::rocketmq::toString(send_status_);
     ss << ", msgId=" << message_id_;
     ss << ", offsetMsgId=" << offset_message_id_;
     ss << ", queueOffset=" << queue_offset_;
     ss << ", transactionId=" << transaction_id_;
-    ss << ", messageQueue=" << message_queue_.ToString();
+    ss << ", messageQueue=" << message_queue_.toString();
     ss << " ]";
     return ss.str();
   }

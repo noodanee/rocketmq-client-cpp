@@ -594,7 +594,7 @@ bool TcpRemotingClient::CloseTransport(const std::string& address, const TcpTran
     transport_table_.erase(address);
   }
 
-  LOG_WARN_NEW("closeTransport: disconnect:{} with state:{}", address, ToString(channel->LoadStatus()));
+  LOG_WARN_NEW("closeTransport: disconnect:{} with state:{}", address, toString(channel->LoadStatus()));
   if (channel->LoadStatus() != TcpConnectStatus::kClosed) {
     channel->Disconnect(address);  // avoid coredump when connection with server was broken
   }

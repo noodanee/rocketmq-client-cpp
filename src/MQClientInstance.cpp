@@ -60,7 +60,9 @@ MQClientInstance::MQClientInstance(const MQClientConfig& client_config, std::str
       rebalance_service_(MakeUnique<RebalanceService>(this)),
       pull_message_service_(MakeUnique<PullMessageService>(this)),
       scheduled_executor_service_("MQClient", false) {
+
   // default Topic register
+  topic_route_manager_ = MakeUnique<TopicRouteManager>();
   topic_route_manager_->PutTopicPublishInfo(AUTO_CREATE_TOPIC_KEY_TOPIC, std::make_shared<TopicPublishInfo>());
 
   client_remoting_processor_ = MakeUnique<ClientRemotingProcessor>(this);
@@ -117,7 +119,7 @@ void MQClientInstance::Start() {
       break;
     case ServiceState::kShutdownAlready:
     case ServiceState::kStartFailed:
-      LOG_INFO_NEW("the client instance [{}] start failed with fault state:{}", client_id_, ToString(service_state_));
+      LOG_INFO_NEW("the client instance [{}] start failed with fault state:{}", client_id_, toString(service_state_));
       break;
     default:
       break;

@@ -415,7 +415,7 @@ void DefaultMQPushConsumerImpl::pullMessage(PullRequestPtr pull_request) {
           consumer->ExecutePullRequestLater(pull_request, consumer->config().pull_time_delay_millis_when_exception());
           break;
         case PullStatus::kOffsetIllegal: {
-          LOG_WARN_NEW("the pull request offset illegal, {} {}", pull_request->toString(), pull_result->ToString());
+          LOG_WARN_NEW("the pull request offset illegal, {} {}", pull_request->toString(), pull_result->toString());
 
           pull_request->set_next_offset(pull_result->next_begin_offset());
           pull_request->process_queue()->set_dropped(true);
@@ -529,7 +529,7 @@ void DefaultMQPushConsumerImpl::UpdateConsumeOffset(const MessageQueue& message_
   if (offset >= 0) {
     offset_store_->updateOffset(message_queue, offset, false);
   } else {
-    LOG_ERROR_NEW("updateConsumeOffset of mq:{} error", message_queue.ToString());
+    LOG_ERROR_NEW("updateConsumeOffset of mq:{} error", message_queue.toString());
   }
 }
 

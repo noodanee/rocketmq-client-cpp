@@ -35,7 +35,7 @@ void SyncProducerWorker(RocketmqSendAndConsumerArgs* info, DefaultMQProducer* pr
 
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       if (duration.count() >= 500) {
-        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.message_id << std::endl;
+        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.message_id() << std::endl;
       }
     } catch (const MQException& e) {
       std::cout << "send failed: " << e.what() << std::endl;

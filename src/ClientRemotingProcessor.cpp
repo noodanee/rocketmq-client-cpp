@@ -97,7 +97,7 @@ std::unique_ptr<RemotingCommand> ClientRemotingProcessor::checkTransactionState(
       LOG_WARN_NEW("checkTransactionState, decode message failed");
     }
   } else {
-    LOG_ERROR_NEW("checkTransactionState, request body is empty, request header: {}", requestHeader->ToString());
+    LOG_ERROR_NEW("checkTransactionState, request body is empty, request header: {}", requestHeader->toString());
   }
 
   return nullptr;

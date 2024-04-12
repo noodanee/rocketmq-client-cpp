@@ -70,7 +70,7 @@ class ROCKETMQCLIENT_API RemotingCommand {
   template <class H>
   H* DecodeHeader(bool use_cache = true);
 
-  std::string ToString() const;
+  std::string toString() const;
 
  public:
   int32_t code() const { return code_; }

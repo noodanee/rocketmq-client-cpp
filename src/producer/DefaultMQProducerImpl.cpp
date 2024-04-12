@@ -555,7 +555,7 @@ std::unique_ptr<SendResult> DefaultMQProducerImpl::SendKernelImpl(const MessageP
         THROW_MQEXCEPTION(RemotingTooMuchRequestException, "sendKernelImpl call timeout", -1);
       }
 
-      LOG_DEBUG_NEW("send to mq: {}", message_queue.ToString());
+      LOG_DEBUG_NEW("send to mq: {}", message_queue.toString());
       return client_instance_->GetMQClientAPIImpl()->SendMessage(broker_addr, message_queue.broker_name(), message,
                                                                  std::move(request_header), timeout, communication_mode,
                                                                  std::move(send_callback));
@@ -633,7 +633,7 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
     case SendStatus::kSendFlushSlaveTimeout:
     case SendStatus::kSendSlaveNotAvailable:
       local_transaction_state = LocalTransactionState::kRollbackMessage;
-      LOG_WARN_NEW("sendMessageInTransaction, send not ok, rollback, result:{}", send_result->ToString());
+      LOG_WARN_NEW("sendMessageInTransaction, send not ok, rollback, result:{}", send_result->toString());
       break;
     default:
       break;
@@ -643,7 +643,7 @@ std::unique_ptr<TransactionSendResult> DefaultMQProducerImpl::SendInTransactionI
     EndTransaction(*send_result, local_transaction_state, local_exception);
   } catch (MQException& e) {
     LOG_WARN_NEW("local transaction execute {}, but end broker transaction failed: {}",
-                 ToString(local_transaction_state), e.what());
+                 toString(local_transaction_state), e.what());
   }
 
   // FIXME: setTransactionId will cause OOM?

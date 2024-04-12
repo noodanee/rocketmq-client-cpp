@@ -24,14 +24,14 @@ TpsReportService g_tps;
 class MyTransactionListener : public TransactionListener {
   virtual LocalTransactionState executeLocalTransaction(const MQMessage& msg, void* arg) {
     LocalTransactionState state = (LocalTransactionState)(((intptr_t)arg) % 3);
-    std::cout << "executeLocalTransaction transactionId:" << msg.transaction_id() << ", return state: " << state
+    std::cout << "executeLocalTransaction transactionId:" << msg.transaction_id() << ", return state: " << toString(state)
               << std::endl;
     return state;
   }
 
   virtual LocalTransactionState checkLocalTransaction(const MQMessageExt& msg) {
     std::cout << "checkLocalTransaction enter msg:" << msg.toString() << std::endl;
-    return LocalTransactionState::COMMIT_MESSAGE;
+    return LocalTransactionState::kCommitMessage;
   }
 };
 
@@ -51,7 +51,7 @@ void SyncProducerWorker(RocketmqSendAndConsumerArgs* info, TransactionMQProducer
 
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       if (duration.count() >= 500) {
-        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.msg_id() << std::endl;
+        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.message_id() << std::endl;
       }
     } catch (const MQException& e) {
       std::cout << "send failed: " << e.what() << std::endl;

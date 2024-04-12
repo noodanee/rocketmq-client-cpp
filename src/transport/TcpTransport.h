@@ -29,7 +29,7 @@ namespace rocketmq {
 
 enum class TcpConnectStatus { kCreated, kConnecting, kConnected, kFailed, kClosed };
 
-inline std::string ToString(TcpConnectStatus tcp_connect_status) {
+inline std::string toString(TcpConnectStatus tcp_connect_status) {
   switch (tcp_connect_status) {
     case TcpConnectStatus::kCreated:
       return "CREATED";

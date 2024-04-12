@@ -70,7 +70,7 @@ struct CheckTransactionStateRequestHeader : public CommandCustomHeader {
     request_map.emplace("offsetMsgId", offset_message_id);
   }
 
-  std::string ToString() const {
+  std::string toString() const {
     std::stringstream ss;
     ss << "CheckTransactionStateRequestHeader:";
     ss << " tranStateTableOffset:" << transaction_state_table_offset;

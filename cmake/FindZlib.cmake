@@ -13,32 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Find jsoncpp
+# Find zlib
 #
-# Find the jsoncpp includes and library
+# Find the zlib includes and library
 #
 # if you nee to add a custom library search path, do it via CMAKE_PREFIX_PATH
 #
 # -*- cmake -*-
-# - Find JSONCpp
-# Find the JSONCpp includes and library
+# - Find Zlib
+# Find the Zlib includes and library
 #
 # This module define the following variables:
 #
-#  JSONCPP_FOUND, If false, do not try to use jsoncpp.
-#  JSONCPP_INCLUDE_DIRS, where to find json.h, etc.
-#  JSONCPP_LIBRARIES, the libraries needed to use jsoncpp.
+#  ZLIB_FOUND, If false, do not try to use zlib.
+#  ZLIB_INCLUDE_DIRS, where to find zlib.h, etc.
+#  ZLIB_LIBRARIES, the libraries needed to use zlib.
 
 # Support preference of static libs by adjusting CMAKE_FIND_LIBRARY_SUFFIXES
-if(JSONCPP_USE_STATIC_LIBS)
-  set(_jsoncpp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES :${CMAKE_FIND_LIBRARY_SUFFIXES})
+if(ZLIB_USE_STATIC_LIBS)
+  set(_zlib_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES :${CMAKE_FIND_LIBRARY_SUFFIXES})
   if(WIN32)
     list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 .lib .a)
   else()
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
   endif()
 else()
-  set(_jsoncpp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES :${CMAKE_FIND_LIBRARY_SUFFIXES})
+  set(_zlib_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES :${CMAKE_FIND_LIBRARY_SUFFIXES})
   if(WIN32)
     list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 .dll .so)
   elseif(APPLE)
@@ -48,42 +48,41 @@ else()
   endif()
 endif()
 
-set(JSONCPP_INCLUDE_SEARCH_PATH /usr/local/include /usr/include)
-set(JSONCPP_LIBRARIES_SEARCH_PATH /usr/local/lib /usr/lib)
-if(JSONCPP_ROOT)
-  list(INSERT JSONCPP_INCLUDE_SEARCH_PATH 0 ${JSONCPP_ROOT}/include)
-  list(INSERT JSONCPP_LIBRARIES_SEARCH_PATH 0 ${JSONCPP_ROOT}/lib)
+set(ZLIB_INCLUDE_SEARCH_PATH /usr/local/include /usr/include)
+set(ZLIB_LIBRARIES_SEARCH_PATH /usr/local/lib /usr/lib)
+if(ZLIB_ROOT)
+  list(INSERT ZLIB_INCLUDE_SEARCH_PATH 0 ${ZLIB_ROOT}/include)
+  list(INSERT ZLIB_LIBRARIES_SEARCH_PATH 0 ${ZLIB_ROOT}/lib)
 endif()
 
 find_path(
-  JSONCPP_JSON_DIR
-  NAMES json/json.h json.h
-  PATHS ${JSONCPP_INCLUDE_SEARCH_PATH}
-  PATH_SUFFIXES jsoncpp
+  ZLIB_ZLIB_DIR
+  NAMES zlib.h
+  PATHS ${ZLIB_INCLUDE_SEARCH_PATH}
   NO_DEFAULT_PATH)
 
 find_library(
-  JSONCPP_JSONCPP_LIBRARY
-  NAMES jsoncpp
-  PATHS ${JSONCPP_LIBRARIES_SEARCH_PATH}
+  ZLIB_ZLIB_LIBRARY
+  NAMES z
+  PATHS ${ZLIB_LIBRARIES_SEARCH_PATH}
   NO_DEFAULT_PATH)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Jsoncpp
-        REQUIRED_VARS JSONCPP_JSON_DIR
-        VERSION_VAR 1.9.5
+find_package_handle_standard_args(Zlib
+        REQUIRED_VARS ZLIB_ZLIB_DIR
+        VERSION_VAR 1.3.1
         HANDLE_COMPONENTS)
 
-if(JSONCPP_FOUND)
-  set(JSONCPP_INCLUDE_DIRS ${JSONCPP_JSON_DIR})
-  set(JSONCPP_LIBRARIES ${JSONCPP_JSONCPP_LIBRARY})
-endif(JSONCPP_FOUND)
-unset(JSONCPP_JSON_DIR)
-unset(JSONCPP_JSONCPP_LIBRARY)
+if(ZLIB_FOUND)
+  set(ZLIB_INCLUDE_DIRS ${ZLIB_ZLIB_DIR})
+  set(ZLIB_LIBRARIES ${ZLIB_ZLIB_LIBRARY})
+endif(ZLIB_FOUND)
+unset(ZLIB_ZLIB_DIR)
+unset(ZLIB_ZLIB_LIBRARY)
 
-mark_as_advanced(JSONCPP_INCLUDE_DIRS JSONCPP_LIBRARIES)
+mark_as_advanced(ZLIB_INCLUDE_DIRS ZLIB_LIBRARIES)
 
 # Restore the original find library ordering
-if(JSONCPP_USE_STATIC_LIBS)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_jsoncpp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
+if(ZLIB_USE_STATIC_LIBS)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_zlib_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
 endif()

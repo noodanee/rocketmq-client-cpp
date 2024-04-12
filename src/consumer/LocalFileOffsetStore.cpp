@@ -65,7 +65,7 @@ void LocalFileOffsetStore::load() {
     for (const auto& it : offsetTable) {
       const auto& mq = it.first;
       const auto offset = it.second;
-      LOG_INFO_NEW("load consumer's offset, {} {} {}", group_name_, mq.ToString(), offset);
+      LOG_INFO_NEW("load consumer's offset, {} {} {}", group_name_, mq.toString(), offset);
     }
   }
 }

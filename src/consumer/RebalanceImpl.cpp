@@ -102,7 +102,7 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
             consumer_group_, topic, client_instance_->GetClientId(), mqAll.size(), cidAll.size(),
             allocateResult.size());
         for (auto& mq : allocateResult) {
-          LOG_INFO_NEW("allocate mq:{}", mq.ToString());
+          LOG_INFO_NEW("allocate mq:{}", mq.toString());
         }
         messageQueueChanged(topic, mqAll, allocateResult);
       }
@@ -217,7 +217,7 @@ void RebalanceImpl::setTopicSubscribeInfo(const std::string& topic, const std::v
 
   // log
   for (const auto& mq : mqs) {
-    LOG_DEBUG_NEW("topic [{}] has :{}", topic, mq.ToString());
+    LOG_DEBUG_NEW("topic [{}] has :{}", topic, mq.toString());
   }
 }
 

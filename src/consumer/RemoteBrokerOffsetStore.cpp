@@ -91,7 +91,7 @@ void RemoteBrokerOffsetStore::persist(const MessageQueue& mq) {
     try {
       updateConsumeOffsetToBroker(mq, offset);
       LOG_INFO_NEW("[persist] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", group_name_,
-                   client_instance_->GetClientId(), mq.ToString(), offset);
+                   client_instance_->GetClientId(), mq.toString(), offset);
     } catch (MQException& e) {
       LOG_ERROR("updateConsumeOffsetToBroker error");
     }
@@ -121,9 +121,9 @@ void RemoteBrokerOffsetStore::persistAll(std::vector<MessageQueue>& mqs) {
         try {
           updateConsumeOffsetToBroker(mq, offset);
           LOG_INFO_NEW("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", group_name_,
-                       client_instance_->GetClientId(), mq.ToString(), offset);
+                       client_instance_->GetClientId(), mq.toString(), offset);
         } catch (std::exception& e) {
-          LOG_ERROR_NEW("updateConsumeOffsetToBroker exception, {} {}", mq.ToString(), e.what());
+          LOG_ERROR_NEW("updateConsumeOffsetToBroker exception, {} {}", mq.toString(), e.what());
         }
       } else {
         unused_mqs.push_back(mq);
@@ -135,7 +135,7 @@ void RemoteBrokerOffsetStore::persistAll(std::vector<MessageQueue>& mqs) {
     std::lock_guard<std::mutex> lock(lock_);
     for (const auto& mq : unused_mqs) {
       offset_table_.erase(mq);
-      LOG_INFO_NEW("remove unused mq, {}, {}", mq.ToString(), group_name_);
+      LOG_INFO_NEW("remove unused mq, {}, {}", mq.toString(), group_name_);
     }
   }
 }

@@ -37,7 +37,7 @@ struct LockBatchResult {
       MessageQueue message_queue(message_queue_object["topic"].asString(),
                                  message_queue_object["brokerName"].asString(),
                                  message_queue_object["queueId"].asInt());
-      LOG_INFO_NEW("LockBatchResult MQ:{}", message_queue.ToString());
+      LOG_INFO_NEW("LockBatchResult MQ:{}", message_queue.toString());
       body->lock_ok_message_queue_set.push_back(std::move(message_queue));
     }
     return body;
